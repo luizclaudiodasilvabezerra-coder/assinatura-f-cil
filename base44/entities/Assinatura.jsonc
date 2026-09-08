@@ -1,0 +1,50 @@
+{
+  "name": "Assinatura",
+  "type": "object",
+  "properties": {
+    "documento_id": {
+      "type": "string",
+      "title": "Documento"
+    },
+    "documento_titulo": {
+      "type": "string",
+      "title": "T\u00edtulo do documento"
+    },
+    "assinante_nome": {
+      "type": "string",
+      "title": "Assinante"
+    },
+    "assinante_email": {
+      "type": "string",
+      "title": "E-mail do assinante",
+      "format": "email"
+    },
+    "imagem_url": {
+      "type": "string",
+      "title": "Imagem da assinatura",
+      "format": "uri"
+    },
+    "observacao": {
+      "type": "string",
+      "title": "Observa\u00e7\u00e3o"
+    },
+    "status": {
+      "type": "string",
+      "title": "Status",
+      "enum": [
+        "pendente",
+        "assinado",
+        "rejeitado"
+      ],
+      "default": "assinado"
+    },
+    "data_assinatura": {
+      "type": "string",
+      "title": "Data da assinatura",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "assinante_nome"
+  ]
+}

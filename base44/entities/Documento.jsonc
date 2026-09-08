@@ -1,0 +1,47 @@
+{
+  "name": "Documento",
+  "type": "object",
+  "properties": {
+    "titulo": {
+      "type": "string",
+      "title": "T\u00edtulo"
+    },
+    "descricao": {
+      "type": "string",
+      "title": "Descri\u00e7\u00e3o"
+    },
+    "arquivo_url": {
+      "type": "string",
+      "title": "Arquivo",
+      "format": "uri"
+    },
+    "status": {
+      "type": "string",
+      "title": "Status",
+      "enum": [
+        "rascunho",
+        "pendente",
+        "assinado",
+        "arquivado"
+      ],
+      "default": "pendente"
+    },
+    "destinatario_nome": {
+      "type": "string",
+      "title": "Destinat\u00e1rio"
+    },
+    "destinatario_email": {
+      "type": "string",
+      "title": "E-mail do destinat\u00e1rio",
+      "format": "email"
+    },
+    "data_limite": {
+      "type": "string",
+      "title": "Data limite",
+      "format": "date"
+    }
+  },
+  "required": [
+    "titulo"
+  ]
+}
