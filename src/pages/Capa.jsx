@@ -1,5 +1,4 @@
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -11,14 +10,17 @@ const LOGO_URL = "https://media.base44.com/images/public/6aa074a5ce060f1b2caeee8
 const SENHA_CAPA = "LOG@2026";
 
 export default function Capa() {
-  const navigate = useNavigate();
   const [senha, setSenha] = useState("");
   const [erro, setErro] = useState(false);
 
   const entrar = (e) => {
-    e.preventDefault();
-    if (senha === SENHA_CAPA) { sessionStorage.setItem("capa_ok", "1"); navigate("/"); }
-    else setErro(true);
+    if (e) e.preventDefault();
+    if (senha.trim() === SENHA_CAPA) {
+      sessionStorage.setItem("capa_ok", "1");
+      window.location.href = "/";
+    } else {
+      setErro(true);
+    }
   };
 
   return (
@@ -52,7 +54,7 @@ export default function Capa() {
               <div className="flex items-center gap-2 text-sm text-muted-foreground"><Lock className="w-4 h-4" /> Informe a senha para acessar (web ou mobile)</div>
               <Input type="password" value={senha} onChange={(e) => { setSenha(e.target.value); setErro(false); }} placeholder="Senha de acesso" autoFocus />
               {erro && <p className="text-sm text-destructive">Senha incorreta.</p>}
-              <Button type="submit" className="w-full gap-2 bg-brand text-white hover:bg-brand/90"><ShieldCheck className="w-4 h-4" /> Entrar</Button>
+              <Button type="submit" onClick={entrar} className="w-full gap-2 bg-brand text-white hover:bg-brand/90"><ShieldCheck className="w-4 h-4" /> Entrar</Button>
             </form>
           </CardContent>
         </Card>
