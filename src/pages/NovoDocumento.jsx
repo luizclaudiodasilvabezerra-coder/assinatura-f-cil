@@ -32,6 +32,9 @@ export default function NovoDocumento() {
     base44.entities.Cadastro.list("-created_date", 200).then(setCadastros).catch(() => {});
   }, []);
 
+  const unidades = cadastros.filter((c) => c.tipo === "unidade");
+  const operacoes = cadastros.filter((c) => c.tipo === "operacao");
+
   const update = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
   const onSignatarioChange = (e) => {
@@ -40,8 +43,6 @@ export default function NovoDocumento() {
       ...f,
       signatario_cadastro_id: e.target.value,
       signatario_nome: c ? c.nome : "",
-      unidade_negocio: f.unidade_negocio || (c?.unidade_negocio || ""),
-      operacao: f.operacao || (c?.operacao || ""),
     }));
   };
 
@@ -115,7 +116,7 @@ export default function NovoDocumento() {
                 <select id="signatario" value={form.signatario_cadastro_id} onChange={onSignatarioChange} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
                   <option value="">— Selecionar do cadastro —</option>
                   {cadastros.map((c) => (
-                    <option key={c.id} value={c.id}>{c.nome}{c.email ? ` · ${c.email}` : ""}</option>
+                    <option key={c.id} value={c.id}>{c.nome}</option>
                   ))}
                 </select>
                 <Input value={form.signatario_nome} onChange={update("signatario_nome")} placeholder="Ou digite o nome do signatário" className="mt-2" />
@@ -124,11 +125,17 @@ export default function NovoDocumento() {
               <div className="grid sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="unidade_negocio">Unidade de negócio</Label>
-                  <Input id="unidade_negocio" value={form.unidade_negocio} onChange={update("unidade_negocio")} placeholder="Ex.: Operações" />
+                  <select id="unidade_negocio" value={form.unidade_negocio} onChange={update("unidade_negocio")} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+                    <option value="">— Selecionar —</option>
+                    {unidades.map((c) => (<option key={c.id} value={c.nome}>{c.nome}</option>))}
+                  </select>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="operacao">Operação</Label>
-                  <Input id="operacao" value={form.operacao} onChange={update("operacao")} placeholder="Ex.: Vendas" />
+                  <select id="operacao" value={form.operacao} onChange={update("operacao")} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+                    <option value="">— Selecionar —</option>
+                    {operacoes.map((c) => (<option key={c.id} value={c.nome}>{c.nome}</option>))}
+                  </select>
                 </div>
               </div>
 

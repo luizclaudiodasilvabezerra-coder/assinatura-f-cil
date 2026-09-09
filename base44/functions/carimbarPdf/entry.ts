@@ -49,10 +49,10 @@ export default async function(req) {
     const indentPx = (Number(indent || 0)) * 14;
     const lines = [];
     if (nome) lines.push('Assinado por: ' + nome);
-    if (data) lines.push('Data: ' + data);
-    if (observacao) lines.push('Obs.: ' + observacao);
-    if (operacao) lines.push('Operacao: ' + operacao);
-    if (unidade) lines.push('Unidade: ' + unidade);
+    if (data) lines.push('Criada em: ' + data);
+    if (observacao) lines.push('Observação: ' + observacao);
+    if (operacao) lines.push('Operação: ' + operacao);
+    if (unidade) lines.push('Unidade de negócio: ' + unidade);
     for (const line of lines) {
       page.drawText(line, { x: x + indentPx, y: textY, size: fontSize, font, color: rgb(0, 0, 0) });
       textY -= fontSize + 3;
