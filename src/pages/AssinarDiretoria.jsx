@@ -12,7 +12,7 @@ import { ArrowLeft, Loader2, CheckCircle2, Calendar, Upload, PenLine, ShieldChec
 import { useToast } from "@/components/ui/use-toast";
 import SignaturePad from "@/components/SignaturePad";
 import { dataURLToFile, formatDate } from "@/lib/signatureUtils";
-import { baixarEnvelopePdf, baixarArquivoPdf } from "@/lib/pdfDownload";
+import { base64ToBlob, baixarEnvelopePdf, baixarArquivoPdf } from "@/lib/pdfDownload";
 
 const fileName = (url) => (url ? decodeURIComponent(url.split("/").pop() || "arquivo") : "Documento");
 
@@ -89,8 +89,42 @@ export default function AssinarDiretoria() {
       imagem_url = imagemUpload; setSaving(true);
     }
     try {
+      const dataStr = new Date().toLocaleString("pt-BR");
+      let masterArquivoUrl = gestaoSigs[0]?.arquivo_url || undefined;
+      for (const s of gestaoSigs) {
+        if (!s.arquivo_url || !/\.pdf$/i.test(s.arquivo_url)) continue;
+        let stampRes;
+        try {
+          stampRes = await base44.functions.invoke("carimbarPdf", {
+            fileUrl: s.arquivo_url, imagemUrl: imagem_url, posX: 10, posY: 70,
+            nome, data: dataStr, observacao,
+            operacao: doc.operacao || "", unidade: doc.unidade_negocio || "", indent: 0,
+          });
+        } catch {
+          toast({ title: "Falha ao gravar assinatura no PDF", description: "A assinatura da diretoria não foi registrada no arquivo. Tente novamente.", variant: "destructive" });
+          setSaving(false);
+          return;
+        }
+        if (!stampRes.data?.pdf_base64) {
+          toast({ title: "Falha ao gravar assinatura no PDF", description: stampRes.data?.error || "A assinatura da diretoria não foi registrada no arquivo. Tente novamente.", variant: "destructive" });
+          setSaving(false);
+          return;
+        }
+        let stampedUrl;
+        try {
+          const stampedFile = new File([base64ToBlob(stampRes.data.pdf_base64)], `diretoria_${fileName(s.arquivo_url)}`, { type: "application/pdf" });
+          const up2 = await base44.integrations.Core.UploadFile({ file: stampedFile });
+          stampedUrl = up2.file_url;
+        } catch {
+          toast({ title: "Falha ao salvar PDF assinado", variant: "destructive" });
+          setSaving(false);
+          return;
+        }
+        await base44.entities.Assinatura.update(s.id, { arquivo_url: stampedUrl });
+        if (s.id === gestaoSigs[0]?.id) masterArquivoUrl = stampedUrl;
+      }
       await base44.entities.Assinatura.create({
-        documento_id: id, documento_titulo: doc.titulo, arquivo_url: gestaoSigs[0]?.arquivo_url || undefined,
+        documento_id: id, documento_titulo: doc.titulo, arquivo_url: masterArquivoUrl,
         assinante_nome: nome, assinante_cadastro_id: cadastroId || undefined, imagem_url, tipo: modo,
         etapa: "master", observacao, indent: 0, pos_x: 10, pos_y: 70,
         unidade_negocio: doc.unidade_negocio || "", operacao: doc.operacao || "",
@@ -98,7 +132,7 @@ export default function AssinarDiretoria() {
       });
       await base44.entities.Documento.update(id, { status: "assinado_diretoria" });
       setDone(true);
-      toast({ title: "Envelope concluído", description: "Assinatura da diretoria registrada." });
+      toast({ title: "Envelope concluído", description: "Assinatura da diretoria registrada no arquivo." });
     } catch { toast({ title: "Erro ao registrar assinatura", variant: "destructive" }); }
     finally { setSaving(false); }
   };
