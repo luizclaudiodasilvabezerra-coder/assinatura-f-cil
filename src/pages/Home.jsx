@@ -4,10 +4,13 @@ import { motion } from "framer-motion";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { FileText, Clock, CheckCircle2, Plus, ScrollText, Users, Paperclip, Download, Loader2, Send } from "lucide-react";
+import { FileText, Clock, CheckCircle2, Plus, ScrollText, Users, Paperclip, Download, Loader2, Send, Trash2 } from "lucide-react";
 import { formatDate } from "@/lib/signatureUtils";
 import { baixarEnvelopePdf } from "@/lib/pdfDownload";
 import ShareIcons from "@/components/ShareIcons";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { useToast } from "@/components/ui/use-toast";
 
 const STAGES = [
   { key: "all", label: "Envelopes", icon: FileText, tone: "text-slate-900" },
@@ -41,6 +44,10 @@ export default function Home() {
   const [filtroData, setFiltroData] = useState("");
   const [downloadingId, setDownloadingId] = useState(null);
   const [enviandoId, setEnviandoId] = useState(null);
+  const [excluirDoc, setExcluirDoc] = useState(null);
+  const [senha, setSenha] = useState("");
+  const [excluindo, setExcluindo] = useState(false);
+  const { toast } = useToast();
 
   const load = async () => {
     try {
@@ -91,6 +98,20 @@ export default function Home() {
   };
 
   const linkPara = (d) => (d.status === "pendente_diretoria" ? `/assinar-diretoria/${d.id}` : `/assinar/${d.id}`);
+
+  const confirmarExclusao = async () => {
+    if (senha !== "062026") { toast({ title: "Senha incorreta", variant: "destructive" }); return; }
+    setExcluindo(true);
+    try {
+      await base44.entities.Assinatura.deleteMany({ documento_id: excluirDoc.id });
+      await base44.entities.Documento.delete(excluirDoc.id);
+      setExcluirDoc(null);
+      setSenha("");
+      await load();
+      toast({ title: "Envelope excluído" });
+    } catch { toast({ title: "Erro ao excluir", variant: "destructive" }); }
+    finally { setExcluindo(false); }
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -175,6 +196,9 @@ export default function Home() {
                         {downloadingId === d.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
                       </button>
                     )}
+                    <button type="button" onClick={() => { setExcluirDoc(d); setSenha(""); }} className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-destructive" title="Excluir envelope">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
                     <ShareIcons title={d.titulo} signUrl={`${window.location.origin}${linkPara(d)}`} />
                     <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${stageStyles[d.status] || "bg-slate-100 text-slate-600"}`}>{stageLabel[d.status] || d.status}</span>
                   </div>
@@ -183,6 +207,22 @@ export default function Home() {
             ))
           )}
         </div>
+
+      <Dialog open={!!excluirDoc} onOpenChange={(o) => !o && setExcluirDoc(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Excluir envelope</DialogTitle>
+            <DialogDescription>Informe a senha para confirmar a exclusão de "{excluirDoc?.titulo}". Esta ação remove o envelope e suas assinaturas.</DialogDescription>
+          </DialogHeader>
+          <Input type="password" value={senha} onChange={(e) => setSenha(e.target.value)} placeholder="Senha" autoFocus onKeyDown={(e) => { if (e.key === "Enter") confirmarExclusao(); }} />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setExcluirDoc(null)}>Cancelar</Button>
+            <Button variant="destructive" disabled={excluindo || !senha} onClick={confirmarExclusao} className="gap-2">
+              {excluindo ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />} Excluir
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       </div>
     </div>
   );
