@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
+import { enviarOutlook } from '../../shared/outlookMail.ts';
 
 export default async function(req) {
   try {
@@ -26,14 +27,20 @@ export default async function(req) {
 
     const html = `<div style="font-family:sans-serif"><p>Você tem notas para assinar no <strong>Assinatura digital</strong>.</p><pre style="white-space:pre-wrap;font-family:sans-serif;background:#f5f5f5;padding:12px;border-radius:8px">${linhas}</pre><p>Acesse a plataforma para conferir o envelope.</p></div>`;
 
-    await base44.asServiceRole.integrations.Core.SendEmail({
-      to: doc.destinatario_email,
-      subject: 'Você tem notas para assinar no Assinatura digital',
-      html,
-      from_name: doc.signatario_nome || 'Assinatura Fácil Log',
-    });
+    let via = 'plataforma';
+    try {
+      await enviarOutlook(base44, { to: doc.destinatario_email, subject: 'Você tem notas para assinar no Assinatura digital', html });
+      via = 'outlook';
+    } catch (e) {
+      await base44.asServiceRole.integrations.Core.SendEmail({
+        to: doc.destinatario_email,
+        subject: 'Você tem notas para assinar no Assinatura digital',
+        html,
+        from_name: doc.signatario_nome || 'Assinatura Fácil Log',
+      });
+    }
 
-    return Response.json({ ok: true });
+    return Response.json({ ok: true, via });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });
   }

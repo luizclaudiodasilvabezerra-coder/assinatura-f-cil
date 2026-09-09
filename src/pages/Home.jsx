@@ -5,6 +5,7 @@ import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { FileText, Clock, CheckCircle2, Plus, ScrollText, Users, Paperclip, Download, Loader2, Send, Trash2, Timer, BarChart3, AlertTriangle, ShieldCheck } from "lucide-react";
+import OutlookConnect from "@/components/OutlookConnect";
 import { formatDate } from "@/lib/signatureUtils";
 import { baixarEnvelopePdf } from "@/lib/pdfDownload";
 import ShareIcons from "@/components/ShareIcons";
@@ -198,6 +199,7 @@ export default function Home() {
             <Button asChild variant="outline"><Link to="/cadastros" className="gap-2"><Users className="w-4 h-4" /> Cadastros</Link></Button>
             <Button asChild variant="outline"><Link to="/log" className="gap-2"><ScrollText className="w-4 h-4" /> Log</Link></Button>
             <Button asChild variant="outline"><Link to="/assinados" className="gap-2"><CheckCircle2 className="w-4 h-4" /> Concluídos</Link></Button>
+            <OutlookConnect />
             <Button asChild><Link to="/novo" className="gap-2"><Plus className="w-4 h-4" /> Novo envelope</Link></Button>
           </div>
         </header>

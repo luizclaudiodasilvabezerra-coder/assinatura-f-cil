@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
+import { enviarOutlook } from '../../shared/outlookMail.ts';
 
 export default async function(req) {
   try {
@@ -31,19 +32,25 @@ export default async function(req) {
     const html = `<div style="font-family:sans-serif"><p>O envelope <strong>${doc.titulo}</strong> foi <strong>totalmente assinado</strong> pela diretoria.</p><pre style="white-space:pre-wrap;font-family:sans-serif;background:#f5f5f5;padding:12px;border-radius:8px">${linhas}</pre><p>Os arquivos assinados estão disponíveis para exportação na plataforma.</p></div>`;
 
     let enviados = 0;
+    let via = 'plataforma';
     for (const email of emails) {
       try {
-        await base44.asServiceRole.integrations.Core.SendEmail({
-          to: email,
-          subject: 'Envelope totalmente assinado',
-          html,
-          from_name: diretoriaNome || 'Diretoria',
-        });
+        try {
+          await enviarOutlook(base44, { to: email, subject: 'Envelope totalmente assinado', html });
+          via = 'outlook';
+        } catch (e) {
+          await base44.asServiceRole.integrations.Core.SendEmail({
+            to: email,
+            subject: 'Envelope totalmente assinado',
+            html,
+            from_name: diretoriaNome || 'Diretoria',
+          });
+        }
         enviados++;
       } catch (e) { /* continua para os próximos */ }
     }
 
-    return Response.json({ ok: true, enviados, total: emails.length });
+    return Response.json({ ok: true, enviados, total: emails.length, via });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });
   }
