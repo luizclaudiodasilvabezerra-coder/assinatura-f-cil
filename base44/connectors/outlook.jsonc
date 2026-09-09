@@ -1,0 +1,8 @@
+{
+  "type": "outlook",
+  "scopes": [
+    "https://graph.microsoft.com/Mail.Send",
+    "User.Read",
+    "offline_access"
+  ]
+}
