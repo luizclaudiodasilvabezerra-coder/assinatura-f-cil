@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ArrowLeft, Loader2, FileText, CheckCircle2, Calendar, User, Upload, PenLine, Plus, Minus, ChevronRight, Pen, AlertTriangle, Download, Send } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import SignaturePad from "@/components/SignaturePad";
 import DocumentPositioner from "@/components/DocumentPositioner";
 import { dataURLToFile, formatDate } from "@/lib/signatureUtils";
@@ -19,6 +20,7 @@ const fileName = (url) => (url ? decodeURIComponent(url.split("/").pop() || "arq
 
 export default function AssinarDocumento() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const { toast } = useToast();
   const padRef = useRef(null);
   const obsRef = useRef(null);
@@ -30,6 +32,7 @@ export default function AssinarDocumento() {
   const [critica, setCritica] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [enviando, setEnviando] = useState(false);
+  const [showParcial, setShowParcial] = useState(false);
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [signedMap, setSignedMap] = useState({});
@@ -179,9 +182,13 @@ export default function AssinarDocumento() {
 
       const next = findNextUnsigned(currentIndex);
       if (next === -1) {
-        await base44.entities.Documento.update(id, { status: "assinado_gestao" });
-        setDoc((d) => ({ ...d, status: "assinado_gestao" }));
-        toast({ title: "Todos os arquivos assinados pela gestão", description: "Envelope pronto para enviar à diretoria." });
+        if (doc.status === "pendente_gestao") {
+          await base44.entities.Documento.update(id, { status: "assinado_gestao" });
+          setDoc((d) => ({ ...d, status: "assinado_gestao" }));
+          toast({ title: "Todos os arquivos assinados pela gestão", description: "Envelope pronto para enviar à diretoria." });
+        } else {
+          toast({ title: "Arquivos restantes assinados", description: "O envelope já está com a diretoria." });
+        }
       } else {
         setCurrentIndex(next);
         toast({ title: "Arquivo assinado", description: "Avançando para o próximo arquivo." });
@@ -209,10 +216,25 @@ export default function AssinarDocumento() {
     finally { setEnviando(false); }
   };
 
+  const enviarParcial = async () => {
+    setEnviando(true);
+    try {
+      await base44.entities.Documento.update(id, { status: "pendente_diretoria" });
+      setDoc((d) => ({ ...d, status: "pendente_diretoria" }));
+      toast({ title: "Envio parcial à diretoria", description: "Arquivos assinados enviados à diretoria. Os pendentes seguem no painel." });
+      navigate("/");
+    } catch { toast({ title: "Erro ao enviar", variant: "destructive" }); }
+    finally { setEnviando(false); setShowParcial(false); }
+  };
+
+  const someSigned = Object.keys(signedMap).length > 0;
+  const someSignedButNotAll = someSigned && !allSigned;
+
   if (loading) return (<div className="min-h-screen flex items-center justify-center"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>);
   if (!doc) return (<div className="min-h-screen flex flex-col items-center justify-center gap-4"><p className="text-muted-foreground">Documento não encontrado.</p><Button asChild variant="outline"><Link to="/">Voltar</Link></Button></div>);
 
   if (gestaoDone) {
+    const jaEnviado = doc.status === "pendente_diretoria" || doc.status === "assinado_diretoria";
     return (
       <div className="min-h-screen flex items-center justify-center px-6">
         <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="text-center max-w-md">
@@ -220,13 +242,15 @@ export default function AssinarDocumento() {
             <CheckCircle2 className="w-8 h-8 text-blue-600" />
           </div>
           <h1 className="text-2xl font-heading mb-2">Assinatura da gestão concluída</h1>
-          <p className="text-muted-foreground mb-6">Todos os arquivos foram assinados pela gestão. Envie à diretoria para a assinatura final.</p>
+          <p className="text-muted-foreground mb-6">{jaEnviado ? "Todos os arquivos foram assinados e o envelope já está com a diretoria." : "Todos os arquivos foram assinados pela gestão. Envie à diretoria para a assinatura final."}</p>
 
           <div className="flex flex-col gap-3 mb-6">
+            {!jaEnviado && (
             <Button type="button" onClick={enviarDiretoria} disabled={enviando} className="gap-2">
               {enviando ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
               Enviar para assinatura da diretoria
             </Button>
+            )}
             <Button type="button" variant="outline" onClick={baixarEnvelope} disabled={downloading} className="gap-2">
               {downloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
               Baixar envelope (PDF)
@@ -273,11 +297,18 @@ export default function AssinarDocumento() {
               {doc.data_limite && <span className="inline-flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5" /> {formatDate(doc.data_limite)}</span>}
             </div>
           </div>
-          {Object.keys(signedMap).length > 0 && (
-            <Button type="button" variant="outline" onClick={baixarEnvelope} disabled={downloading} className="gap-2">
-              {downloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />} Baixar envelope
-            </Button>
-          )}
+          <div className="flex flex-wrap gap-2">
+            {Object.keys(signedMap).length > 0 && (
+              <Button type="button" variant="outline" onClick={baixarEnvelope} disabled={downloading} className="gap-2">
+                {downloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />} Baixar envelope
+              </Button>
+            )}
+            {someSignedButNotAll && (
+              <Button type="button" variant="secondary" onClick={() => setShowParcial(true)} className="gap-2">
+                <Send className="w-4 h-4" /> Enviar parcialmente à diretoria
+              </Button>
+            )}
+          </div>
         </div>
 
         <div className="flex flex-wrap gap-2 mb-6">
@@ -384,6 +415,21 @@ export default function AssinarDocumento() {
           </div>
         </div>
       </div>
+
+      <Dialog open={showParcial} onOpenChange={setShowParcial}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Enviar parcialmente à diretoria?</DialogTitle>
+            <DialogDescription>Existem arquivos sem assinar. Os arquivos já assinados serão enviados à diretoria agora; os pendentes permanecerão no painel disponíveis para assinatura.</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setShowParcial(false); const u = arquivos.findIndex((_, i) => !signedMap[i]); if (u >= 0) setCurrentIndex(u); }}>Não, voltar ao arquivo</Button>
+            <Button onClick={enviarParcial} disabled={enviando} className="gap-2">
+              {enviando ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />} Sim, enviar parcial
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

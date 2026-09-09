@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { FileText, Clock, CheckCircle2, Plus, ScrollText, Users, Paperclip, Download, Loader2, Send, Trash2, Timer, BarChart3, AlertTriangle } from "lucide-react";
+import { FileText, Clock, CheckCircle2, Plus, ScrollText, Users, Paperclip, Download, Loader2, Send, Trash2, Timer, BarChart3, AlertTriangle, ShieldCheck } from "lucide-react";
 import { formatDate } from "@/lib/signatureUtils";
 import { baixarEnvelopePdf } from "@/lib/pdfDownload";
 import ShareIcons from "@/components/ShareIcons";
@@ -162,7 +162,11 @@ export default function Home() {
     } catch {} finally { setEnviandoId(null); }
   };
 
-  const linkPara = (d) => (d.status === "pendente_diretoria" || d.status === "assinado_diretoria" ? `/assinar-diretoria/${d.id}` : `/assinar/${d.id}`);
+  const linkPara = (d) => {
+    if (hasPendente(d)) return `/assinar/${d.id}`;
+    if (d.status === "pendente_diretoria" || d.status === "assinado_diretoria") return `/assinar-diretoria/${d.id}`;
+    return `/assinar/${d.id}`;
+  };
 
   const confirmarExclusao = async () => {
     if (senha !== "062026") { toast({ title: "Senha incorreta", variant: "destructive" }); return; }
@@ -193,6 +197,7 @@ export default function Home() {
           <div className="flex flex-wrap gap-2">
             <Button asChild variant="outline"><Link to="/cadastros" className="gap-2"><Users className="w-4 h-4" /> Cadastros</Link></Button>
             <Button asChild variant="outline"><Link to="/log" className="gap-2"><ScrollText className="w-4 h-4" /> Log</Link></Button>
+            <Button asChild variant="outline"><Link to="/assinados" className="gap-2"><CheckCircle2 className="w-4 h-4" /> Concluídos</Link></Button>
             <Button asChild><Link to="/novo" className="gap-2"><Plus className="w-4 h-4" /> Novo envelope</Link></Button>
           </div>
         </header>
@@ -307,6 +312,11 @@ export default function Home() {
                             <button type="button" onClick={() => enviarDiretoria(d)} disabled={enviandoId === d.id} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-purple-600 text-white text-xs font-medium hover:bg-purple-700 disabled:opacity-50" title="Enviar para assinatura da diretoria">
                               {enviandoId === d.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />} Enviar à diretoria
                             </button>
+                          )}
+                          {d.status === "pendente_diretoria" && (
+                            <Link to={`/assinar-diretoria/${d.id}`} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-purple-600 text-white text-xs font-medium hover:bg-purple-700" title="Assinar como diretoria">
+                              <ShieldCheck className="w-3.5 h-3.5" /> Diretoria
+                            </Link>
                           )}
                           {d.status !== "pendente_gestao" && (
                             <button type="button" onClick={() => baixar(d)} className="p-1.5 rounded-md hover:bg-muted text-muted-foreground" title="Baixar envelope (PDF)">

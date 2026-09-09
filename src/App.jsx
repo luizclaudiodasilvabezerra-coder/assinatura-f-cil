@@ -18,11 +18,17 @@ import LogAssinaturas from '@/pages/LogAssinaturas';
 import Cadastros from '@/pages/Cadastros';
 import AssinarDiretoria from '@/pages/AssinarDiretoria';
 import Capa from '@/pages/Capa';
+import EnvelopesAssinados from '@/pages/EnvelopesAssinados';
 
 function CapaGate() {
   const ok = typeof window !== "undefined" && window.sessionStorage.getItem("capa_ok") === "1";
   if (!ok) return <Navigate to="/capa" replace />;
   return <Outlet />;
+}
+
+function CapaOrLogin() {
+  const ok = typeof window !== "undefined" && window.sessionStorage.getItem("capa_ok") === "1";
+  return ok ? <Navigate to="/login" replace /> : <Navigate to="/capa" replace />;
 }
 
 const AuthenticatedApp = () => {
@@ -57,13 +63,14 @@ const AuthenticatedApp = () => {
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route element={<CapaGate />}>
-        <Route element={<ProtectedRoute unauthenticatedElement={typeof window !== "undefined" && window.sessionStorage.getItem("capa_ok") === "1" ? <Navigate to="/login" replace /> : <Navigate to="/capa" replace />} />}>
+        <Route element={<ProtectedRoute unauthenticatedElement={<CapaOrLogin />} />}>
           <Route path="/" element={<Home />} />
           <Route path="/novo" element={<NovoDocumento />} />
           <Route path="/assinar/:id" element={<AssinarDocumento />} />
           <Route path="/assinar-diretoria/:id" element={<AssinarDiretoria />} />
           <Route path="/log" element={<LogAssinaturas />} />
           <Route path="/cadastros" element={<Cadastros />} />
+          <Route path="/assinados" element={<EnvelopesAssinados />} />
         </Route>
       </Route>
       <Route path="*" element={<PageNotFound />} />

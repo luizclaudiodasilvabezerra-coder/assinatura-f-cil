@@ -22,6 +22,7 @@ export default function NovoDocumento() {
     destinatario_nome: "",
     destinatario_email: "",
     signatario_nome: "",
+    signatario_email: "",
     signatario_cadastro_id: "",
     unidade_negocio: "",
     operacao: "",
@@ -43,6 +44,7 @@ export default function NovoDocumento() {
       ...f,
       signatario_cadastro_id: e.target.value,
       signatario_nome: c ? c.nome : "",
+      signatario_email: c && c.email ? c.email : "",
     }));
   };
 
@@ -52,6 +54,9 @@ export default function NovoDocumento() {
       ...f,
       destinatario_nome: c ? c.nome : "",
       destinatario_email: c && c.email ? c.email : "",
+      signatario_cadastro_id: c ? c.id : f.signatario_cadastro_id,
+      signatario_nome: c ? c.nome : f.signatario_nome,
+      signatario_email: c && c.email ? c.email : f.signatario_email,
     }));
   };
 
@@ -85,7 +90,7 @@ export default function NovoDocumento() {
     try {
       const all = await base44.entities.Documento.list("-created_date", 1000);
       const numero = `ENV-${String((all.length || 0) + 1).padStart(4, "0")}`;
-      await base44.entities.Documento.create({
+      const created = await base44.entities.Documento.create({
         ...form,
         numero,
         arquivos,
@@ -93,6 +98,9 @@ export default function NovoDocumento() {
         pasta: "pendente",
       });
       toast({ title: "Envelope criado", description: numero });
+      if (created && created.destinatario_email) {
+        base44.functions.invoke("enviarAlertaDestinatario", { documentoId: created.id }).catch(() => {});
+      }
       navigate("/");
     } catch {
       toast({ title: "Erro ao criar envelope", variant: "destructive" });
@@ -131,7 +139,8 @@ export default function NovoDocumento() {
                   ))}
                 </select>
                 <Input value={form.signatario_nome} onChange={update("signatario_nome")} placeholder="Ou digite o nome do signatário" className="mt-2" />
-              </div>
+                <Input type="email" value={form.signatario_email} onChange={update("signatario_email")} placeholder="E-mail do signatário" className="mt-2" />
+                </div>
 
               <div className="grid sm:grid-cols-2 gap-4">
                 <div className="space-y-2">

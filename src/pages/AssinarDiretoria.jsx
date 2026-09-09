@@ -175,6 +175,7 @@ export default function AssinarDiretoria() {
         await base44.entities.Documento.update(id, { status: "assinado_diretoria", pasta: "assinados" });
         setDoc((d) => ({ ...d, status: "assinado_diretoria", pasta: "assinados" }));
         toast({ title: "Todos os arquivos assinados pela diretoria", description: "Envelope concluído." });
+        base44.functions.invoke("enviarAlertaConcluido", { documentoId: id, diretoriaNome: nome }).catch(() => {});
       } else {
         let next = -1;
         for (let step = 1; step <= arquivos.length; step++) {

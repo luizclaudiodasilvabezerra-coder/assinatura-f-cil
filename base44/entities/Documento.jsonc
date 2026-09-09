@@ -56,6 +56,11 @@
       "type": "string",
       "title": "Signat\u00e1rio"
     },
+    "signatario_email": {
+      "type": "string",
+      "title": "E-mail do signat\u00e1rio",
+      "format": "email"
+    },
     "signatario_cadastro_id": {
       "type": "string",
       "title": "Cadastro do signat\u00e1rio"
