@@ -4,8 +4,9 @@ import { motion } from "framer-motion";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { FileText, PenLine, Clock, CheckCircle2, Plus, ScrollText, Folder, FolderOpen, Users, Paperclip } from "lucide-react";
+import { FileText, PenLine, Clock, CheckCircle2, Plus, ScrollText, Folder, FolderOpen, Users, Paperclip, Download, Loader2 } from "lucide-react";
 import { formatDate } from "@/lib/signatureUtils";
+import { baixarEnvelopePdf } from "@/lib/pdfDownload";
 import ShareIcons from "@/components/ShareIcons";
 
 const statusStyles = {
@@ -21,6 +22,7 @@ export default function Home() {
   const [pasta, setPasta] = useState("pendente");
   const [filtroUnidade, setFiltroUnidade] = useState("");
   const [filtroData, setFiltroData] = useState("");
+  const [downloadingId, setDownloadingId] = useState(null);
 
   useEffect(() => {
     (async () => {
@@ -59,6 +61,17 @@ export default function Home() {
     if (filtroData && d.data_limite !== filtroData) return false;
     return true;
   });
+
+  const baixar = async (d) => {
+    setDownloadingId(d.id);
+    try {
+      await baixarEnvelopePdf(d.id, `${d.numero || "envelope"}.pdf`);
+    } catch (e) {
+      setDownloadingId(null);
+    } finally {
+      setDownloadingId(null);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -146,6 +159,11 @@ export default function Home() {
                     </p>
                   </Link>
                   <div className="flex items-center gap-2 shrink-0">
+                    {d.status === "assinado" && (
+                      <button type="button" onClick={() => baixar(d)} className="p-1.5 rounded-md hover:bg-muted text-muted-foreground" title="Baixar envelope (PDF)">
+                        {downloadingId === d.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                      </button>
+                    )}
                     <ShareIcons title={d.titulo} signUrl={`${window.location.origin}/assinar/${d.id}`} />
                     <span className={`text-xs px-2.5 py-1 rounded-full font-medium capitalize ${statusStyles[d.status] || statusStyles.pendente}`}>{d.status}</span>
                   </div>

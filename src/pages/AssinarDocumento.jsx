@@ -7,11 +7,12 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, Loader2, FileText, CheckCircle2, Calendar, User, Upload, PenLine, Plus, Minus, ChevronRight, Pen, ShieldCheck, AlertTriangle } from "lucide-react";
+import { ArrowLeft, Loader2, FileText, CheckCircle2, Calendar, User, Upload, PenLine, Plus, Minus, ChevronRight, Pen, ShieldCheck, AlertTriangle, Download } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import SignaturePad from "@/components/SignaturePad";
 import DocumentPositioner from "@/components/DocumentPositioner";
 import { dataURLToFile, formatDate } from "@/lib/signatureUtils";
+import { base64ToBlob, baixarEnvelopePdf, baixarArquivoPdf } from "@/lib/pdfDownload";
 
 const isImage = (url) => url && /\.(png|jpe?g|webp|gif)$/i.test(url);
 const fileName = (url) => (url ? decodeURIComponent(url.split("/").pop() || "arquivo") : "Documento");
@@ -30,6 +31,7 @@ export default function AssinarDocumento() {
   const [saving, setSaving] = useState(false);
   const [critica, setCritica] = useState(false);
   const [masterCritica, setMasterCritica] = useState(false);
+  const [downloading, setDownloading] = useState(false);
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [signedMap, setSignedMap] = useState({});
@@ -171,11 +173,36 @@ export default function AssinarDocumento() {
       setSaving(true);
     }
 
+    let arquivo_url = currentFile || undefined;
+    if (currentFile && /\.pdf$/i.test(currentFile)) {
+      try {
+        const stampRes = await base44.functions.invoke("carimbarPdf", {
+          fileUrl: currentFile,
+          imagemUrl: imagem_url,
+          posX: pos.x,
+          posY: pos.y,
+          nome: assinanteNome,
+          data: new Date().toLocaleString("pt-BR"),
+          observacao,
+          operacao: doc.operacao || "",
+          unidade: doc.unidade_negocio || "",
+          indent,
+        });
+        if (stampRes.data?.pdf_base64) {
+          const stampedFile = new File([base64ToBlob(stampRes.data.pdf_base64)], `assinado_${fileName(currentFile)}`, { type: "application/pdf" });
+          const up2 = await base44.integrations.Core.UploadFile({ file: stampedFile });
+          arquivo_url = up2.file_url;
+        }
+      } catch {
+        toast({ title: "Aviso", description: "Carimbo do PDF falhou; salvo arquivo original.", variant: "destructive" });
+      }
+    }
+
     try {
       const rec = await base44.entities.Assinatura.create({
         documento_id: id,
         documento_titulo: doc.titulo,
-        arquivo_url: currentFile || undefined,
+        arquivo_url,
         assinante_nome: assinanteNome,
         assinante_email: assinanteEmail,
         assinante_cadastro_id: cadastroId || undefined,
@@ -286,6 +313,17 @@ export default function AssinarDocumento() {
     if (next !== -1) setCurrentIndex(next);
   };
 
+  const baixarEnvelope = async () => {
+    setDownloading(true);
+    try {
+      await baixarEnvelopePdf(id, `${doc.numero || "envelope"}.pdf`);
+    } catch (e) {
+      toast({ title: "Erro ao baixar", description: e.message, variant: "destructive" });
+    } finally {
+      setDownloading(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -312,6 +350,26 @@ export default function AssinarDocumento() {
           </div>
           <h1 className="text-2xl font-heading mb-2">Envelope concluído</h1>
           <p className="text-muted-foreground mb-6">Todos os arquivos e a assinatura master foram registrados. O envelope foi movido para a pasta "Assinados".</p>
+
+          <div className="flex flex-col gap-3 mb-6">
+            <Button type="button" onClick={baixarEnvelope} disabled={downloading} className="gap-2">
+              {downloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+              Baixar envelope completo (PDF)
+            </Button>
+            <div className="text-left space-y-2">
+              <p className="text-xs text-muted-foreground">Arquivos assinados (clique para baixar individual):</p>
+              {arquivos.filter(Boolean).map((url, i) => {
+                const sig = signedMap[i];
+                const signedUrl = sig?.arquivo_url || url;
+                return (
+                  <button key={i} type="button" onClick={() => baixarArquivoPdf(signedUrl, fileName(signedUrl))} className="flex items-center gap-2 text-sm text-blue-600 hover:underline w-full text-left">
+                    <Download className="w-3.5 h-3.5" /> {fileName(url)}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
           <div className="flex justify-center gap-3">
             <Button asChild variant="outline"><Link to="/log">Ver log</Link></Button>
             <Button asChild><Link to="/">Painel</Link></Button>
