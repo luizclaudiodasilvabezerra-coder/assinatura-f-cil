@@ -175,7 +175,14 @@ export default function AssinarDiretoria() {
         await base44.entities.Documento.update(id, { status: "assinado_diretoria", pasta: "assinados" });
         setDoc((d) => ({ ...d, status: "assinado_diretoria", pasta: "assinados" }));
         toast({ title: "Todos os arquivos assinados pela diretoria", description: "Envelope concluído." });
-        base44.functions.invoke("enviarAlertaConcluido", { documentoId: id, diretoriaNome: nome }).catch(() => {});
+        base44.functions.invoke("enviarAlertaConcluido", { documentoId: id, diretoriaNome: nome })
+          .then((res) => {
+            const dests = res?.data?.destinatarios;
+            if (dests && dests.length) {
+              toast({ title: "Alerta enviado para destinatários", description: dests.join(", "), duration: 8000 });
+            }
+          })
+          .catch(() => {});
       } else {
         let next = -1;
         for (let step = 1; step <= arquivos.length; step++) {

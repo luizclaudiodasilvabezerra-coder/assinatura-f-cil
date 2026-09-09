@@ -69,7 +69,7 @@ export default async function(req) {
       } catch (e) { /* continua para os próximos */ }
     }
 
-    return Response.json({ ok: true, enviados, total: emails.length, via });
+    return Response.json({ ok: true, enviados, total: emails.length, via, destinatarios: emails });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });
   }
