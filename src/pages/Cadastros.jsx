@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Users, Plus, Trash2, Loader2, Mail, Phone } from "lucide-react";
+import { Users, Plus, Trash2, Loader2, Mail, Phone, Building2, Briefcase, ShieldCheck } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 
 const tipoLabel = { signatario: "Signatário", destinatario: "Destinatário", ambos: "Ambos" };
@@ -15,7 +15,7 @@ export default function Cadastros() {
   const { toast } = useToast();
   const [lista, setLista] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [form, setForm] = useState({ nome: "", email: "", telefone: "", tipo: "ambos" });
+  const [form, setForm] = useState({ nome: "", email: "", telefone: "", tipo: "ambos", unidade_negocio: "", operacao: "", diretoria: "" });
   const [saving, setSaving] = useState(false);
 
   const load = async () => {
@@ -38,7 +38,7 @@ export default function Cadastros() {
     setSaving(true);
     try {
       await base44.entities.Cadastro.create(form);
-      setForm({ nome: "", email: "", telefone: "", tipo: "ambos" });
+      setForm({ nome: "", email: "", telefone: "", tipo: "ambos", unidade_negocio: "", operacao: "", diretoria: "" });
       toast({ title: "Cadastro criado" });
       load();
     } catch {
@@ -55,11 +55,11 @@ export default function Cadastros() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="max-w-4xl mx-auto px-6 py-10">
+      <div className="max-w-5xl mx-auto px-6 py-10">
         <Link to="/" className="text-sm text-muted-foreground hover:text-foreground mb-6 inline-block">← Voltar</Link>
         <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2"><Users className="w-4 h-4" /> Cadastros</div>
         <h1 className="text-3xl font-heading tracking-tight mb-1">Signatários e destinatários</h1>
-        <p className="text-muted-foreground mb-8">Cadastre as pessoas que aparecem na lista suspensa ao assinar documentos.</p>
+        <p className="text-muted-foreground mb-8">Cadastre pessoas, unidades de negócio, operação e diretoria para o fluxo de assinatura.</p>
 
         <div className="grid lg:grid-cols-3 gap-6">
           <Card className="rounded-2xl border-border/60 lg:col-span-1 h-fit">
@@ -77,6 +77,18 @@ export default function Cadastros() {
                 <div className="space-y-2">
                   <Label htmlFor="telefone">Telefone</Label>
                   <Input id="telefone" value={form.telefone} onChange={update("telefone")} placeholder="(11) 99999-9999" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="unidade_negocio">Unidade de negócio</Label>
+                  <Input id="unidade_negocio" value={form.unidade_negocio} onChange={update("unidade_negocio")} placeholder="Ex.: Operações" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="operacao">Operação</Label>
+                  <Input id="operacao" value={form.operacao} onChange={update("operacao")} placeholder="Ex.: Vendas" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="diretoria">Diretoria</Label>
+                  <Input id="diretoria" value={form.diretoria} onChange={update("diretoria")} placeholder="Ex.: Diretoria Financeira" />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="tipo">Tipo</Label>
@@ -108,6 +120,9 @@ export default function Cadastros() {
                         <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground mt-1">
                           {c.email && <span className="inline-flex items-center gap-1"><Mail className="w-3 h-3" /> {c.email}</span>}
                           {c.telefone && <span className="inline-flex items-center gap-1"><Phone className="w-3 h-3" /> {c.telefone}</span>}
+                          {c.unidade_negocio && <span className="inline-flex items-center gap-1"><Building2 className="w-3 h-3" /> {c.unidade_negocio}</span>}
+                          {c.operacao && <span className="inline-flex items-center gap-1"><Briefcase className="w-3 h-3" /> {c.operacao}</span>}
+                          {c.diretoria && <span className="inline-flex items-center gap-1"><ShieldCheck className="w-3 h-3" /> {c.diretoria}</span>}
                         </div>
                       </div>
                       <div className="flex items-center gap-3 shrink-0">

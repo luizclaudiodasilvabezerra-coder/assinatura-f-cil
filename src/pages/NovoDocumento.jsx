@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
@@ -15,15 +15,35 @@ export default function NovoDocumento() {
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [arquivos, setArquivos] = useState([]);
+  const [cadastros, setCadastros] = useState([]);
   const [form, setForm] = useState({
     titulo: "",
     descricao: "",
     destinatario_nome: "",
     destinatario_email: "",
+    signatario_nome: "",
+    signatario_cadastro_id: "",
+    unidade_negocio: "",
+    operacao: "",
     data_limite: "",
   });
 
+  useEffect(() => {
+    base44.entities.Cadastro.list("-created_date", 200).then(setCadastros).catch(() => {});
+  }, []);
+
   const update = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+
+  const onSignatarioChange = (e) => {
+    const c = cadastros.find((x) => x.id === e.target.value);
+    setForm((f) => ({
+      ...f,
+      signatario_cadastro_id: e.target.value,
+      signatario_nome: c ? c.nome : "",
+      unidade_negocio: f.unidade_negocio || (c?.unidade_negocio || ""),
+      operacao: f.operacao || (c?.operacao || ""),
+    }));
+  };
 
   const handleFiles = async (e) => {
     const files = Array.from(e.target.files || []);
@@ -44,7 +64,6 @@ export default function NovoDocumento() {
   };
 
   const removeArquivo = (url) => setArquivos((prev) => prev.filter((u) => u !== url));
-
   const fileName = (url) => decodeURIComponent(url.split("/").pop() || "arquivo").slice(0, 40);
 
   const submit = async (e) => {
@@ -52,16 +71,19 @@ export default function NovoDocumento() {
     if (!form.titulo.trim()) return;
     setSaving(true);
     try {
+      const all = await base44.entities.Documento.list("-created_date", 1000);
+      const numero = `ENV-${String((all.length || 0) + 1).padStart(4, "0")}`;
       await base44.entities.Documento.create({
         ...form,
+        numero,
         arquivos,
         status: "pendente",
-        pasta: "recentes",
+        pasta: "pendente",
       });
-      toast({ title: "Documento criado" });
+      toast({ title: "Envelope criado", description: numero });
       navigate("/");
     } catch {
-      toast({ title: "Erro ao criar documento", variant: "destructive" });
+      toast({ title: "Erro ao criar envelope", variant: "destructive" });
     } finally {
       setSaving(false);
     }
@@ -73,8 +95,8 @@ export default function NovoDocumento() {
         <Link to="/" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6">
           <ArrowLeft className="w-4 h-4" /> Voltar
         </Link>
-        <h1 className="text-3xl font-heading tracking-tight mb-1">Novo documento</h1>
-        <p className="text-muted-foreground mb-8">Crie uma solicitação de assinatura e anexe quantos arquivos precisar.</p>
+        <h1 className="text-3xl font-heading tracking-tight mb-1">Novo envelope</h1>
+        <p className="text-muted-foreground mb-8">Crie um envelope de assinatura, aponte o signatário e anexe quantos arquivos precisar.</p>
 
         <Card className="rounded-2xl border-border/60">
           <CardContent className="p-6">
@@ -85,12 +107,35 @@ export default function NovoDocumento() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="descricao">Descrição</Label>
-                <Textarea id="descricao" value={form.descricao} onChange={update("descricao")} rows={3} placeholder="Resumo do documento a ser assinado" />
+                <Textarea id="descricao" value={form.descricao} onChange={update("descricao")} rows={3} placeholder="Resumo do envelope a ser assinado" />
               </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="signatario">Signatário (pasta pendente será gerada para ele)</Label>
+                <select id="signatario" value={form.signatario_cadastro_id} onChange={onSignatarioChange} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+                  <option value="">— Selecionar do cadastro —</option>
+                  {cadastros.map((c) => (
+                    <option key={c.id} value={c.id}>{c.nome}{c.email ? ` · ${c.email}` : ""}</option>
+                  ))}
+                </select>
+                <Input value={form.signatario_nome} onChange={update("signatario_nome")} placeholder="Ou digite o nome do signatário" className="mt-2" />
+              </div>
+
+              <div className="grid sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="unidade_negocio">Unidade de negócio</Label>
+                  <Input id="unidade_negocio" value={form.unidade_negocio} onChange={update("unidade_negocio")} placeholder="Ex.: Operações" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="operacao">Operação</Label>
+                  <Input id="operacao" value={form.operacao} onChange={update("operacao")} placeholder="Ex.: Vendas" />
+                </div>
+              </div>
+
               <div className="grid sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="destinatario_nome">Destinatário</Label>
-                  <Input id="destinatario_nome" value={form.destinatario_nome} onChange={update("destinatario_nome")} placeholder="Nome do signatário" />
+                  <Input id="destinatario_nome" value={form.destinatario_nome} onChange={update("destinatario_nome")} placeholder="Nome do destinatário" />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="destinatario_email">E-mail do destinatário</Label>
@@ -125,7 +170,7 @@ export default function NovoDocumento() {
               <div className="flex justify-end pt-2">
                 <Button type="submit" disabled={saving} className="gap-2">
                   {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-                  Criar solicitação
+                  Criar envelope
                 </Button>
               </div>
             </form>

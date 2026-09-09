@@ -42,6 +42,15 @@
       ],
       "default": "desenhada"
     },
+    "etapa": {
+      "type": "string",
+      "title": "Etapa",
+      "enum": [
+        "signatario",
+        "master"
+      ],
+      "default": "signatario"
+    },
     "observacao": {
       "type": "string",
       "title": "Observa\u00e7\u00e3o"
@@ -60,6 +69,14 @@
       "type": "number",
       "title": "Posi\u00e7\u00e3o Y (%)",
       "default": 70
+    },
+    "unidade_negocio": {
+      "type": "string",
+      "title": "Unidade de neg\u00f3cio"
+    },
+    "operacao": {
+      "type": "string",
+      "title": "Opera\u00e7\u00e3o"
     },
     "status": {
       "type": "string",

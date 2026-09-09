@@ -24,6 +24,18 @@
         "ambos"
       ],
       "default": "ambos"
+    },
+    "unidade_negocio": {
+      "type": "string",
+      "title": "Unidade de neg\u00f3cio"
+    },
+    "operacao": {
+      "type": "string",
+      "title": "Opera\u00e7\u00e3o"
+    },
+    "diretoria": {
+      "type": "string",
+      "title": "Diretoria"
     }
   },
   "required": [

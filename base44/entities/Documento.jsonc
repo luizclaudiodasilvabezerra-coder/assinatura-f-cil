@@ -10,6 +10,10 @@
       "type": "string",
       "title": "Descri\u00e7\u00e3o"
     },
+    "numero": {
+      "type": "string",
+      "title": "N\u00famero do envelope"
+    },
     "arquivos": {
       "type": "array",
       "title": "Arquivos",
@@ -33,10 +37,10 @@
       "type": "string",
       "title": "Pasta",
       "enum": [
-        "recentes",
+        "pendente",
         "assinados"
       ],
-      "default": "recentes"
+      "default": "pendente"
     },
     "destinatario_nome": {
       "type": "string",
@@ -46,6 +50,22 @@
       "type": "string",
       "title": "E-mail do destinat\u00e1rio",
       "format": "email"
+    },
+    "signatario_nome": {
+      "type": "string",
+      "title": "Signat\u00e1rio"
+    },
+    "signatario_cadastro_id": {
+      "type": "string",
+      "title": "Cadastro do signat\u00e1rio"
+    },
+    "unidade_negocio": {
+      "type": "string",
+      "title": "Unidade de neg\u00f3cio"
+    },
+    "operacao": {
+      "type": "string",
+      "title": "Opera\u00e7\u00e3o"
     },
     "data_limite": {
       "type": "string",

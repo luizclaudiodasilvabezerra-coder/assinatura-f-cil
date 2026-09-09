@@ -1,11 +1,11 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { FileText, PenLine, Clock, CheckCircle2, Plus, ArrowRight, ScrollText, Folder, FolderOpen, Users } from "lucide-react";
-import { formatDate, formatDateTime } from "@/lib/signatureUtils";
+import { FileText, PenLine, Clock, CheckCircle2, Plus, ScrollText, Folder, FolderOpen, Users, Paperclip } from "lucide-react";
+import { formatDate } from "@/lib/signatureUtils";
 import ShareIcons from "@/components/ShareIcons";
 
 const statusStyles = {
@@ -17,33 +17,48 @@ const statusStyles = {
 
 export default function Home() {
   const [documentos, setDocumentos] = useState([]);
-  const [assinaturas, setAssinaturas] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [pasta, setPasta] = useState("recentes");
+  const [pasta, setPasta] = useState("pendente");
+  const [filtroUnidade, setFiltroUnidade] = useState("");
+  const [filtroData, setFiltroData] = useState("");
 
   useEffect(() => {
     (async () => {
       try {
-        const [docs, sigs] = await Promise.all([
-          base44.entities.Documento.list("-created_date", 100),
-          base44.entities.Assinatura.list("-created_date", 6),
-        ]);
+        const docs = await base44.entities.Documento.list("-created_date", 200);
         setDocumentos(docs);
-        setAssinaturas(sigs);
       } finally {
         setLoading(false);
       }
     })();
   }, []);
 
-  const docsFiltrados = documentos.filter((d) => (d.pasta || "recentes") === pasta);
+  const totalArquivos = documentos.reduce((acc, d) => acc + (d.arquivos?.length || 0), 0);
+  const pendentes = documentos.filter((d) => d.status === "pendente");
+  const assinados = documentos.filter((d) => d.status === "assinado");
+  const arquivosPendentes = pendentes.reduce((acc, d) => acc + (d.arquivos?.length || 0), 0);
+  const arquivosAssinados = assinados.reduce((acc, d) => acc + (d.arquivos?.length || 0), 0);
 
   const stats = [
-    { label: "Documentos", value: documentos.length, icon: FileText, tone: "text-slate-900" },
-    { label: "Pendentes", value: documentos.filter((d) => d.status === "pendente").length, icon: Clock, tone: "text-amber-600" },
-    { label: "Assinados", value: documentos.filter((d) => d.status === "assinado").length, icon: CheckCircle2, tone: "text-emerald-600" },
-    { label: "Assinaturas", value: assinaturas.length, icon: PenLine, tone: "text-slate-900" },
+    { label: "Envelopes", value: documentos.length, sub: `${totalArquivos} arquivos`, icon: FileText, tone: "text-slate-900" },
+    { label: "Pendentes", value: pendentes.length, sub: `${arquivosPendentes} arquivos`, icon: Clock, tone: "text-amber-600" },
+    { label: "Assinados", value: assinados.length, sub: `${arquivosAssinados} arquivos`, icon: CheckCircle2, tone: "text-emerald-600" },
   ];
+
+  const unidades = useMemo(() => {
+    const set = new Set();
+    documentos.forEach((d) => d.unidade_negocio && set.add(d.unidade_negocio));
+    return Array.from(set);
+  }, [documentos]);
+
+  const docsFiltrados = documentos.filter((d) => {
+    const p = d.pasta || (d.status === "assinado" ? "assinados" : "pendente");
+    const inPasta = pasta === "pendente" ? p === "pendente" || d.status === "pendente" : p === "assinados" || d.status === "assinado";
+    if (!inPasta) return false;
+    if (filtroUnidade && d.unidade_negocio !== filtroUnidade) return false;
+    if (filtroData && d.data_limite !== filtroData) return false;
+    return true;
+  });
 
   return (
     <div className="min-h-screen bg-background">
@@ -55,7 +70,7 @@ export default function Home() {
               <span>Assinatura Fácil Log</span>
             </div>
             <h1 className="text-4xl font-heading tracking-tight text-foreground">Painel</h1>
-            <p className="text-muted-foreground mt-2">Gerencie solicitações de assinatura e acompanhe o histórico completo.</p>
+            <p className="text-muted-foreground mt-2">Gerencie envelopes de assinatura e acompanhe o histórico completo.</p>
           </div>
           <div className="flex flex-wrap gap-2">
             <Button asChild variant="outline">
@@ -65,12 +80,12 @@ export default function Home() {
               <Link to="/log" className="gap-2"><ScrollText className="w-4 h-4" /> Log</Link>
             </Button>
             <Button asChild>
-              <Link to="/novo" className="gap-2"><Plus className="w-4 h-4" /> Novo documento</Link>
+              <Link to="/novo" className="gap-2"><Plus className="w-4 h-4" /> Novo envelope</Link>
             </Button>
           </div>
         </header>
 
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
           {stats.map((s, i) => (
             <motion.div key={s.label} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
               <Card className="rounded-2xl border-border/60 shadow-sm">
@@ -80,83 +95,64 @@ export default function Home() {
                     <s.icon className={`w-5 h-5 ${s.tone}`} />
                   </div>
                   <p className="text-3xl font-heading mt-3">{loading ? "—" : s.value}</p>
+                  <p className="text-xs text-muted-foreground mt-1 inline-flex items-center gap-1"><Paperclip className="w-3 h-3" /> {s.sub}</p>
                 </CardContent>
               </Card>
             </motion.div>
           ))}
         </div>
 
-        <div className="grid lg:grid-cols-3 gap-6">
-          <section className="lg:col-span-2">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-heading">Documentos</h2>
-            </div>
-            <div className="flex gap-2 mb-4">
-              <button onClick={() => setPasta("recentes")} className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${pasta === "recentes" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/70"}`}>
-                <Folder className="w-4 h-4" /> Recentes ({documentos.filter((d) => (d.pasta || "recentes") === "recentes").length})
-              </button>
-              <button onClick={() => setPasta("assinados")} className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${pasta === "assinados" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/70"}`}>
-                <FolderOpen className="w-4 h-4" /> Assinados ({documentos.filter((d) => d.pasta === "assinados").length})
-              </button>
-            </div>
-            <div className="space-y-3">
-              {loading ? (
-                <p className="text-sm text-muted-foreground">Carregando…</p>
-              ) : docsFiltrados.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Pasta vazia.</p>
-              ) : (
-                docsFiltrados.map((d) => (
-                  <Card key={d.id} className="rounded-xl border-border/60 hover:border-foreground/20 hover:shadow-md transition-all">
-                    <CardContent className="p-4 flex items-center justify-between gap-3">
-                      <Link to={`/assinar/${d.id}`} className="min-w-0 flex-1">
-                        <p className="font-medium truncate">{d.titulo}</p>
-                        <p className="text-xs text-muted-foreground mt-0.5">{d.destinatario_nome || "Sem destinatário"} · {formatDate(d.data_limite)}</p>
-                      </Link>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <ShareIcons title={d.titulo} signUrl={`${window.location.origin}/assinar/${d.id}`} />
-                        <span className={`text-xs px-2.5 py-1 rounded-full font-medium capitalize ${statusStyles[d.status] || statusStyles.pendente}`}>{d.status}</span>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))
-              )}
-            </div>
-          </section>
+        <div className="flex flex-wrap items-end gap-4 mb-6">
+          <div className="flex gap-2">
+            <button onClick={() => setPasta("pendente")} className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${pasta === "pendente" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/70"}`}>
+              <Folder className="w-4 h-4" /> Pendentes ({pendentes.length})
+            </button>
+            <button onClick={() => setPasta("assinados")} className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${pasta === "assinados" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/70"}`}>
+              <FolderOpen className="w-4 h-4" /> Assinados ({assinados.length})
+            </button>
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-xs text-muted-foreground">Unidade de negócio</label>
+            <select value={filtroUnidade} onChange={(e) => setFiltroUnidade(e.target.value)} className="h-9 rounded-md border border-input bg-background px-3 text-sm">
+              <option value="">Todas</option>
+              {unidades.map((u) => <option key={u} value={u}>{u}</option>)}
+            </select>
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-xs text-muted-foreground">Data limite</label>
+            <input type="date" value={filtroData} onChange={(e) => setFiltroData(e.target.value)} className="h-9 rounded-md border border-input bg-background px-3 text-sm" />
+          </div>
+        </div>
 
-          <section>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-heading">Assinaturas recentes</h2>
-              <Link to="/log" className="text-sm text-muted-foreground hover:text-foreground inline-flex items-center gap-1">
-                Ver log <ArrowRight className="w-3 h-3" />
-              </Link>
-            </div>
-            <div className="space-y-3">
-              {loading ? (
-                <p className="text-sm text-muted-foreground">Carregando…</p>
-              ) : assinaturas.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Nenhuma assinatura registrada ainda.</p>
-              ) : (
-                assinaturas.map((a) => (
-                  <Card key={a.id} className="rounded-xl border-border/60">
-                    <CardContent className="p-4 flex items-center gap-4">
-                      {a.imagem_url ? (
-                        <img src={a.imagem_url} alt="assinatura" className="h-10 w-20 object-contain bg-white rounded border border-border/60" />
-                      ) : (
-                        <div className="h-10 w-20 rounded bg-muted flex items-center justify-center">
-                          <PenLine className="w-4 h-4 text-muted-foreground" />
-                        </div>
-                      )}
-                      <div className="min-w-0 flex-1">
-                        <p className="font-medium truncate">{a.assinante_nome}</p>
-                        <p className="text-xs text-muted-foreground truncate">{a.documento_titulo}</p>
-                      </div>
-                      <span className="text-xs text-muted-foreground whitespace-nowrap">{formatDateTime(a.data_assinatura || a.created_date)}</span>
-                    </CardContent>
-                  </Card>
-                ))
-              )}
-            </div>
-          </section>
+        <div className="space-y-3">
+          {loading ? (
+            <p className="text-sm text-muted-foreground">Carregando…</p>
+          ) : docsFiltrados.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Nenhum envelope nesta pasta.</p>
+          ) : (
+            docsFiltrados.map((d) => (
+              <Card key={d.id} className="rounded-xl border-border/60 hover:border-foreground/20 hover:shadow-md transition-all">
+                <CardContent className="p-4 flex items-center justify-between gap-3">
+                  <Link to={`/assinar/${d.id}`} className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      {d.numero && <span className="text-xs font-mono px-2 py-0.5 rounded bg-muted text-muted-foreground">{d.numero}</span>}
+                      <p className="font-medium truncate">{d.titulo}</p>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1 flex flex-wrap gap-x-3 gap-y-1">
+                      <span className="inline-flex items-center gap-1"><Paperclip className="w-3 h-3" /> {d.arquivos?.length || 0} arquivo(s)</span>
+                      {d.signatario_nome && <span>Signatário: {d.signatario_nome}</span>}
+                      {d.unidade_negocio && <span>UN: {d.unidade_negocio}</span>}
+                      {d.data_limite && <span>{formatDate(d.data_limite)}</span>}
+                    </p>
+                  </Link>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <ShareIcons title={d.titulo} signUrl={`${window.location.origin}/assinar/${d.id}`} />
+                    <span className={`text-xs px-2.5 py-1 rounded-full font-medium capitalize ${statusStyles[d.status] || statusStyles.pendente}`}>{d.status}</span>
+                  </div>
+                </CardContent>
+              </Card>
+            ))
+          )}
         </div>
       </div>
     </div>
