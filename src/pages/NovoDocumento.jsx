@@ -46,6 +46,17 @@ export default function NovoDocumento() {
     }));
   };
 
+  const onDestinatarioChange = (e) => {
+    const c = cadastros.find((x) => x.id === e.target.value);
+    setForm((f) => ({
+      ...f,
+      destinatario_nome: c ? c.nome : "",
+      destinatario_email: c && c.email ? c.email : "",
+    }));
+  };
+
+  const pessoas = cadastros.filter((c) => ["signatario", "destinatario", "ambos"].includes(c.tipo));
+
   const handleFiles = async (e) => {
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
@@ -141,8 +152,12 @@ export default function NovoDocumento() {
 
               <div className="grid sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="destinatario_nome">Destinatário</Label>
-                  <Input id="destinatario_nome" value={form.destinatario_nome} onChange={update("destinatario_nome")} placeholder="Nome do destinatário" />
+                  <Label htmlFor="destinatario_sel">Destinatário</Label>
+                  <select id="destinatario_sel" onChange={onDestinatarioChange} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+                    <option value="">— Selecionar do cadastro —</option>
+                    {pessoas.map((c) => (<option key={c.id} value={c.id}>{c.nome}</option>))}
+                  </select>
+                  <Input value={form.destinatario_nome} onChange={update("destinatario_nome")} placeholder="Ou digite o nome do destinatário" className="mt-2" />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="destinatario_email">E-mail do destinatário</Label>
