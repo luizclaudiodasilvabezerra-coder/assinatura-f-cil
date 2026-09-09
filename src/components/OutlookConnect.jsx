@@ -46,8 +46,10 @@ export default function OutlookConnect() {
   if (connected) {
     return (
       <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs">
-        <CheckCircle2 className="w-4 h-4" />
-        <span className="font-medium truncate max-w-[180px]">Outlook: {profile?.email || "conectado"}</span>
+        <a href="https://outlook.com/mail" target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 hover:text-emerald-900" title="Abrir Outlook">
+          <CheckCircle2 className="w-4 h-4" />
+          <span className="font-medium truncate max-w-[180px]">Outlook: {profile?.email || "conectado"}</span>
+        </a>
         <button onClick={handleDisconnect} className="ml-1 hover:text-emerald-900" title="Desconectar Outlook">
           <Unlink className="w-3.5 h-3.5" />
         </button>
