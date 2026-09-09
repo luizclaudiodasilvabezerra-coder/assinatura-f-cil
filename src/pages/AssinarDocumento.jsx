@@ -41,7 +41,7 @@ export default function AssinarDocumento() {
   const [observacao, setObservacao] = useState("");
   const [indent, setIndent] = useState(0);
   const [imagemUpload, setImagemUpload] = useState("");
-  const [pos, setPos] = useState({ x: 10, y: 70 });
+  const [pos, setPos] = useState({ x: 3, y: 90 });
 
   useEffect(() => {
     (async () => {
@@ -171,7 +171,7 @@ export default function AssinarDocumento() {
       const newMap = { ...signedMap, [currentIndex]: rec };
       setSignedMap(newMap);
       setExistentes((e) => [rec, ...e]);
-      setObservacao(""); setIndent(0); setImagemUpload(""); setCadastroId(""); setAssinanteNome(""); setAssinanteEmail(""); setPos({ x: 10, y: 70 }); setCritica(false);
+      setObservacao(""); setIndent(0); setImagemUpload(""); setCadastroId(""); setAssinanteNome(""); setAssinanteEmail(""); setPos({ x: 3, y: 90 }); setCritica(false);
 
       const next = findNextUnsigned(currentIndex);
       if (next === -1) {

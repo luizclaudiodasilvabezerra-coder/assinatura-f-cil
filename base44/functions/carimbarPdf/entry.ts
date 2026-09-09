@@ -38,7 +38,7 @@ export default async function(req) {
 
     // Bloco compacto: assinatura à esquerda + 2 linhas de texto à direita.
     // Ancorado no topo-esquerda em (posX%, posY%) da pagina para casar com o preview.
-    const imgH = 34;
+    const imgH = 60;
     const imgW = img ? (img.width / img.height) * imgH : 68;
     const x = (Number(posX || 5) / 100) * pageW;
     const yTop = (Number(posY || 88) / 100) * pageH;
