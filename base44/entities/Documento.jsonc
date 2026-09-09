@@ -77,6 +77,16 @@
       "type": "string",
       "title": "Data limite",
       "format": "date"
+    },
+    "processado": {
+      "type": "boolean",
+      "title": "Processado pelo fiscal",
+      "default": false
+    },
+    "data_processamento": {
+      "type": "string",
+      "title": "Data e hor\u00e1rio do processamento",
+      "format": "date-time"
     }
   },
   "required": [

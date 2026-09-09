@@ -1,0 +1,45 @@
+{
+  "description": "Envia e-mail de alerta ao fiscal \u00e0s 12:00 e 16:00 com envelopes assinados pendentes de processamento",
+  "trigger": {
+    "condition": null,
+    "config": {
+      "trigger_type": "scheduled",
+      "events": [],
+      "schedule_mode": "recurring",
+      "cron_expression": "0 12,16 * * *",
+      "one_time_date": null,
+      "timezone": "America/Sao_Paulo",
+      "interval_value": null,
+      "interval_unit": null,
+      "interval_anchor": null,
+      "ends_type": "never",
+      "ends_on_date": null,
+      "ends_after_count": null
+    }
+  },
+  "name": "Alerta Fiscal",
+  "definition": {
+    "document": {
+      "dsl": "1.0.0",
+      "name": "alerta_fiscal",
+      "version": "1.0",
+      "namespace": "base44"
+    },
+    "do": [
+      {
+        "enviar_alerta": {
+          "call": "invoke_backend_function",
+          "with": {
+            "function_name": "alertaFiscal",
+            "args": {}
+          },
+          "then": "end",
+          "x-base44": {
+            "title": "Enviar alerta fiscal",
+            "description": "Envelopes pendentes de processamento"
+          }
+        }
+      }
+    ]
+  }
+}

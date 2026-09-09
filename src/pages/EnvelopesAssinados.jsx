@@ -18,6 +18,7 @@ export default function EnvelopesAssinados() {
   const [loading, setLoading] = useState(true);
   const [downloadingId, setDownloadingId] = useState(null);
   const [downloadingAll, setDownloadingAll] = useState(false);
+  const [processingId, setProcessingId] = useState(null);
   const { toast } = useToast();
 
   const load = async () => {
@@ -54,6 +55,20 @@ export default function EnvelopesAssinados() {
     toast({ title: "Exportação em massa concluída", description: `${docs.length} envelope(s).` });
   };
 
+  const processar = async (d) => {
+    setProcessingId(d.id);
+    try {
+      const agora = new Date().toISOString();
+      await base44.entities.Documento.update(d.id, { processado: true, data_processamento: agora });
+      setDocs((prev) => prev.map((x) => (x.id === d.id ? { ...x, processado: true, data_processamento: agora } : x)));
+      toast({ title: "Envelope processado", description: "Acesso e processamento fiscal registrados." });
+    } catch (e) {
+      toast({ title: "Erro ao processar", description: e.message, variant: "destructive" });
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <div className="max-w-5xl mx-auto px-6 py-10">
@@ -81,13 +96,14 @@ export default function EnvelopesAssinados() {
             {docs.map((d) => {
               const masters = mastersFor(d.id);
               return (
-                <Card key={d.id} className="rounded-2xl border-border/60">
+                <Card key={d.id} className={`rounded-2xl transition-colors ${d.processado ? "border-emerald-300 bg-emerald-50/60" : "border-border/60"}`}>
                   <CardContent className="p-5">
                     <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
                       <div className="min-w-0">
                         <div className="flex items-center gap-2 mb-1">
                           {d.numero && <span className="text-xs font-mono px-2 py-0.5 rounded bg-muted text-muted-foreground">{d.numero}</span>}
                           <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full"><CheckCircle2 className="w-3 h-3" /> Concluído</span>
+                          {d.processado && <span className="inline-flex items-center gap-1 text-[11px] font-medium text-white bg-emerald-600 px-2 py-0.5 rounded-full"><CheckCircle2 className="w-3 h-3" /> Processado</span>}
                         </div>
                         <p className="font-medium truncate">{d.titulo}</p>
                         <p className="text-xs text-muted-foreground mt-1 flex flex-wrap gap-x-3 gap-y-1">
@@ -97,11 +113,19 @@ export default function EnvelopesAssinados() {
                           {d.operacao && <span>Op.: {d.operacao}</span>}
                           {d.data_limite && <span className="inline-flex items-center gap-1"><Calendar className="w-3 h-3" /> {formatDate(d.data_limite)}</span>}
                           <span className="inline-flex items-center gap-1"><Paperclip className="w-3 h-3" /> {masters.length} arquivo(s)</span>
+                          {d.processado && d.data_processamento && <span className="inline-flex items-center gap-1 text-emerald-700"><CheckCircle2 className="w-3 h-3" /> Processado em {new Date(d.data_processamento).toLocaleString("pt-BR")}</span>}
                         </p>
                       </div>
-                      <Button type="button" size="sm" onClick={() => baixarUm(d)} disabled={downloadingId === d.id} className="gap-2">
-                        {downloadingId === d.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />} Baixar envelope
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button type="button" size="sm" onClick={() => baixarUm(d)} disabled={downloadingId === d.id} className="gap-2">
+                          {downloadingId === d.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />} Baixar
+                        </Button>
+                        {!d.processado && (
+                          <Button type="button" size="sm" onClick={() => processar(d)} disabled={processingId === d.id} className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white">
+                            {processingId === d.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />} Processar
+                          </Button>
+                        )}
+                      </div>
                     </div>
                     <div className="border-t border-border/60 pt-3">
                       <p className="text-xs text-muted-foreground mb-2">Arquivos assinados (clique para baixar individual):</p>
