@@ -285,11 +285,11 @@ export default function AssinarDocumento() {
               {currentSigned ? "Arquivo já assinado" : `Assinando: ${fileName(currentFile)}`}
             </p>
             <DocumentPositioner
-              imageUrl={isImage(currentFile) ? currentFile : ""}
+              fileUrl={currentFile}
               blocks={positionerBlocks}
               onMove={(bid, x, y) => setPos({ x, y })}
             />
-            {!isImage(currentFile) && currentFile && (
+            {currentFile && !isImage(currentFile) && (
               <a href={currentFile} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-sm text-blue-600 hover:underline">
                 <FileText className="w-4 h-4" /> Abrir arquivo em nova aba
               </a>

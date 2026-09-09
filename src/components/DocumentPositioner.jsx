@@ -1,6 +1,9 @@
 import React, { useRef, useState } from "react";
 
-export default function DocumentPositioner({ imageUrl, blocks, onMove }) {
+const isImage = (url) => url && /\.(png|jpe?g|webp|gif)$/i.test(url);
+const isPdf = (url) => url && /\.pdf$/i.test(url);
+
+export default function DocumentPositioner({ fileUrl, blocks, onMove }) {
   const containerRef = useRef(null);
   const [dragId, setDragId] = useState(null);
   const offset = useRef({ x: 0, y: 0 });
@@ -30,6 +33,37 @@ export default function DocumentPositioner({ imageUrl, blocks, onMove }) {
 
   const endDrag = () => setDragId(null);
 
+  const renderFile = () => {
+    if (!fileUrl) {
+      return (
+        <div className="w-full h-64 flex items-center justify-center text-sm text-muted-foreground">
+          Nenhum arquivo anexado a este documento.
+        </div>
+      );
+    }
+    if (isImage(fileUrl)) {
+      return <img src={fileUrl} alt="documento" className="w-full block" draggable={false} />;
+    }
+    if (isPdf(fileUrl)) {
+      return (
+        <iframe
+          src={fileUrl}
+          title="documento"
+          className="w-full h-[72vh] block bg-white"
+          draggable={false}
+        />
+      );
+    }
+    return (
+      <div className="w-full h-64 flex flex-col items-center justify-center gap-2 text-sm text-muted-foreground">
+        <span>Pré-visualização não disponível para este tipo de arquivo.</span>
+        <a href={fileUrl} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">
+          Abrir em nova aba
+        </a>
+      </div>
+    );
+  };
+
   return (
     <div
       ref={containerRef}
@@ -40,19 +74,19 @@ export default function DocumentPositioner({ imageUrl, blocks, onMove }) {
       onTouchMove={handleMove}
       onTouchEnd={endDrag}
     >
-      {imageUrl ? (
-        <img src={imageUrl} alt="documento" className="w-full block" draggable={false} />
-      ) : (
-        <div className="w-full h-64 flex items-center justify-center text-sm text-muted-foreground">
-          Nenhum arquivo de imagem para posicionar. Anexe uma imagem ao documento para arrastar a assinatura.
-        </div>
+      <div className="relative z-0">{renderFile()}</div>
+      {isPdf(fileUrl) && (
+        <div
+          className="absolute inset-0 z-10"
+          style={{ pointerEvents: dragId ? "auto" : "none" }}
+        />
       )}
       {blocks.map((b) => (
         <div
           key={b.id}
           onMouseDown={(e) => startDrag(e, b)}
           onTouchStart={(e) => startDrag(e, b)}
-          style={{ left: `${b.pos_x}%`, top: `${b.pos_y}%`, opacity: dragId === b.id ? 0.8 : 1 }}
+          style={{ left: `${b.pos_x}%`, top: `${b.pos_y}%`, opacity: dragId === b.id ? 0.8 : 1, zIndex: 20 }}
           className={`absolute ${b.draggable ? "cursor-move" : "cursor-default"}`}
         >
           {b.imagem_url ? (
