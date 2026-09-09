@@ -25,7 +25,6 @@ export default function NovoDocumento() {
     signatario_email: "",
     signatario_cadastro_id: "",
     unidade_negocio: "",
-    operacao: "",
     data_limite: "",
   });
 
@@ -34,7 +33,6 @@ export default function NovoDocumento() {
   }, []);
 
   const unidades = cadastros.filter((c) => c.tipo === "unidade");
-  const operacoes = cadastros.filter((c) => c.tipo === "operacao");
 
   const update = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
@@ -142,21 +140,12 @@ export default function NovoDocumento() {
                 <Input type="email" value={form.signatario_email} onChange={update("signatario_email")} placeholder="E-mail do signatário" className="mt-2" />
                 </div>
 
-              <div className="grid sm:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="unidade_negocio">Unidade de negócio</Label>
-                  <select id="unidade_negocio" value={form.unidade_negocio} onChange={update("unidade_negocio")} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
-                    <option value="">— Selecionar —</option>
-                    {unidades.map((c) => (<option key={c.id} value={c.nome}>{c.nome}</option>))}
-                  </select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="operacao">Operação</Label>
-                  <select id="operacao" value={form.operacao} onChange={update("operacao")} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
-                    <option value="">— Selecionar —</option>
-                    {operacoes.map((c) => (<option key={c.id} value={c.nome}>{c.nome}</option>))}
-                  </select>
-                </div>
+              <div className="space-y-2">
+                <Label htmlFor="unidade_negocio">Unidade de negócio</Label>
+                <select id="unidade_negocio" value={form.unidade_negocio} onChange={update("unidade_negocio")} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+                  <option value="">— Selecionar —</option>
+                  {unidades.map((c) => (<option key={c.id} value={c.nome}>{c.nome}</option>))}
+                </select>
               </div>
 
               <div className="grid sm:grid-cols-2 gap-4">
