@@ -43,14 +43,36 @@ export default async function(req) {
       <p style="color:#666;font-size:12px">Envelopes não processados serão reenviados no próximo ciclo (12:00 e 16:00).</p>
     </div>`;
 
-    await base44.asServiceRole.integrations.Core.SendEmail({
-      to: destinatario,
-      subject: `Alerta fiscal: ${pendentes.length} envelope(s) pendente(s) de processamento`,
-      html,
-      from_name: 'Assinatura Fácil - LOGMAM',
-    });
+    const subject = `Alerta fiscal: ${pendentes.length} envelope(s) pendente(s) de processamento`;
+    let via = 'plataforma';
+    try {
+      const { accessToken } = await base44.asServiceRole.connectors.getConnection('outlook');
+      const res = await fetch('https://graph.microsoft.com/v1.0/me/sendMail', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: {
+            subject,
+            body: { contentType: 'HTML', content: html },
+            toRecipients: [{ emailAddress: { address: destinatario } }],
+          },
+        }),
+      });
+      if (!res.ok) throw new Error(`Graph ${res.status}: ${await res.text()}`);
+      via = 'outlook';
+    } catch (e) {
+      await base44.asServiceRole.integrations.Core.SendEmail({
+        to: destinatario,
+        subject,
+        html,
+        from_name: 'Assinatura Fácil - LOGMAM',
+      });
+    }
 
-    return Response.json({ ok: true, enviados: 1, total: pendentes.length, destinatario });
+    return Response.json({ ok: true, enviados: 1, total: pendentes.length, destinatario, via });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });
   }
