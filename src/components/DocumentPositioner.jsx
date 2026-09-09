@@ -127,9 +127,9 @@ export default function DocumentPositioner({ fileUrl, blocks, onMove }) {
             >
               <div className="flex items-center gap-2 bg-white/85 rounded shadow-sm border border-border/70 px-1.5 py-1">
                 {b.imagem_url ? (
-                  <img src={b.imagem_url} alt="assinatura" className="h-10 w-20 object-contain" draggable={false} />
+                  <img src={b.imagem_url} alt="assinatura" className="h-16 w-32 object-contain" draggable={false} />
                 ) : (
-                  <div className="h-10 w-20 flex items-center justify-center text-[10px] text-muted-foreground border border-dashed border-border rounded">assinatura</div>
+                  <div className="h-16 w-32 flex items-center justify-center text-[11px] text-muted-foreground border border-dashed border-border rounded">assinatura</div>
                 )}
                 <div className="flex flex-col">
                   {b.nome && <span className="text-[11px] leading-tight whitespace-nowrap">{b.nome}</span>}
