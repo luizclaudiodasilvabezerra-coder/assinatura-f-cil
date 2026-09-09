@@ -1,14 +1,53 @@
-import React, { useRef, useState } from "react";
-import { Plus, Minus } from "lucide-react";
+import React, { useEffect, useRef, useState } from "react";
+import { Plus, Minus, Loader2 } from "lucide-react";
+import * as pdfjsLib from "pdfjs-dist";
+import workerUrl from "pdfjs-dist/build/pdf.worker.min.js?url";
+
+pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl;
 
 const isImage = (url) => url && /\.(png|jpe?g|webp|gif)$/i.test(url);
 const isPdf = (url) => url && /\.pdf$/i.test(url);
 
 export default function DocumentPositioner({ fileUrl, blocks, onMove }) {
+  const outerRef = useRef(null);
   const containerRef = useRef(null);
+  const canvasRef = useRef(null);
   const [dragId, setDragId] = useState(null);
   const [zoom, setZoom] = useState(1);
+  const [pdfSize, setPdfSize] = useState(null);
+  const [pdfLoading, setPdfLoading] = useState(false);
   const offset = useRef({ x: 0, y: 0 });
+
+  // Renderiza a primeira página do PDF num canvas (alinhamento perfeito com a página real)
+  useEffect(() => {
+    if (!isPdf(fileUrl)) { setPdfSize(null); return; }
+    let cancelled = false;
+    setPdfLoading(true);
+    (async () => {
+      try {
+        const task = pdfjsLib.getDocument(fileUrl);
+        const pdf = await task.promise;
+        if (cancelled) { await pdf.destroy(); return; }
+        const page = await pdf.getPage(1);
+        const avail = outerRef.current?.clientWidth || 800;
+        const base = page.getViewport({ scale: 1 });
+        const fitScale = avail / base.width;
+        const scale = fitScale * zoom;
+        const viewport = page.getViewport({ scale });
+        const canvas = canvasRef.current;
+        if (!canvas) { await pdf.destroy(); return; }
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        const ctx = canvas.getContext("2d");
+        await page.render({ canvasContext: ctx, viewport }).promise;
+        if (!cancelled) { setPdfSize({ w: viewport.width, h: viewport.height }); setPdfLoading(false); }
+        await pdf.destroy();
+      } catch {
+        if (!cancelled) setPdfLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [fileUrl, zoom]);
 
   const startDrag = (e, block) => {
     if (!block.draggable) return;
@@ -30,29 +69,29 @@ export default function DocumentPositioner({ fileUrl, blocks, onMove }) {
     const clientY = e.touches ? e.touches[0].clientY : e.clientY;
     const x = ((clientX - rect.left - offset.current.x) / rect.width) * 100;
     const y = ((clientY - rect.top - offset.current.y) / rect.height) * 100;
-    onMove(dragId, Math.max(0, Math.min(92, x)), Math.max(0, Math.min(92, y)));
+    onMove(dragId, Math.max(0, Math.min(85, x)), Math.max(0, Math.min(92, y)));
   };
 
   const endDrag = () => setDragId(null);
 
-  const pdfSrc = (url) => {
-    const sep = url.includes("#") ? "&" : "#";
-    return `${url}${sep}toolbar=0&navpanes=0&view=FitH&zoom=${Math.round(zoom * 100)}`;
-  };
-
   const renderFile = () => {
     if (!fileUrl) {
-      return (
-        <div className="w-full h-64 flex items-center justify-center text-sm text-muted-foreground">
-          Nenhum arquivo anexado a este documento.
-        </div>
-      );
+      return <div className="w-full h-64 flex items-center justify-center text-sm text-muted-foreground">Nenhum arquivo anexado a este documento.</div>;
     }
     if (isImage(fileUrl)) {
       return <img src={fileUrl} alt="documento" className="w-full block" draggable={false} />;
     }
     if (isPdf(fileUrl)) {
-      return <iframe src={pdfSrc(fileUrl)} title="documento" className="w-full h-[80vh] block bg-white" draggable={false} />;
+      return (
+        <div className="relative">
+          {pdfLoading && (
+            <div className="absolute inset-0 flex items-center justify-center bg-muted/30 z-10">
+              <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+            </div>
+          )}
+          <canvas ref={canvasRef} className="block bg-white max-w-full" />
+        </div>
+      );
     }
     return (
       <div className="w-full h-64 flex flex-col items-center justify-center gap-2 text-sm text-muted-foreground">
@@ -62,14 +101,14 @@ export default function DocumentPositioner({ fileUrl, blocks, onMove }) {
     );
   };
 
-  const wrapperWidth = isImage(fileUrl) ? `${zoom * 100}%` : "100%";
+  const wrapperWidth = isImage(fileUrl) ? `${zoom * 100}%` : (pdfSize ? `${pdfSize.w}px` : "100%");
 
   return (
     <div className="relative w-full rounded-xl overflow-hidden border border-border/60 bg-muted/20">
-      <div className="w-full overflow-auto" style={{ maxHeight: "82vh" }}>
+      <div ref={outerRef} className="w-full overflow-auto" style={{ maxHeight: "82vh" }}>
         <div
           ref={containerRef}
-          className="relative"
+          className="relative mx-auto"
           style={{ width: wrapperWidth }}
           onMouseMove={handleMove}
           onMouseUp={endDrag}
@@ -78,9 +117,6 @@ export default function DocumentPositioner({ fileUrl, blocks, onMove }) {
           onTouchEnd={endDrag}
         >
           {renderFile()}
-          {isPdf(fileUrl) && (
-            <div className="absolute inset-0 z-10" style={{ pointerEvents: dragId ? "auto" : "none" }} />
-          )}
           {blocks.map((b) => (
             <div
               key={b.id}
@@ -89,17 +125,17 @@ export default function DocumentPositioner({ fileUrl, blocks, onMove }) {
               style={{ left: `${b.pos_x}%`, top: `${b.pos_y}%`, opacity: dragId === b.id ? 0.8 : 1, zIndex: 20 }}
               className={`absolute ${b.draggable ? "cursor-move" : "cursor-default"}`}
             >
-              {b.imagem_url ? (
-                <img src={b.imagem_url} alt="assinatura" className="h-14 w-28 object-contain bg-white/70 rounded shadow-sm" draggable={false} />
-              ) : (
-                <div className="h-14 w-28 rounded bg-white/70 border border-dashed border-border flex items-center justify-center text-[10px] text-muted-foreground">assinatura</div>
-              )}
-              {b.nome && (
-                <div className="text-center text-[11px] mt-0.5 bg-white/90 px-1.5 py-0.5 rounded shadow-sm whitespace-nowrap">{b.nome}</div>
-              )}
-              {b.observacao && (
-                <div style={{ paddingLeft: (b.indent || 0) * 14 }} className="text-[11px] bg-white/95 border border-border rounded px-1.5 py-1 mt-1 max-w-[180px] shadow-sm">{b.observacao}</div>
-              )}
+              <div className="flex items-center gap-2 bg-white/85 rounded shadow-sm border border-border/70 px-1.5 py-1">
+                {b.imagem_url ? (
+                  <img src={b.imagem_url} alt="assinatura" className="h-10 w-20 object-contain" draggable={false} />
+                ) : (
+                  <div className="h-10 w-20 flex items-center justify-center text-[10px] text-muted-foreground border border-dashed border-border rounded">assinatura</div>
+                )}
+                <div className="flex flex-col">
+                  {b.nome && <span className="text-[11px] leading-tight whitespace-nowrap">{b.nome}</span>}
+                  {b.observacao && <span className="text-[10px] leading-tight text-muted-foreground whitespace-nowrap max-w-[160px] truncate">{b.observacao}</span>}
+                </div>
+              </div>
             </div>
           ))}
         </div>
