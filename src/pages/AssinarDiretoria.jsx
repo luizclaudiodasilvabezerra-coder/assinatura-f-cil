@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { ArrowLeft, Loader2, CheckCircle2, Calendar, Upload, PenLine, ShieldCheck, AlertTriangle, Download } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import SignaturePad from "@/components/SignaturePad";
@@ -33,6 +34,7 @@ export default function AssinarDiretoria() {
   const [nome, setNome] = useState("");
   const [modo, setModo] = useState("desenhada");
   const [observacao, setObservacao] = useState("");
+  const [autorizado, setAutorizado] = useState(false);
   const [imagemUpload, setImagemUpload] = useState("");
 
   useEffect(() => {
@@ -198,7 +200,11 @@ export default function AssinarDiretoria() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="obs">Caixa de observações *</Label>
-              <Textarea id="obs" ref={obsRef} value={observacao} onChange={(e) => { setObservacao(e.target.value); if (e.target.value.trim()) setCritica(false); }} rows={2} placeholder="Observação da assinatura da diretoria" />
+              <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
+                <Checkbox checked={autorizado} onCheckedChange={(v) => { setAutorizado(!!v); if (v) { setObservacao("Autorizado"); setCritica(false); } else { setObservacao(""); } }} />
+                Autorizado
+              </label>
+              <Textarea id="obs" ref={obsRef} value={observacao} disabled={autorizado} onChange={(e) => { setObservacao(e.target.value); if (e.target.value.trim()) setCritica(false); }} rows={2} placeholder="Observação da assinatura da diretoria" />
             </div>
             <Button type="button" disabled={saving} onClick={assinar} className="w-full gap-2">{saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />} Confirmar assinatura da diretoria</Button>
           </CardContent>
