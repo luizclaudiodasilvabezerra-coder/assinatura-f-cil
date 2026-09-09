@@ -279,8 +279,8 @@ export default function AssinarDocumento() {
           })}
         </div>
 
-        <div className="grid lg:grid-cols-2 gap-6">
-          <div className="space-y-3">
+        <div className="grid lg:grid-cols-5 gap-6">
+          <div className="space-y-3 lg:col-span-3">
             <p className="text-sm font-medium">
               {currentSigned ? "Arquivo já assinado" : `Assinando: ${fileName(currentFile)}`}
             </p>
@@ -296,7 +296,7 @@ export default function AssinarDocumento() {
             )}
           </div>
 
-          <div className="space-y-4">
+          <div className="space-y-4 lg:col-span-2">
             {currentSigned ? (
               <Card className="rounded-2xl border-emerald-200 bg-emerald-50/40">
                 <CardContent className="p-5 space-y-4">
