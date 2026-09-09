@@ -130,18 +130,32 @@ export default function AssinarDocumento() {
 
     let arquivo_url = currentFile || undefined;
     if (currentFile && /\.pdf$/i.test(currentFile)) {
+      let stampRes;
       try {
-        const stampRes = await base44.functions.invoke("carimbarPdf", {
+        stampRes = await base44.functions.invoke("carimbarPdf", {
           fileUrl: currentFile, imagemUrl: imagem_url, posX: pos.x, posY: pos.y,
           nome: assinanteNome, data: new Date().toLocaleString("pt-BR"),
           observacao, operacao: doc.operacao || "", unidade: doc.unidade_negocio || "", indent,
         });
-        if (stampRes.data?.pdf_base64) {
-          const stampedFile = new File([base64ToBlob(stampRes.data.pdf_base64)], `assinado_${fileName(currentFile)}`, { type: "application/pdf" });
-          const up2 = await base44.integrations.Core.UploadFile({ file: stampedFile });
-          arquivo_url = up2.file_url;
-        }
-      } catch { toast({ title: "Aviso", description: "Carimbo do PDF falhou; salvo arquivo original.", variant: "destructive" }); }
+      } catch {
+        toast({ title: "Falha ao gravar assinatura no PDF", description: "A assinatura não foi registrada no arquivo. Tente novamente.", variant: "destructive" });
+        setSaving(false);
+        return;
+      }
+      if (!stampRes.data?.pdf_base64) {
+        toast({ title: "Falha ao gravar assinatura no PDF", description: stampRes.data?.error || "A assinatura não foi registrada no arquivo. Tente novamente.", variant: "destructive" });
+        setSaving(false);
+        return;
+      }
+      try {
+        const stampedFile = new File([base64ToBlob(stampRes.data.pdf_base64)], `assinado_${fileName(currentFile)}`, { type: "application/pdf" });
+        const up2 = await base44.integrations.Core.UploadFile({ file: stampedFile });
+        arquivo_url = up2.file_url;
+      } catch {
+        toast({ title: "Falha ao salvar PDF assinado", description: "A assinatura não foi registrada no arquivo. Tente novamente.", variant: "destructive" });
+        setSaving(false);
+        return;
+      }
     }
 
     try {

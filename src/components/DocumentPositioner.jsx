@@ -37,7 +37,7 @@ export default function DocumentPositioner({ fileUrl, blocks, onMove }) {
 
   const pdfSrc = (url) => {
     const sep = url.includes("#") ? "&" : "#";
-    return `${url}${sep}zoom=${Math.round(zoom * 100)}`;
+    return `${url}${sep}toolbar=0&navpanes=0&view=FitH&zoom=${Math.round(zoom * 100)}`;
   };
 
   const renderFile = () => {
