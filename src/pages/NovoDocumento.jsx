@@ -6,7 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, Loader2, Upload } from "lucide-react";
+import { ArrowLeft, Loader2, Upload, X, FileText } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 
 export default function NovoDocumento() {
@@ -14,38 +14,50 @@ export default function NovoDocumento() {
   const { toast } = useToast();
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [arquivos, setArquivos] = useState([]);
   const [form, setForm] = useState({
     titulo: "",
     descricao: "",
     destinatario_nome: "",
     destinatario_email: "",
     data_limite: "",
-    arquivo_url: "",
   });
 
   const update = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
-  const handleFile = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const handleFiles = async (e) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
     setUploading(true);
     try {
-      const { file_url } = await base44.integrations.Core.UploadFile({ file });
-      setForm((f) => ({ ...f, arquivo_url: file_url }));
-      toast({ title: "Arquivo enviado" });
+      const uploaded = await Promise.all(
+        files.map((file) => base44.integrations.Core.UploadFile({ file }))
+      );
+      setArquivos((prev) => [...prev, ...uploaded.map((u) => u.file_url)]);
+      toast({ title: `${files.length} arquivo(s) enviado(s)` });
     } catch {
       toast({ title: "Falha no envio", variant: "destructive" });
     } finally {
       setUploading(false);
+      e.target.value = "";
     }
   };
+
+  const removeArquivo = (url) => setArquivos((prev) => prev.filter((u) => u !== url));
+
+  const fileName = (url) => decodeURIComponent(url.split("/").pop() || "arquivo").slice(0, 40);
 
   const submit = async (e) => {
     e.preventDefault();
     if (!form.titulo.trim()) return;
     setSaving(true);
     try {
-      await base44.entities.Documento.create({ ...form, status: "pendente" });
+      await base44.entities.Documento.create({
+        ...form,
+        arquivos,
+        status: "pendente",
+        pasta: "recentes",
+      });
       toast({ title: "Documento criado" });
       navigate("/");
     } catch {
@@ -62,7 +74,7 @@ export default function NovoDocumento() {
           <ArrowLeft className="w-4 h-4" /> Voltar
         </Link>
         <h1 className="text-3xl font-heading tracking-tight mb-1">Novo documento</h1>
-        <p className="text-muted-foreground mb-8">Crie uma solicitação de assinatura e envie para um destinatário.</p>
+        <p className="text-muted-foreground mb-8">Crie uma solicitação de assinatura e anexe quantos arquivos precisar.</p>
 
         <Card className="rounded-2xl border-border/60">
           <CardContent className="p-6">
@@ -90,12 +102,25 @@ export default function NovoDocumento() {
                 <Input id="data_limite" type="date" value={form.data_limite} onChange={update("data_limite")} />
               </div>
               <div className="space-y-2">
-                <Label>Anexo (opcional)</Label>
+                <Label>Anexos (múltiplos)</Label>
                 <label className="flex items-center justify-center gap-2 cursor-pointer rounded-xl border-2 border-dashed border-border py-6 text-sm text-muted-foreground hover:border-foreground/20 hover:bg-muted/30 transition-colors">
                   {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-                  {form.arquivo_url ? "Arquivo anexado ✓" : "Clique para enviar um arquivo"}
-                  <input type="file" className="hidden" onChange={handleFile} />
+                  {uploading ? "Enviando…" : "Clique para enviar um ou mais arquivos"}
+                  <input type="file" className="hidden" multiple onChange={handleFiles} />
                 </label>
+                {arquivos.length > 0 && (
+                  <div className="space-y-2 mt-2">
+                    {arquivos.map((url) => (
+                      <div key={url} className="flex items-center gap-2 rounded-lg border border-border/60 px-3 py-2 text-sm">
+                        <FileText className="w-4 h-4 text-muted-foreground shrink-0" />
+                        <span className="truncate flex-1">{fileName(url)}</span>
+                        <button type="button" onClick={() => removeArquivo(url)} className="text-muted-foreground hover:text-destructive">
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
               <div className="flex justify-end pt-2">
                 <Button type="submit" disabled={saving} className="gap-2">

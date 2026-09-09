@@ -1,0 +1,32 @@
+{
+  "name": "Cadastro",
+  "type": "object",
+  "properties": {
+    "nome": {
+      "type": "string",
+      "title": "Nome"
+    },
+    "email": {
+      "type": "string",
+      "title": "E-mail",
+      "format": "email"
+    },
+    "telefone": {
+      "type": "string",
+      "title": "Telefone"
+    },
+    "tipo": {
+      "type": "string",
+      "title": "Tipo",
+      "enum": [
+        "signatario",
+        "destinatario",
+        "ambos"
+      ],
+      "default": "ambos"
+    }
+  },
+  "required": [
+    "nome"
+  ]
+}

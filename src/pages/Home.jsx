@@ -4,8 +4,9 @@ import { motion } from "framer-motion";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { FileText, PenLine, Clock, CheckCircle2, Plus, ArrowRight, ScrollText } from "lucide-react";
+import { FileText, PenLine, Clock, CheckCircle2, Plus, ArrowRight, ScrollText, Folder, FolderOpen, Users } from "lucide-react";
 import { formatDate, formatDateTime } from "@/lib/signatureUtils";
+import ShareIcons from "@/components/ShareIcons";
 
 const statusStyles = {
   rascunho: "bg-slate-100 text-slate-600",
@@ -18,12 +19,13 @@ export default function Home() {
   const [documentos, setDocumentos] = useState([]);
   const [assinaturas, setAssinaturas] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [pasta, setPasta] = useState("recentes");
 
   useEffect(() => {
     (async () => {
       try {
         const [docs, sigs] = await Promise.all([
-          base44.entities.Documento.list("-created_date", 5),
+          base44.entities.Documento.list("-created_date", 100),
           base44.entities.Assinatura.list("-created_date", 6),
         ]);
         setDocumentos(docs);
@@ -33,6 +35,8 @@ export default function Home() {
       }
     })();
   }, []);
+
+  const docsFiltrados = documentos.filter((d) => (d.pasta || "recentes") === pasta);
 
   const stats = [
     { label: "Documentos", value: documentos.length, icon: FileText, tone: "text-slate-900" },
@@ -53,9 +57,12 @@ export default function Home() {
             <h1 className="text-4xl font-heading tracking-tight text-foreground">Painel</h1>
             <p className="text-muted-foreground mt-2">Gerencie solicitações de assinatura e acompanhe o histórico completo.</p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button asChild variant="outline">
-              <Link to="/log" className="gap-2"><ScrollText className="w-4 h-4" /> Log de assinaturas</Link>
+              <Link to="/cadastros" className="gap-2"><Users className="w-4 h-4" /> Cadastros</Link>
+            </Button>
+            <Button asChild variant="outline">
+              <Link to="/log" className="gap-2"><ScrollText className="w-4 h-4" /> Log</Link>
             </Button>
             <Button asChild>
               <Link to="/novo" className="gap-2"><Plus className="w-4 h-4" /> Novo documento</Link>
@@ -79,32 +86,38 @@ export default function Home() {
           ))}
         </div>
 
-        <div className="grid lg:grid-cols-2 gap-6">
-          <section>
+        <div className="grid lg:grid-cols-3 gap-6">
+          <section className="lg:col-span-2">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-heading">Documentos recentes</h2>
-              <Link to="/novo" className="text-sm text-muted-foreground hover:text-foreground inline-flex items-center gap-1">
-                Ver tudo <ArrowRight className="w-3 h-3" />
-              </Link>
+              <h2 className="text-lg font-heading">Documentos</h2>
+            </div>
+            <div className="flex gap-2 mb-4">
+              <button onClick={() => setPasta("recentes")} className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${pasta === "recentes" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/70"}`}>
+                <Folder className="w-4 h-4" /> Recentes ({documentos.filter((d) => (d.pasta || "recentes") === "recentes").length})
+              </button>
+              <button onClick={() => setPasta("assinados")} className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${pasta === "assinados" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/70"}`}>
+                <FolderOpen className="w-4 h-4" /> Assinados ({documentos.filter((d) => d.pasta === "assinados").length})
+              </button>
             </div>
             <div className="space-y-3">
               {loading ? (
                 <p className="text-sm text-muted-foreground">Carregando…</p>
-              ) : documentos.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Nenhum documento ainda. Crie o primeiro.</p>
+              ) : docsFiltrados.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Pasta vazia.</p>
               ) : (
-                documentos.map((d) => (
-                  <Link to={`/assinar/${d.id}`} key={d.id} className="block">
-                    <Card className="rounded-xl border-border/60 hover:border-foreground/20 hover:shadow-md transition-all">
-                      <CardContent className="p-4 flex items-center justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="font-medium truncate">{d.titulo}</p>
-                          <p className="text-xs text-muted-foreground mt-0.5">{d.destinatario_nome || "Sem destinatário"} · {formatDate(d.data_limite)}</p>
-                        </div>
+                docsFiltrados.map((d) => (
+                  <Card key={d.id} className="rounded-xl border-border/60 hover:border-foreground/20 hover:shadow-md transition-all">
+                    <CardContent className="p-4 flex items-center justify-between gap-3">
+                      <Link to={`/assinar/${d.id}`} className="min-w-0 flex-1">
+                        <p className="font-medium truncate">{d.titulo}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">{d.destinatario_nome || "Sem destinatário"} · {formatDate(d.data_limite)}</p>
+                      </Link>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <ShareIcons title={d.titulo} signUrl={`${window.location.origin}/assinar/${d.id}`} />
                         <span className={`text-xs px-2.5 py-1 rounded-full font-medium capitalize ${statusStyles[d.status] || statusStyles.pendente}`}>{d.status}</span>
-                      </CardContent>
-                    </Card>
-                  </Link>
+                      </div>
+                    </CardContent>
+                  </Card>
                 ))
               )}
             </div>

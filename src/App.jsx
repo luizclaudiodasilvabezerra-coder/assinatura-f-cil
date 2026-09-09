@@ -15,6 +15,7 @@ import Home from '@/pages/Home';
 import NovoDocumento from '@/pages/NovoDocumento';
 import AssinarDocumento from '@/pages/AssinarDocumento';
 import LogAssinaturas from '@/pages/LogAssinaturas';
+import Cadastros from '@/pages/Cadastros';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -51,6 +52,7 @@ const AuthenticatedApp = () => {
         <Route path="/novo" element={<NovoDocumento />} />
         <Route path="/assinar/:id" element={<AssinarDocumento />} />
         <Route path="/log" element={<LogAssinaturas />} />
+        <Route path="/cadastros" element={<Cadastros />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>
