@@ -43,7 +43,7 @@ export default async function(req) {
       <p style="color:#666;font-size:12px">Envelopes não processados serão reenviados no próximo ciclo (12:00 e 16:00).</p>
     </div>`;
 
-    const subject = `Alerta fiscal: ${pendentes.length} envelope(s) pendente(s) de processamento`;
+    const subject = `⚠️ Alerta fiscal: ${pendentes.length} envelope(s) pendente(s) de processamento`;
     let via = 'plataforma';
     try {
       const { accessToken } = await base44.asServiceRole.connectors.getConnection('outlook');
