@@ -21,7 +21,6 @@ const STAGES = [
   { key: "pendente_gestao", label: "Pendentes gestão", icon: Clock, tone: "text-amber-600" },
   { key: "assinado_gestao", label: "Assinados gestão", icon: CheckCircle2, tone: "text-blue-600" },
   { key: "pendente_diretoria", label: "Pendentes diretoria", icon: Clock, tone: "text-purple-600" },
-  { key: "assinado_diretoria", label: "Assinados diretoria", icon: CheckCircle2, tone: "text-emerald-600" },
 ];
 
 const stageStyles = {
@@ -81,11 +80,12 @@ export default function Home() {
   useEffect(() => { load(); }, []);
 
   const counts = useMemo(() => {
-    const c = { all: documentos.length, pendente_gestao: 0, assinado_gestao: 0, pendente_diretoria: 0, assinado_diretoria: 0 };
-    const arqs = { all: 0, pendente_gestao: 0, assinado_gestao: 0, pendente_diretoria: 0, assinado_diretoria: 0 };
+    const c = { all: 0, pendente_gestao: 0, assinado_gestao: 0, pendente_diretoria: 0 };
+    const arqs = { all: 0, pendente_gestao: 0, assinado_gestao: 0, pendente_diretoria: 0 };
     documentos.forEach((d) => {
+      if (d.status === "assinado_diretoria") return;
       const n = d.arquivos?.length || 0;
-      arqs.all += n;
+      arqs.all += n; c.all++;
       if (c[d.status] !== undefined) { c[d.status]++; arqs[d.status] += n; }
     });
     return { c, arqs };
@@ -142,6 +142,7 @@ export default function Home() {
   }, [documentos, assinaturas]);
 
   const docsFiltrados = documentos.filter((d) => {
+    if (d.status === "assinado_diretoria") return false;
     if (stage !== "all" && d.status !== stage) return false;
     if (filtroUnidade && d.unidade_negocio !== filtroUnidade) return false;
     if (filtroData && d.data_limite !== filtroData) return false;
