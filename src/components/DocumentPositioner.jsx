@@ -64,7 +64,7 @@ export default function DocumentPositioner({ imageUrl, blocks, onMove }) {
             <div className="text-center text-[11px] mt-0.5 bg-white/90 px-1.5 py-0.5 rounded shadow-sm whitespace-nowrap">{b.nome}</div>
           )}
           {b.observacao && (
-            <div className="text-[11px] bg-white/95 border border-border rounded px-1.5 py-1 mt-1 max-w-[180px] shadow-sm">{b.observacao}</div>
+            <div style={{ paddingLeft: (b.indent || 0) * 14 }} className="text-[11px] bg-white/95 border border-border rounded px-1.5 py-1 mt-1 max-w-[180px] shadow-sm">{b.observacao}</div>
           )}
         </div>
       ))}
