@@ -35,6 +35,11 @@ export default function DocumentPositioner({ fileUrl, blocks, onMove }) {
 
   const endDrag = () => setDragId(null);
 
+  const pdfSrc = (url) => {
+    const sep = url.includes("#") ? "&" : "#";
+    return `${url}${sep}zoom=${Math.round(zoom * 100)}`;
+  };
+
   const renderFile = () => {
     if (!fileUrl) {
       return (
@@ -47,7 +52,7 @@ export default function DocumentPositioner({ fileUrl, blocks, onMove }) {
       return <img src={fileUrl} alt="documento" className="w-full block" draggable={false} />;
     }
     if (isPdf(fileUrl)) {
-      return <iframe src={fileUrl} title="documento" className="w-full h-[78vh] block bg-white" draggable={false} />;
+      return <iframe src={pdfSrc(fileUrl)} title="documento" className="w-full h-[80vh] block bg-white" draggable={false} />;
     }
     return (
       <div className="w-full h-64 flex flex-col items-center justify-center gap-2 text-sm text-muted-foreground">
@@ -57,13 +62,15 @@ export default function DocumentPositioner({ fileUrl, blocks, onMove }) {
     );
   };
 
+  const wrapperWidth = isImage(fileUrl) ? `${zoom * 100}%` : "100%";
+
   return (
     <div className="relative w-full rounded-xl overflow-hidden border border-border/60 bg-muted/20">
-      <div className="w-full overflow-auto" style={{ maxHeight: "80vh" }}>
+      <div className="w-full overflow-auto" style={{ maxHeight: "82vh" }}>
         <div
           ref={containerRef}
-          className="relative w-full"
-          style={{ transform: `scale(${zoom})`, transformOrigin: "top left" }}
+          className="relative"
+          style={{ width: wrapperWidth }}
           onMouseMove={handleMove}
           onMouseUp={endDrag}
           onMouseLeave={endDrag}

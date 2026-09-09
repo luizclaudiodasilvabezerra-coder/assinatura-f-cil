@@ -241,7 +241,7 @@ export default function AssinarDocumento() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="max-w-5xl mx-auto px-6 py-10">
+      <div className="max-w-[1600px] mx-auto px-4 lg:px-6 py-6">
         <Link to="/" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6">
           <ArrowLeft className="w-4 h-4" /> Voltar
         </Link>
@@ -279,8 +279,8 @@ export default function AssinarDocumento() {
           })}
         </div>
 
-        <div className="grid lg:grid-cols-5 gap-6">
-          <div className="space-y-3 lg:col-span-3">
+        <div className="grid lg:grid-cols-12 gap-4">
+          <div className="space-y-3 lg:col-span-8">
             <p className="text-sm font-medium">
               {currentSigned ? "Arquivo já assinado" : `Assinando: ${fileName(currentFile)}`}
             </p>
@@ -296,7 +296,7 @@ export default function AssinarDocumento() {
             )}
           </div>
 
-          <div className="space-y-4 lg:col-span-2">
+          <div className="space-y-4 lg:col-span-4">
             {currentSigned ? (
               <Card className="rounded-2xl border-emerald-200 bg-emerald-50/40">
                 <CardContent className="p-5 space-y-4">
