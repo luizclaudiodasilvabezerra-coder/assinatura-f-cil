@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { ShieldCheck, Lock, FileText } from "lucide-react";
 import { Image as UIImage } from "@/components/ui/image";
 
-const LOGO_URL = "https://media.base44.com/images/public/6aa074a5ce060f1b2caeee8f/af344a641_image.png";
+const LOGO_URL = "https://media.base44.com/images/public/6aa074a5ce060f1b2caeee8f/9a85e6240_image.png";
 const SENHA_CAPA = "LOG@2026";
 
 export default function Capa() {
@@ -17,7 +17,7 @@ export default function Capa() {
 
   const entrar = (e) => {
     e.preventDefault();
-    if (senha === SENHA_CAPA) navigate("/login");
+    if (senha === SENHA_CAPA) { sessionStorage.setItem("capa_ok", "1"); navigate("/"); }
     else setErro(true);
   };
 

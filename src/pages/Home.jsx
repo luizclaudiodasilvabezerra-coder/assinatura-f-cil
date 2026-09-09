@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
 import { Image as UIImage } from "@/components/ui/image";
 
-const LOGO_URL = "https://media.base44.com/images/public/6aa074a5ce060f1b2caeee8f/af344a641_image.png";
+const LOGO_URL = "https://media.base44.com/images/public/6aa074a5ce060f1b2caeee8f/9a85e6240_image.png";
 
 const STAGES = [
   { key: "all", label: "Envelopes", icon: FileText, tone: "text-slate-900" },
@@ -181,12 +181,12 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-background">
       <div className="max-w-6xl mx-auto px-6 py-10">
+        <div className="flex justify-center mb-6">
+          <UIImage src={LOGO_URL} alt="LOGMAM transportes" className="h-20 w-auto object-contain" />
+        </div>
         <header className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-10">
           <div>
-            <div className="flex items-center gap-3 mb-2">
-              <UIImage src={LOGO_URL} alt="Assinatura Fácil Log" className="h-10 w-auto object-contain" />
-              <span className="text-sm font-medium text-brand">Assinatura Fácil Log</span>
-            </div>
+            <span className="text-sm font-medium text-brand mb-2 inline-block">Assinatura Fácil Log</span>
             <h1 className="text-4xl font-heading tracking-tight text-foreground">Painel</h1>
             <p className="text-muted-foreground mt-2">Pipeline de assinaturas: gestão → diretoria.</p>
           </div>
