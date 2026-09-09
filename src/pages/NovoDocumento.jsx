@@ -115,7 +115,7 @@ export default function NovoDocumento() {
                 <Label htmlFor="signatario">Signatário (pasta pendente será gerada para ele)</Label>
                 <select id="signatario" value={form.signatario_cadastro_id} onChange={onSignatarioChange} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
                   <option value="">— Selecionar do cadastro —</option>
-                  {cadastros.map((c) => (
+                  {cadastros.filter((c) => ["signatario", "destinatario", "ambos"].includes(c.tipo)).map((c) => (
                     <option key={c.id} value={c.id}>{c.nome}</option>
                   ))}
                 </select>

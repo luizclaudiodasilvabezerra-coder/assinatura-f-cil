@@ -17,6 +17,7 @@ import AssinarDocumento from '@/pages/AssinarDocumento';
 import LogAssinaturas from '@/pages/LogAssinaturas';
 import Cadastros from '@/pages/Cadastros';
 import AssinarDiretoria from '@/pages/AssinarDiretoria';
+import Capa from '@/pages/Capa';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -44,11 +45,12 @@ const AuthenticatedApp = () => {
   // Render the main app
   return (
     <Routes>
+      <Route path="/capa" element={<Capa />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
-      <Route element={<ProtectedRoute unauthenticatedElement={<Navigate to="/login" replace />} />}>
+      <Route element={<ProtectedRoute unauthenticatedElement={<Navigate to="/capa" replace />} />}>
         <Route path="/" element={<Home />} />
         <Route path="/novo" element={<NovoDocumento />} />
         <Route path="/assinar/:id" element={<AssinarDocumento />} />

@@ -62,7 +62,7 @@ export default function AssinarDiretoria() {
         const masters = s.filter((x) => x.etapa === "master");
         const map = {};
         gestao.forEach((g, i) => {
-          const m = masters.find((mm) => mm.arquivo_original_url === g.arquivo_url);
+          const m = masters.find((mm) => mm.arquivo_original_url === g.arquivo_original_url);
           if (m) map[i] = m;
         });
         setSignedMap(map);
@@ -161,7 +161,7 @@ export default function AssinarDiretoria() {
       await base44.entities.Assinatura.update(currentSig.id, { arquivo_url: stampedUrl });
       const rec = await base44.entities.Assinatura.create({
         documento_id: id, documento_titulo: doc.titulo, arquivo_url: stampedUrl,
-        arquivo_original_url: currentFile,
+        arquivo_original_url: currentSig.arquivo_original_url || currentFile,
         assinante_nome: nome, assinante_cadastro_id: cadastroId || undefined, imagem_url, tipo: modo,
         etapa: "master", observacao, indent, pos_x: pos.x, pos_y: pos.y,
         unidade_negocio: doc.unidade_negocio || "", operacao: doc.operacao || "",
@@ -170,13 +170,18 @@ export default function AssinarDiretoria() {
       const newMap = { ...signedMap, [currentIndex]: rec };
       setSignedMap(newMap);
       setObservacao(""); setIndent(0); setImagemUpload(""); setCadastroId(""); setNome(""); setAutorizado(false); setPos({ x: 3, y: 90 }); setCritica(false);
-      const next = findNextUnsigned(currentIndex);
-      if (next === -1) {
-        await base44.entities.Documento.update(id, { status: "assinado_diretoria" });
-        setDoc((d) => ({ ...d, status: "assinado_diretoria" }));
+      const allDone = arquivos.every((_, i) => newMap[i]);
+      if (allDone) {
+        await base44.entities.Documento.update(id, { status: "assinado_diretoria", pasta: "assinados" });
+        setDoc((d) => ({ ...d, status: "assinado_diretoria", pasta: "assinados" }));
         toast({ title: "Todos os arquivos assinados pela diretoria", description: "Envelope concluído." });
       } else {
-        setCurrentIndex(next);
+        let next = -1;
+        for (let step = 1; step <= arquivos.length; step++) {
+          const idx = (currentIndex + step) % arquivos.length;
+          if (!newMap[idx]) { next = idx; break; }
+        }
+        if (next !== -1) setCurrentIndex(next);
         toast({ title: "Arquivo assinado", description: "Avançando para o próximo arquivo." });
       }
     } catch { toast({ title: "Erro ao registrar assinatura", variant: "destructive" }); }
