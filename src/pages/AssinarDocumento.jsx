@@ -42,6 +42,8 @@ export default function AssinarDocumento() {
   const [indent, setIndent] = useState(0);
   const [imagemUpload, setImagemUpload] = useState("");
   const [pos, setPos] = useState({ x: 3, y: 90 });
+  const [unidade, setUnidade] = useState("");
+  const [operacao, setOperacao] = useState("");
 
   useEffect(() => {
     (async () => {
@@ -53,6 +55,8 @@ export default function AssinarDocumento() {
         ]);
         setDoc(d);
         setCadastros(cad);
+        setUnidade(d.unidade_negocio || "");
+        setOperacao(d.operacao || "");
         setExistentes(sigs);
         const arqs = d.arquivos && d.arquivos.length ? d.arquivos : [""];
         const map = {};
@@ -135,7 +139,7 @@ export default function AssinarDocumento() {
         stampRes = await base44.functions.invoke("carimbarPdf", {
           fileUrl: currentFile, imagemUrl: imagem_url, posX: pos.x, posY: pos.y,
           nome: assinanteNome, data: new Date().toLocaleString("pt-BR"),
-          observacao, operacao: doc.operacao || "", unidade: doc.unidade_negocio || "", indent,
+          observacao, operacao: operacao || doc.operacao || "", unidade: unidade || doc.unidade_negocio || "", indent,
         });
       } catch {
         toast({ title: "Falha ao gravar assinatura no PDF", description: "A assinatura não foi registrada no arquivo. Tente novamente.", variant: "destructive" });
@@ -165,7 +169,7 @@ export default function AssinarDocumento() {
         assinante_nome: assinanteNome, assinante_email: assinanteEmail,
         assinante_cadastro_id: cadastroId || undefined, imagem_url, tipo: modo,
         etapa: "signatario", observacao, indent, pos_x: pos.x, pos_y: pos.y,
-        unidade_negocio: doc.unidade_negocio || "", operacao: doc.operacao || "",
+        unidade_negocio: unidade || doc.unidade_negocio || "", operacao: operacao || doc.operacao || "",
         status: "assinado", data_assinatura: new Date().toISOString(),
       });
       const newMap = { ...signedMap, [currentIndex]: rec };
@@ -334,6 +338,22 @@ export default function AssinarDocumento() {
                       </select>
                       <Input value={assinanteNome} onChange={(e) => setAssinanteNome(e.target.value)} placeholder="Ou digite o nome" className="mt-2" />
                       <Input type="email" value={assinanteEmail} onChange={(e) => setAssinanteEmail(e.target.value)} placeholder="E-mail (opcional)" className="mt-2" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-2">
+                        <Label>Unidade de negócio</Label>
+                        <select value={unidade} onChange={(e) => setUnidade(e.target.value)} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+                          <option value="">— Selecionar —</option>
+                          {cadastros.filter((c) => c.tipo === "unidade").map((c) => (<option key={c.id} value={c.nome}>{c.nome}</option>))}
+                        </select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Operação</Label>
+                        <select value={operacao} onChange={(e) => setOperacao(e.target.value)} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+                          <option value="">— Selecionar —</option>
+                          {cadastros.filter((c) => c.tipo === "operacao").map((c) => (<option key={c.id} value={c.nome}>{c.nome}</option>))}
+                        </select>
+                      </div>
                     </div>
                     <div className="space-y-2">
                       <Label>Assinatura *</Label>
