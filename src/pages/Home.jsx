@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
 import { Image as UIImage } from "@/components/ui/image";
 
-const LOGO_URL = "https://media.base44.com/images/public/6aa074a5ce060f1b2caeee8f/9a85e6240_image.png";
+const LOGO_URL = "https://media.base44.com/images/public/6aa074a5ce060f1b2caeee8f/86ee25d0d_image.png";
 
 const STAGES = [
   { key: "all", label: "Envelopes", icon: FileText, tone: "text-slate-900" },
