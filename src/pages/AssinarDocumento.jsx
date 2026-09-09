@@ -7,7 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, Loader2, FileText, CheckCircle2, Calendar, User, Upload, PenLine, Plus, Minus, ChevronRight, Pen, ShieldCheck, AlertTriangle, Download } from "lucide-react";
+import { ArrowLeft, Loader2, FileText, CheckCircle2, Calendar, User, Upload, PenLine, Plus, Minus, ChevronRight, Pen, AlertTriangle, Download, Send } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import SignaturePad from "@/components/SignaturePad";
 import DocumentPositioner from "@/components/DocumentPositioner";
@@ -21,17 +21,15 @@ export default function AssinarDocumento() {
   const { id } = useParams();
   const { toast } = useToast();
   const padRef = useRef(null);
-  const masterPadRef = useRef(null);
   const obsRef = useRef(null);
-  const masterObsRef = useRef(null);
   const [doc, setDoc] = useState(null);
   const [cadastros, setCadastros] = useState([]);
   const [existentes, setExistentes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [critica, setCritica] = useState(false);
-  const [masterCritica, setMasterCritica] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const [enviando, setEnviando] = useState(false);
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [signedMap, setSignedMap] = useState({});
@@ -44,12 +42,6 @@ export default function AssinarDocumento() {
   const [indent, setIndent] = useState(0);
   const [imagemUpload, setImagemUpload] = useState("");
   const [pos, setPos] = useState({ x: 10, y: 70 });
-
-  const [masterCadastroId, setMasterCadastroId] = useState("");
-  const [masterNome, setMasterNome] = useState("");
-  const [masterModo, setMasterModo] = useState("desenhada");
-  const [masterObservacao, setMasterObservacao] = useState("");
-  const [masterImagemUpload, setMasterImagemUpload] = useState("");
 
   useEffect(() => {
     (async () => {
@@ -66,7 +58,7 @@ export default function AssinarDocumento() {
         const map = {};
         sigs.forEach((s) => {
           if (s.etapa === "master") return;
-          const url = s.arquivo_url || "";
+          const url = s.arquivo_original_url || s.arquivo_url || "";
           const idx = arqs.indexOf(url);
           if (idx >= 0) map[idx] = s;
         });
@@ -83,23 +75,12 @@ export default function AssinarDocumento() {
   const currentFile = arquivos[currentIndex];
   const currentSigned = signedMap[currentIndex];
   const allSigned = arquivos.length > 0 && arquivos.every((_, i) => signedMap[i]);
-  const masterDone = existentes.some((s) => s.etapa === "master");
-  const completed = allSigned && masterDone;
-  const showMaster = allSigned && !masterDone;
+  const gestaoDone = allSigned;
 
   const onCadastroChange = (e) => {
     const c = cadastros.find((x) => x.id === e.target.value);
     setCadastroId(e.target.value);
-    if (c) {
-      setAssinanteNome(c.nome);
-      setAssinanteEmail(c.email || "");
-    }
-  };
-
-  const onMasterCadastroChange = (e) => {
-    const c = cadastros.find((x) => x.id === e.target.value);
-    setMasterCadastroId(e.target.value);
-    if (c) setMasterNome(c.nome);
+    if (c) { setAssinanteNome(c.nome); setAssinanteEmail(c.email || ""); }
   };
 
   const handleUploadAssinatura = async (e) => {
@@ -108,20 +89,7 @@ export default function AssinarDocumento() {
     try {
       const { file_url } = await base44.integrations.Core.UploadFile({ file });
       setImagemUpload(file_url);
-    } catch {
-      toast({ title: "Erro ao enviar imagem", variant: "destructive" });
-    }
-  };
-
-  const handleUploadMaster = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    try {
-      const { file_url } = await base44.integrations.Core.UploadFile({ file });
-      setMasterImagemUpload(file_url);
-    } catch {
-      toast({ title: "Erro ao enviar imagem", variant: "destructive" });
-    }
+    } catch { toast({ title: "Erro ao enviar imagem", variant: "destructive" }); }
   };
 
   const findNextUnsigned = (from) => {
@@ -139,10 +107,7 @@ export default function AssinarDocumento() {
   };
 
   const assinarArquivo = async () => {
-    if (!assinanteNome.trim()) {
-      toast({ title: "Selecione ou informe o nome do assinante", variant: "destructive" });
-      return;
-    }
+    if (!assinanteNome.trim()) { toast({ title: "Selecione ou informe o nome do assinante", variant: "destructive" }); return; }
     if (!observacao.trim()) {
       setCritica(true);
       toast({ title: "Existe arquivo sem observação", description: "A observação é obrigatória para assinar.", variant: "destructive" });
@@ -150,25 +115,15 @@ export default function AssinarDocumento() {
     }
     let imagem_url = "";
     if (modo === "desenhada") {
-      if (padRef.current?.isEmpty()) {
-        toast({ title: "Desenhe a assinatura", variant: "destructive" });
-        return;
-      }
+      if (padRef.current?.isEmpty()) { toast({ title: "Desenhe a assinatura", variant: "destructive" }); return; }
       setSaving(true);
       try {
         const file = dataURLToFile(padRef.current.getDataURL(), `assinatura_${assinanteNome}.png`);
         const up = await base44.integrations.Core.UploadFile({ file });
         imagem_url = up.file_url;
-      } catch {
-        setSaving(false);
-        toast({ title: "Erro ao salvar assinatura", variant: "destructive" });
-        return;
-      }
+      } catch { setSaving(false); toast({ title: "Erro ao salvar assinatura", variant: "destructive" }); return; }
     } else {
-      if (!imagemUpload) {
-        toast({ title: "Envie uma imagem de assinatura", variant: "destructive" });
-        return;
-      }
+      if (!imagemUpload) { toast({ title: "Envie uma imagem de assinatura", variant: "destructive" }); return; }
       imagem_url = imagemUpload;
       setSaving(true);
     }
@@ -177,184 +132,86 @@ export default function AssinarDocumento() {
     if (currentFile && /\.pdf$/i.test(currentFile)) {
       try {
         const stampRes = await base44.functions.invoke("carimbarPdf", {
-          fileUrl: currentFile,
-          imagemUrl: imagem_url,
-          posX: pos.x,
-          posY: pos.y,
-          nome: assinanteNome,
-          data: new Date().toLocaleString("pt-BR"),
-          observacao,
-          operacao: doc.operacao || "",
-          unidade: doc.unidade_negocio || "",
-          indent,
+          fileUrl: currentFile, imagemUrl: imagem_url, posX: pos.x, posY: pos.y,
+          nome: assinanteNome, data: new Date().toLocaleString("pt-BR"),
+          observacao, operacao: doc.operacao || "", unidade: doc.unidade_negocio || "", indent,
         });
         if (stampRes.data?.pdf_base64) {
           const stampedFile = new File([base64ToBlob(stampRes.data.pdf_base64)], `assinado_${fileName(currentFile)}`, { type: "application/pdf" });
           const up2 = await base44.integrations.Core.UploadFile({ file: stampedFile });
           arquivo_url = up2.file_url;
         }
-      } catch {
-        toast({ title: "Aviso", description: "Carimbo do PDF falhou; salvo arquivo original.", variant: "destructive" });
-      }
+      } catch { toast({ title: "Aviso", description: "Carimbo do PDF falhou; salvo arquivo original.", variant: "destructive" }); }
     }
 
     try {
       const rec = await base44.entities.Assinatura.create({
-        documento_id: id,
-        documento_titulo: doc.titulo,
-        arquivo_url,
-        assinante_nome: assinanteNome,
-        assinante_email: assinanteEmail,
-        assinante_cadastro_id: cadastroId || undefined,
-        imagem_url,
-        tipo: modo,
-        etapa: "signatario",
-        observacao,
-        indent,
-        pos_x: pos.x,
-        pos_y: pos.y,
-        unidade_negocio: doc.unidade_negocio || "",
-        operacao: doc.operacao || "",
-        status: "assinado",
-        data_assinatura: new Date().toISOString(),
+        documento_id: id, documento_titulo: doc.titulo, arquivo_url,
+        arquivo_original_url: currentFile || undefined,
+        assinante_nome: assinanteNome, assinante_email: assinanteEmail,
+        assinante_cadastro_id: cadastroId || undefined, imagem_url, tipo: modo,
+        etapa: "signatario", observacao, indent, pos_x: pos.x, pos_y: pos.y,
+        unidade_negocio: doc.unidade_negocio || "", operacao: doc.operacao || "",
+        status: "assinado", data_assinatura: new Date().toISOString(),
       });
       const newMap = { ...signedMap, [currentIndex]: rec };
       setSignedMap(newMap);
       setExistentes((e) => [rec, ...e]);
-      setObservacao("");
-      setIndent(0);
-      setImagemUpload("");
-      setCadastroId("");
-      setAssinanteNome("");
-      setAssinanteEmail("");
-      setPos({ x: 10, y: 70 });
-      setCritica(false);
+      setObservacao(""); setIndent(0); setImagemUpload(""); setCadastroId(""); setAssinanteNome(""); setAssinanteEmail(""); setPos({ x: 10, y: 70 }); setCritica(false);
 
       const next = findNextUnsigned(currentIndex);
       if (next === -1) {
-        toast({ title: "Todos os arquivos assinados", description: "Aguardando assinatura master (diretoria)." });
+        await base44.entities.Documento.update(id, { status: "assinado_gestao" });
+        setDoc((d) => ({ ...d, status: "assinado_gestao" }));
+        toast({ title: "Todos os arquivos assinados pela gestão", description: "Envelope pronto para enviar à diretoria." });
       } else {
         setCurrentIndex(next);
         toast({ title: "Arquivo assinado", description: "Avançando para o próximo arquivo." });
       }
-    } catch {
-      toast({ title: "Erro ao registrar assinatura", variant: "destructive" });
-    } finally {
-      setSaving(false);
-    }
+    } catch { toast({ title: "Erro ao registrar assinatura", variant: "destructive" }); }
+    finally { setSaving(false); }
   };
 
-  const assinarMaster = async () => {
-    if (!masterNome.trim()) {
-      toast({ title: "Selecione ou informe o master (diretoria)", variant: "destructive" });
-      return;
-    }
-    if (!masterObservacao.trim()) {
-      setMasterCritica(true);
-      toast({ title: "Existe arquivo sem observação", description: "A observação master é obrigatória.", variant: "destructive" });
-      return;
-    }
-    let imagem_url = "";
-    if (masterModo === "desenhada") {
-      if (masterPadRef.current?.isEmpty()) {
-        toast({ title: "Desenhe a assinatura master", variant: "destructive" });
-        return;
-      }
-      setSaving(true);
-      try {
-        const file = dataURLToFile(masterPadRef.current.getDataURL(), `assinatura_master_${masterNome}.png`);
-        const up = await base44.integrations.Core.UploadFile({ file });
-        imagem_url = up.file_url;
-      } catch {
-        setSaving(false);
-        toast({ title: "Erro ao salvar assinatura", variant: "destructive" });
-        return;
-      }
-    } else {
-      if (!masterImagemUpload) {
-        toast({ title: "Envie uma imagem de assinatura", variant: "destructive" });
-        return;
-      }
-      imagem_url = masterImagemUpload;
-      setSaving(true);
-    }
-
-    try {
-      const rec = await base44.entities.Assinatura.create({
-        documento_id: id,
-        documento_titulo: doc.titulo,
-        arquivo_url: arquivos[0] || undefined,
-        assinante_nome: masterNome,
-        assinante_cadastro_id: masterCadastroId || undefined,
-        imagem_url,
-        tipo: masterModo,
-        etapa: "master",
-        observacao: masterObservacao,
-        indent: 0,
-        pos_x: 10,
-        pos_y: 70,
-        unidade_negocio: doc.unidade_negocio || "",
-        operacao: doc.operacao || "",
-        status: "assinado",
-        data_assinatura: new Date().toISOString(),
-      });
-      setExistentes((e) => [rec, ...e]);
-      await base44.entities.Documento.update(id, { status: "assinado", pasta: "assinados" });
-      toast({ title: "Envelope concluído", description: "Assinatura master registrada e envelope movido para assinados." });
-    } catch {
-      toast({ title: "Erro ao registrar assinatura master", variant: "destructive" });
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const avancar = () => {
-    const next = findNextUnsigned(currentIndex);
-    if (next !== -1) setCurrentIndex(next);
-  };
+  const avancar = () => { const next = findNextUnsigned(currentIndex); if (next !== -1) setCurrentIndex(next); };
 
   const baixarEnvelope = async () => {
     setDownloading(true);
-    try {
-      await baixarEnvelopePdf(id, `${doc.numero || "envelope"}.pdf`);
-    } catch (e) {
-      toast({ title: "Erro ao baixar", description: e.message, variant: "destructive" });
-    } finally {
-      setDownloading(false);
-    }
+    try { await baixarEnvelopePdf(id, `${doc.numero || "envelope"}.pdf`); }
+    catch (e) { toast({ title: "Erro ao baixar", description: e.message, variant: "destructive" }); }
+    finally { setDownloading(false); }
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
+  const enviarDiretoria = async () => {
+    setEnviando(true);
+    try {
+      await base44.entities.Documento.update(id, { status: "pendente_diretoria" });
+      setDoc((d) => ({ ...d, status: "pendente_diretoria" }));
+      toast({ title: "Enviado para diretoria", description: "O envelope agora aguarda assinatura da diretoria." });
+    } catch { toast({ title: "Erro ao enviar", variant: "destructive" }); }
+    finally { setEnviando(false); }
+  };
 
-  if (!doc) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-4">
-        <p className="text-muted-foreground">Documento não encontrado.</p>
-        <Button asChild variant="outline"><Link to="/">Voltar</Link></Button>
-      </div>
-    );
-  }
+  if (loading) return (<div className="min-h-screen flex items-center justify-center"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>);
+  if (!doc) return (<div className="min-h-screen flex flex-col items-center justify-center gap-4"><p className="text-muted-foreground">Documento não encontrado.</p><Button asChild variant="outline"><Link to="/">Voltar</Link></Button></div>);
 
-  if (completed) {
+  if (gestaoDone) {
     return (
       <div className="min-h-screen flex items-center justify-center px-6">
         <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="text-center max-w-md">
-          <div className="mx-auto w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center mb-6">
-            <CheckCircle2 className="w-8 h-8 text-emerald-600" />
+          <div className="mx-auto w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center mb-6">
+            <CheckCircle2 className="w-8 h-8 text-blue-600" />
           </div>
-          <h1 className="text-2xl font-heading mb-2">Envelope concluído</h1>
-          <p className="text-muted-foreground mb-6">Todos os arquivos e a assinatura master foram registrados. O envelope foi movido para a pasta "Assinados".</p>
+          <h1 className="text-2xl font-heading mb-2">Assinatura da gestão concluída</h1>
+          <p className="text-muted-foreground mb-6">Todos os arquivos foram assinados pela gestão. Envie à diretoria para a assinatura final.</p>
 
           <div className="flex flex-col gap-3 mb-6">
-            <Button type="button" onClick={baixarEnvelope} disabled={downloading} className="gap-2">
+            <Button type="button" onClick={enviarDiretoria} disabled={enviando} className="gap-2">
+              {enviando ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+              Enviar para assinatura da diretoria
+            </Button>
+            <Button type="button" variant="outline" onClick={baixarEnvelope} disabled={downloading} className="gap-2">
               {downloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-              Baixar envelope completo (PDF)
+              Baixar envelope (PDF)
             </Button>
             <div className="text-left space-y-2">
               <p className="text-xs text-muted-foreground">Arquivos assinados (clique para baixar individual):</p>
@@ -379,133 +236,30 @@ export default function AssinarDocumento() {
     );
   }
 
-  // Etapa master (diretoria)
-  if (showMaster) {
-    return (
-      <div className="min-h-screen bg-background">
-        <div className="max-w-2xl mx-auto px-6 py-10">
-          <Link to="/" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6">
-            <ArrowLeft className="w-4 h-4" /> Voltar
-          </Link>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2"><ShieldCheck className="w-4 h-4" /> Etapa final</div>
-          <h1 className="text-3xl font-heading tracking-tight mb-1">Assinatura master (diretoria)</h1>
-          <p className="text-muted-foreground mb-8">Todos os arquivos foram assinados pelo signatário. Confirme a assinatura master para concluir o envelope {doc.numero || ""}.</p>
-
-          {masterCritica && (
-            <div className="flex items-center justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 mb-4">
-              <div className="flex items-center gap-2 text-sm text-amber-800">
-                <AlertTriangle className="w-4 h-4" /> Existe arquivo sem observação.
-              </div>
-              <button type="button" onClick={() => { setMasterCritica(false); masterObsRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }); setTimeout(() => masterObsRef.current?.focus(), 300); }} className="text-sm font-medium text-amber-900 underline">
-                Inserir a observação
-              </button>
-            </div>
-          )}
-
-          <Card className="rounded-2xl border-border/60">
-            <CardContent className="p-5 space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="mastercad">Quem assina como master (diretoria) *</Label>
-                <select id="mastercad" value={masterCadastroId} onChange={onMasterCadastroChange} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
-                  <option value="">— Selecionar do cadastro —</option>
-                  {cadastros.map((c) => (
-                    <option key={c.id} value={c.id}>{c.nome}{c.diretoria ? ` · ${c.diretoria}` : ""}</option>
-                  ))}
-                </select>
-                <Input value={masterNome} onChange={(e) => setMasterNome(e.target.value)} placeholder="Ou digite o nome do master" className="mt-2" />
-              </div>
-
-              <div className="flex rounded-lg border border-border overflow-hidden text-sm">
-                <button type="button" onClick={() => setMasterModo("desenhada")} className={`flex-1 py-2 inline-flex items-center justify-center gap-2 ${masterModo === "desenhada" ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted"}`}>
-                  <PenLine className="w-4 h-4" /> Desenhar no touch
-                </button>
-                <button type="button" onClick={() => setMasterModo("uploadada")} className={`flex-1 py-2 inline-flex items-center justify-center gap-2 ${masterModo === "uploadada" ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted"}`}>
-                  <Upload className="w-4 h-4" /> Buscar imagem
-                </button>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Assinatura master *</Label>
-                {masterModo === "desenhada" ? (
-                  <SignaturePad ref={masterPadRef} />
-                ) : (
-                  <label className="flex items-center justify-center gap-2 cursor-pointer rounded-xl border-2 border-dashed border-border py-8 text-sm text-muted-foreground hover:border-foreground/20 hover:bg-muted/30 transition-colors">
-                    <Upload className="w-4 h-4" />
-                    {masterImagemUpload ? "Imagem carregada ✓ (clique para trocar)" : "Buscar imagem de assinatura"}
-                    <input type="file" accept="image/*" className="hidden" onChange={handleUploadMaster} />
-                  </label>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="masterobs">Caixa de observações *</Label>
-                <Textarea
-                  id="masterobs"
-                  ref={masterObsRef}
-                  value={masterObservacao}
-                  onChange={(e) => setMasterObservacao(e.target.value)}
-                  rows={2}
-                  placeholder="Observação que aparece sob a assinatura master"
-                />
-              </div>
-
-              <Button type="button" disabled={saving} onClick={assinarMaster} className="w-full gap-2">
-                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
-                Confirmar assinatura master e concluir
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    );
-  }
-
-  const pendingBlock =
-    !currentSigned && assinanteNome
-      ? [{
-          id: "pending",
-          nome: assinanteNome,
-          imagem_url: imagemUpload || "",
-          observacao,
-          indent,
-          pos_x: pos.x,
-          pos_y: pos.y,
-          draggable: true,
-        }]
-      : [];
-
-  const positionerBlocks = currentSigned
-    ? [{
-        id: currentSigned.id,
-        nome: currentSigned.assinante_nome,
-        imagem_url: currentSigned.imagem_url,
-        observacao: currentSigned.observacao,
-        indent: currentSigned.indent || 0,
-        pos_x: currentSigned.pos_x ?? 10,
-        pos_y: currentSigned.pos_y ?? 70,
-        draggable: false,
-      }]
-    : pendingBlock;
+  const pendingBlock = !currentSigned && assinanteNome ? [{ id: "pending", nome: assinanteNome, imagem_url: imagemUpload || "", observacao, indent, pos_x: pos.x, pos_y: pos.y, draggable: true }] : [];
+  const positionerBlocks = currentSigned ? [{ id: currentSigned.id, nome: currentSigned.assinante_nome, imagem_url: currentSigned.imagem_url, observacao: currentSigned.observacao, indent: currentSigned.indent || 0, pos_x: currentSigned.pos_x ?? 10, pos_y: currentSigned.pos_y ?? 70, draggable: false }] : pendingBlock;
 
   return (
     <div className="min-h-screen bg-background">
       <div className="max-w-[1600px] mx-auto px-4 lg:px-6 py-6">
-        <Link to="/" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6">
-          <ArrowLeft className="w-4 h-4" /> Voltar
-        </Link>
+        <Link to="/" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6"><ArrowLeft className="w-4 h-4" /> Voltar</Link>
 
-        <div className="mb-6">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-            <FileText className="w-4 h-4" /> {doc.numero ? `Envelope ${doc.numero}` : "Documento para assinatura"}
+        <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2"><FileText className="w-4 h-4" /> {doc.numero ? `Envelope ${doc.numero}` : "Documento para assinatura"}</div>
+            <h1 className="text-3xl font-heading tracking-tight">{doc.titulo}</h1>
+            <div className="flex flex-wrap gap-4 mt-4 text-sm text-muted-foreground">
+              {doc.signatario_nome && <span className="inline-flex items-center gap-1.5"><User className="w-3.5 h-3.5" /> Gestão: {doc.signatario_nome}</span>}
+              {doc.unidade_negocio && <span>UN: {doc.unidade_negocio}</span>}
+              {doc.operacao && <span>Operação: {doc.operacao}</span>}
+              {doc.data_limite && <span className="inline-flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5" /> {formatDate(doc.data_limite)}</span>}
+            </div>
           </div>
-          <h1 className="text-3xl font-heading tracking-tight">{doc.titulo}</h1>
-          {doc.descricao && <p className="text-muted-foreground mt-2">{doc.descricao}</p>}
-          <div className="flex flex-wrap gap-4 mt-4 text-sm text-muted-foreground">
-            {doc.signatario_nome && <span className="inline-flex items-center gap-1.5"><User className="w-3.5 h-3.5" /> Signatário: {doc.signatario_nome}</span>}
-            {doc.unidade_negocio && <span>UN: {doc.unidade_negocio}</span>}
-            {doc.operacao && <span>Operação: {doc.operacao}</span>}
-            {doc.data_limite && <span className="inline-flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5" /> {formatDate(doc.data_limite)}</span>}
-          </div>
+          {Object.keys(signedMap).length > 0 && (
+            <Button type="button" variant="outline" onClick={baixarEnvelope} disabled={downloading} className="gap-2">
+              {downloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />} Baixar envelope
+            </Button>
+          )}
         </div>
 
         <div className="flex flex-wrap gap-2 mb-6">
@@ -513,17 +267,8 @@ export default function AssinarDocumento() {
             const signed = !!signedMap[i];
             const isCurrent = i === currentIndex;
             return (
-              <button
-                key={i}
-                type="button"
-                onClick={() => setCurrentIndex(i)}
-                className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg border text-sm transition-colors ${
-                  isCurrent ? "border-foreground/30 bg-foreground/5" : "border-border/60 hover:bg-muted/40"
-                }`}
-              >
-                <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] ${signed ? "bg-emerald-500 text-white" : "bg-muted text-muted-foreground"}`}>
-                  {signed ? <CheckCircle2 className="w-3.5 h-3.5" /> : i + 1}
-                </span>
+              <button key={i} type="button" onClick={() => setCurrentIndex(i)} className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg border text-sm transition-colors ${isCurrent ? "border-foreground/30 bg-foreground/5" : "border-border/60 hover:bg-muted/40"}`}>
+                <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] ${signed ? "bg-emerald-500 text-white" : "bg-muted text-muted-foreground"}`}>{signed ? <CheckCircle2 className="w-3.5 h-3.5" /> : i + 1}</span>
                 <span className="max-w-[160px] truncate">{fileName(url)}</span>
               </button>
             );
@@ -532,126 +277,72 @@ export default function AssinarDocumento() {
 
         <div className="grid lg:grid-cols-12 gap-4">
           <div className="space-y-3 lg:col-span-8">
-            <p className="text-sm font-medium">
-              {currentSigned ? "Arquivo já assinado" : `Assinando: ${fileName(currentFile)}`}
-            </p>
-            <DocumentPositioner
-              fileUrl={currentFile}
-              blocks={positionerBlocks}
-              onMove={(bid, x, y) => setPos({ x, y })}
-            />
-            {currentFile && !isImage(currentFile) && (
-              <a href={currentFile} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-sm text-blue-600 hover:underline">
-                <FileText className="w-4 h-4" /> Abrir arquivo em nova aba
-              </a>
-            )}
+            <p className="text-sm font-medium">{currentSigned ? "Arquivo já assinado" : `Assinando: ${fileName(currentFile)}`}</p>
+            <DocumentPositioner fileUrl={currentFile} blocks={positionerBlocks} onMove={(bid, x, y) => setPos({ x, y })} />
+            {currentFile && !isImage(currentFile) && (<a href={currentFile} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-sm text-blue-600 hover:underline"><FileText className="w-4 h-4" /> Abrir arquivo em nova aba</a>)}
           </div>
 
           <div className="space-y-4 lg:col-span-4">
             {currentSigned ? (
               <Card className="rounded-2xl border-emerald-200 bg-emerald-50/40">
                 <CardContent className="p-5 space-y-4">
-                  <div className="flex items-center gap-2 text-emerald-700">
-                    <CheckCircle2 className="w-5 h-5" />
-                    <span className="font-medium">Arquivo assinado</span>
-                  </div>
+                  <div className="flex items-center gap-2 text-emerald-700"><CheckCircle2 className="w-5 h-5" /><span className="font-medium">Arquivo assinado</span></div>
                   <div className="flex items-center gap-4">
-                    {currentSigned.imagem_url && (
-                      <img src={currentSigned.imagem_url} alt="assinatura" className="h-14 w-28 object-contain bg-white rounded border border-border" />
-                    )}
+                    {currentSigned.imagem_url && (<img src={currentSigned.imagem_url} alt="assinatura" className="h-14 w-28 object-contain bg-white rounded border border-border" />)}
                     <div className="min-w-0">
                       <p className="font-medium truncate">{currentSigned.assinante_nome}</p>
                       {currentSigned.observacao && <p className="text-sm text-muted-foreground" style={{ paddingLeft: (currentSigned.indent || 0) * 14 }}>{currentSigned.observacao}</p>}
                     </div>
                   </div>
-                  {!allSigned && (
-                    <Button type="button" className="w-full gap-2" onClick={avancar}>
-                      Avançar para próximo <ChevronRight className="w-4 h-4" />
-                    </Button>
-                  )}
-                  {allSigned && (
-                    <p className="text-sm text-muted-foreground">Todos os arquivos assinados. Aguardando assinatura master.</p>
-                  )}
+                  <button type="button" onClick={() => baixarArquivoPdf(currentSigned.arquivo_url || currentFile, fileName(currentSigned.arquivo_url || currentFile))} className="inline-flex items-center gap-2 text-sm text-blue-600 hover:underline"><Download className="w-3.5 h-3.5" /> Baixar este arquivo</button>
+                  {!allSigned && (<Button type="button" className="w-full gap-2" onClick={avancar}>Avançar para próximo <ChevronRight className="w-4 h-4" /></Button>)}
                 </CardContent>
               </Card>
             ) : (
               <>
                 {critica && (
                   <div className="flex items-center justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
-                    <div className="flex items-center gap-2 text-sm text-amber-800">
-                      <AlertTriangle className="w-4 h-4" /> Existe arquivo sem observação.
-                    </div>
-                    <button type="button" onClick={focarObservacao} className="text-sm font-medium text-amber-900 underline">
-                      Inserir a observação
-                    </button>
+                    <div className="flex items-center gap-2 text-sm text-amber-800"><AlertTriangle className="w-4 h-4" /> Existe arquivo sem observação.</div>
+                    <button type="button" onClick={focarObservacao} className="text-sm font-medium text-amber-900 underline">Inserir a observação</button>
                   </div>
                 )}
-
                 <div className="flex rounded-lg border border-border overflow-hidden text-sm">
-                  <button type="button" onClick={() => setModo("desenhada")} className={`flex-1 py-2 inline-flex items-center justify-center gap-2 ${modo === "desenhada" ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted"}`}>
-                    <PenLine className="w-4 h-4" /> Desenhar no touch
-                  </button>
-                  <button type="button" onClick={() => setModo("uploadada")} className={`flex-1 py-2 inline-flex items-center justify-center gap-2 ${modo === "uploadada" ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted"}`}>
-                    <Upload className="w-4 h-4" /> Buscar imagem
-                  </button>
+                  <button type="button" onClick={() => setModo("desenhada")} className={`flex-1 py-2 inline-flex items-center justify-center gap-2 ${modo === "desenhada" ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted"}`}><PenLine className="w-4 h-4" /> Desenhar no touch</button>
+                  <button type="button" onClick={() => setModo("uploadada")} className={`flex-1 py-2 inline-flex items-center justify-center gap-2 ${modo === "uploadada" ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted"}`}><Upload className="w-4 h-4" /> Buscar imagem</button>
                 </div>
-
                 <Card className="rounded-2xl border-border/60">
                   <CardContent className="p-5 space-y-4">
                     <div className="space-y-2">
-                      <Label htmlFor="cadastro">Quem está assinando *</Label>
+                      <Label htmlFor="cadastro">Quem está assinando (gestão) *</Label>
                       <select id="cadastro" value={cadastroId} onChange={onCadastroChange} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
                         <option value="">— Selecionar do cadastro —</option>
-                        {cadastros.map((c) => (
-                          <option key={c.id} value={c.id}>{c.nome}{c.email ? ` · ${c.email}` : ""}</option>
-                        ))}
+                        {cadastros.map((c) => (<option key={c.id} value={c.id}>{c.nome}{c.email ? ` · ${c.email}` : ""}</option>))}
                       </select>
                       <Input value={assinanteNome} onChange={(e) => setAssinanteNome(e.target.value)} placeholder="Ou digite o nome" className="mt-2" />
                       <Input type="email" value={assinanteEmail} onChange={(e) => setAssinanteEmail(e.target.value)} placeholder="E-mail (opcional)" className="mt-2" />
                     </div>
-
                     <div className="space-y-2">
                       <Label>Assinatura *</Label>
-                      {modo === "desenhada" ? (
-                        <SignaturePad ref={padRef} />
-                      ) : (
+                      {modo === "desenhada" ? (<SignaturePad ref={padRef} />) : (
                         <label className="flex items-center justify-center gap-2 cursor-pointer rounded-xl border-2 border-dashed border-border py-8 text-sm text-muted-foreground hover:border-foreground/20 hover:bg-muted/30 transition-colors">
-                          <Upload className="w-4 h-4" />
-                          {imagemUpload ? "Imagem carregada ✓ (clique para trocar)" : "Buscar imagem de assinatura"}
+                          <Upload className="w-4 h-4" />{imagemUpload ? "Imagem carregada ✓ (clique para trocar)" : "Buscar imagem de assinatura"}
                           <input type="file" accept="image/*" className="hidden" onChange={handleUploadAssinatura} />
                         </label>
                       )}
                     </div>
-
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
                         <Label htmlFor="observacao">Caixa de observações *</Label>
                         <div className="flex items-center gap-1">
                           <span className="text-xs text-muted-foreground mr-1">Recuo</span>
-                          <Button type="button" variant="outline" size="icon" className="h-7 w-7" onClick={() => setIndent((v) => Math.max(0, v - 1))}>
-                            <Minus className="w-3.5 h-3.5" />
-                          </Button>
+                          <Button type="button" variant="outline" size="icon" className="h-7 w-7" onClick={() => setIndent((v) => Math.max(0, v - 1))}><Minus className="w-3.5 h-3.5" /></Button>
                           <span className="text-xs w-5 text-center tabular-nums">{indent}</span>
-                          <Button type="button" variant="outline" size="icon" className="h-7 w-7" onClick={() => setIndent((v) => Math.min(6, v + 1))}>
-                            <Plus className="w-3.5 h-3.5" />
-                          </Button>
+                          <Button type="button" variant="outline" size="icon" className="h-7 w-7" onClick={() => setIndent((v) => Math.min(6, v + 1))}><Plus className="w-3.5 h-3.5" /></Button>
                         </div>
                       </div>
-                      <Textarea
-                        id="observacao"
-                        ref={obsRef}
-                        value={observacao}
-                        onChange={(e) => { setObservacao(e.target.value); if (e.target.value.trim()) setCritica(false); }}
-                        rows={2}
-                        style={{ paddingLeft: 8 + indent * 14 }}
-                        placeholder="Observação que aparece sob a assinatura"
-                      />
+                      <Textarea id="observacao" ref={obsRef} value={observacao} onChange={(e) => { setObservacao(e.target.value); if (e.target.value.trim()) setCritica(false); }} rows={2} style={{ paddingLeft: 8 + indent * 14 }} placeholder="Observação que aparece sob a assinatura" />
                     </div>
-
-                    <Button type="button" disabled={saving} onClick={assinarArquivo} className="w-full gap-2">
-                      {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Pen className="w-4 h-4" />}
-                      Assinar este arquivo e avançar
-                    </Button>
+                    <Button type="button" disabled={saving} onClick={assinarArquivo} className="w-full gap-2">{saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Pen className="w-4 h-4" />} Assinar este arquivo e avançar</Button>
                   </CardContent>
                 </Card>
               </>

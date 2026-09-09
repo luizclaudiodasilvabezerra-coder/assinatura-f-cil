@@ -26,12 +26,13 @@
       "type": "string",
       "title": "Status",
       "enum": [
-        "rascunho",
-        "pendente",
-        "assinado",
+        "pendente_gestao",
+        "assinado_gestao",
+        "pendente_diretoria",
+        "assinado_diretoria",
         "arquivado"
       ],
-      "default": "pendente"
+      "default": "pendente_gestao"
     },
     "pasta": {
       "type": "string",

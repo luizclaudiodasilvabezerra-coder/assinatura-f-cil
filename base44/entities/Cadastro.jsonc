@@ -21,7 +21,10 @@
       "enum": [
         "signatario",
         "destinatario",
-        "ambos"
+        "ambos",
+        "unidade",
+        "operacao",
+        "diretoria"
       ],
       "default": "ambos"
     },

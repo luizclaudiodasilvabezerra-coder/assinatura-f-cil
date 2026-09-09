@@ -15,6 +15,11 @@
       "title": "Arquivo assinado",
       "format": "uri"
     },
+    "arquivo_original_url": {
+      "type": "string",
+      "title": "Arquivo original",
+      "format": "uri"
+    },
     "assinante_nome": {
       "type": "string",
       "title": "Assinante"

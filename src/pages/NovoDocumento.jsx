@@ -77,7 +77,7 @@ export default function NovoDocumento() {
         ...form,
         numero,
         arquivos,
-        status: "pendente",
+        status: "pendente_gestao",
         pasta: "pendente",
       });
       toast({ title: "Envelope criado", description: numero });
