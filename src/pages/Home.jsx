@@ -193,7 +193,8 @@ export default function Home() {
           <div className="flex flex-wrap gap-2">
             <Button asChild variant="outline"><Link to="/cadastros" className="gap-2"><Users className="w-4 h-4" /> Cadastros</Link></Button>
             <Button asChild variant="outline"><Link to="/log" className="gap-2"><ScrollText className="w-4 h-4" /> Log</Link></Button>
-            <Button asChild variant="outline"><Link to="/assinados" className="gap-2"><CheckCircle2 className="w-4 h-4" /> Concluídos</Link></Button>
+            <Button asChild variant="outline"><Link to="/concluidos/financeiro" className="gap-2"><CheckCircle2 className="w-4 h-4" /> Concl. Financeiro</Link></Button>
+            <Button asChild variant="outline"><Link to="/concluidos/fiscal" className="gap-2"><CheckCircle2 className="w-4 h-4" /> Concl. Fiscal</Link></Button>
             <OutlookConnect />
             <Button asChild><Link to="/novo" className="gap-2"><Plus className="w-4 h-4" /> Novo envelope</Link></Button>
           </div>

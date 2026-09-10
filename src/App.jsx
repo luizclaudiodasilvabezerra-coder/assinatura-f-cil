@@ -70,7 +70,7 @@ const AuthenticatedApp = () => {
           <Route path="/assinar-diretoria/:id" element={<AssinarDiretoria />} />
           <Route path="/log" element={<LogAssinaturas />} />
           <Route path="/cadastros" element={<Cadastros />} />
-          <Route path="/assinados" element={<EnvelopesAssinados />} />
+          <Route path="/concluidos/:tipo" element={<EnvelopesAssinados />} />
         </Route>
       </Route>
       <Route path="*" element={<PageNotFound />} />

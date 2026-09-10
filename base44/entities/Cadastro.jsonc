@@ -39,6 +39,11 @@
     "diretoria": {
       "type": "string",
       "title": "Diretoria"
+    },
+    "imagem_assinatura": {
+      "type": "string",
+      "title": "Imagem da assinatura",
+      "format": "uri"
     }
   },
   "required": [

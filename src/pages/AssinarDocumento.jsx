@@ -7,13 +7,14 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, Loader2, FileText, CheckCircle2, Calendar, User, Upload, PenLine, Plus, Minus, ChevronRight, Pen, AlertTriangle, Download, Send } from "lucide-react";
+import { ArrowLeft, Loader2, FileText, CheckCircle2, Calendar, User, Upload, PenLine, Plus, Minus, ChevronRight, Pen, AlertTriangle, Download, Send, Lock, ShieldCheck } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import SignaturePad from "@/components/SignaturePad";
 import DocumentPositioner from "@/components/DocumentPositioner";
 import { dataURLToFile, formatDate } from "@/lib/signatureUtils";
 import { base64ToBlob, baixarEnvelopePdf, baixarArquivoPdf } from "@/lib/pdfDownload";
+import { validarSenhaGestor, gestorTemSenha } from "@/lib/acessos";
 
 const isImage = (url) => url && /\.(png|jpe?g|webp|gif)$/i.test(url);
 const fileName = (url) => (url ? decodeURIComponent(url.split("/").pop() || "arquivo") : "Documento");
@@ -33,6 +34,9 @@ export default function AssinarDocumento() {
   const [downloading, setDownloading] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const [showParcial, setShowParcial] = useState(false);
+  const [unlocked, setUnlocked] = useState(false);
+  const [senha, setSenha] = useState("");
+  const [senhaErro, setSenhaErro] = useState(false);
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [signedMap, setSignedMap] = useState({});
@@ -58,6 +62,7 @@ export default function AssinarDocumento() {
         ]);
         setDoc(d);
         setCadastros(cad);
+        if (!gestorTemSenha(d.signatario_nome)) setUnlocked(true);
         setUnidade(d.unidade_negocio || "");
         setOperacao(d.operacao || "");
         setExistentes(sigs);
@@ -97,6 +102,18 @@ export default function AssinarDocumento() {
       const { file_url } = await base44.integrations.Core.UploadFile({ file });
       setImagemUpload(file_url);
     } catch { toast({ title: "Erro ao enviar imagem", variant: "destructive" }); }
+  };
+
+  const buscarImagemCadastrada = () => {
+    if (!assinanteNome.trim()) { toast({ title: "Informe primeiro quem está assinando", variant: "destructive" }); return; }
+    const norm = (s) => (s || "").trim().toUpperCase();
+    const c = cadastros.find((x) => norm(x.nome) === norm(assinanteNome) && x.imagem_assinatura);
+    if (c) {
+      setImagemUpload(c.imagem_assinatura);
+      toast({ title: "Assinatura encontrada no cadastro", description: `Imagem de ${c.nome} carregada.` });
+    } else {
+      toast({ title: "Assinatura não cadastrada", description: "Nenhuma imagem de assinatura encontrada para este nome. Envie um arquivo manualmente.", variant: "destructive" });
+    }
   };
 
   const findNextUnsigned = (from) => {
@@ -232,6 +249,35 @@ export default function AssinarDocumento() {
 
   if (loading) return (<div className="min-h-screen flex items-center justify-center"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>);
   if (!doc) return (<div className="min-h-screen flex flex-col items-center justify-center gap-4"><p className="text-muted-foreground">Documento não encontrado.</p><Button asChild variant="outline"><Link to="/">Voltar</Link></Button></div>);
+
+  if (!unlocked) {
+    const validar = (e) => {
+      e.preventDefault();
+      const r = validarSenhaGestor(doc.signatario_nome, senha);
+      if (r.naoConfigurado) { setUnlocked(true); return; }
+      if (r.ok) { setUnlocked(true); setSenhaErro(false); }
+      else setSenhaErro(true);
+    };
+    return (
+      <div className="min-h-screen flex items-center justify-center px-6 bg-background">
+        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-sm">
+          <div className="mx-auto w-14 h-14 rounded-full bg-primary/5 flex items-center justify-center mb-5">
+            <Lock className="w-7 h-7 text-primary" />
+          </div>
+          <h1 className="text-2xl font-heading text-center mb-1">Acesso do gestor</h1>
+          <p className="text-sm text-muted-foreground text-center mb-6">Envelope destinado a <span className="font-medium text-foreground">{doc.signatario_nome || "—"}</span>. Informe sua senha individual para assinar.</p>
+          <form onSubmit={validar} className="space-y-3">
+            <Input type="password" value={senha} onChange={(e) => { setSenha(e.target.value); setSenhaErro(false); }} placeholder="Senha do gestor" autoFocus />
+            {senhaErro && <p className="text-sm text-destructive">Senha incorreta.</p>}
+            <Button type="submit" className="w-full gap-2"><ShieldCheck className="w-4 h-4" /> Entrar</Button>
+          </form>
+          <div className="mt-6 text-center">
+            <Button asChild variant="outline" size="sm"><Link to="/">Voltar</Link></Button>
+          </div>
+        </motion.div>
+      </div>
+    );
+  }
 
   if (gestaoDone) {
     const jaEnviado = doc.status === "pendente_diretoria" || doc.status === "assinado_diretoria";
@@ -389,10 +435,22 @@ export default function AssinarDocumento() {
                     <div className="space-y-2">
                       <Label>Assinatura *</Label>
                       {modo === "desenhada" ? (<SignaturePad ref={padRef} />) : (
-                        <label className="flex items-center justify-center gap-2 cursor-pointer rounded-xl border-2 border-dashed border-border py-8 text-sm text-muted-foreground hover:border-foreground/20 hover:bg-muted/30 transition-colors">
-                          <Upload className="w-4 h-4" />{imagemUpload ? "Imagem carregada ✓ (clique para trocar)" : "Buscar imagem de assinatura"}
-                          <input type="file" accept="image/*" className="hidden" onChange={handleUploadAssinatura} />
-                        </label>
+                        <div className="space-y-2">
+                          {imagemUpload ? (
+                            <div className="flex items-center gap-3">
+                              <img src={imagemUpload} alt="assinatura" className="h-16 w-32 object-contain bg-white rounded border border-border" />
+                              <button type="button" onClick={() => setImagemUpload("")} className="text-xs text-destructive hover:underline">Remover</button>
+                            </div>
+                          ) : (
+                            <button type="button" onClick={buscarImagemCadastrada} className="w-full flex items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border py-8 text-sm text-muted-foreground hover:border-foreground/20 hover:bg-muted/30 transition-colors">
+                              <Upload className="w-4 h-4" /> Buscar imagem de assinatura
+                            </button>
+                          )}
+                          <label className="flex items-center justify-center gap-1 text-xs text-muted-foreground cursor-pointer hover:text-foreground">
+                            ou enviar arquivo manualmente
+                            <input type="file" accept="image/*" className="hidden" onChange={handleUploadAssinatura} />
+                          </label>
+                        </div>
                       )}
                     </div>
                     <div className="space-y-2">
