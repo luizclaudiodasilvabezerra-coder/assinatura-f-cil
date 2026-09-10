@@ -14,10 +14,10 @@ import SignaturePad from "@/components/SignaturePad";
 import DocumentPositioner from "@/components/DocumentPositioner";
 import { dataURLToFile, formatDate } from "@/lib/signatureUtils";
 import { base64ToBlob, baixarEnvelopePdf, baixarArquivoPdf } from "@/lib/pdfDownload";
+import { identificarDiretoria, diretoriaDoMembro } from "@/lib/acessos";
 
 const isImage = (url) => url && /\.(png|jpe?g|webp|gif)$/i.test(url);
 const fileName = (url) => (url ? decodeURIComponent(url.split("/").pop() || "arquivo") : "Documento");
-const SENHA_DIRETORIA = "072026";
 
 export default function AssinarDiretoria() {
   const { id } = useParams();
@@ -32,6 +32,7 @@ export default function AssinarDiretoria() {
   const [downloading, setDownloading] = useState(false);
   const [critica, setCritica] = useState(false);
   const [unlocked, setUnlocked] = useState(false);
+  const [diretorIdentificado, setDiretorIdentificado] = useState("");
   const [senha, setSenha] = useState("");
   const [senhaErro, setSenhaErro] = useState(false);
 
@@ -190,8 +191,19 @@ export default function AssinarDiretoria() {
 
   const validarSenha = (e) => {
     e.preventDefault();
-    if (senha === SENHA_DIRETORIA) { setUnlocked(true); setSenhaErro(false); }
-    else { setSenhaErro(true); }
+    const nome = identificarDiretoria(senha);
+    if (!nome) { setSenhaErro(true); return; }
+    // Verifica se o envelope pertence à diretoria deste membro
+    const dirMembro = diretoriaDoMembro(nome, cadastros);
+    if (doc && doc.diretoria && dirMembro && doc.diretoria !== dirMembro) {
+      setSenhaErro(true);
+      toast({ title: "Acesso negado", description: `Este envelope pertence à diretoria ${doc.diretoria}.`, variant: "destructive" });
+      return;
+    }
+    setDiretorIdentificado(nome);
+    setNome(nome);
+    setUnlocked(true);
+    setSenhaErro(false);
   };
 
   if (loading) return (<div className="min-h-screen flex items-center justify-center"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>);
@@ -205,7 +217,7 @@ export default function AssinarDiretoria() {
             <Lock className="w-7 h-7 text-primary" />
           </div>
           <h1 className="text-2xl font-heading text-center mb-1">Acesso restrito</h1>
-          <p className="text-sm text-muted-foreground text-center mb-6">Informe a senha para acessar a assinatura da diretoria.</p>
+          <p className="text-sm text-muted-foreground text-center mb-6">Informe sua senha individual de diretoria. Você acessará apenas os envelopes da sua diretoria.</p>
           <form onSubmit={validarSenha} className="space-y-3">
             <Input type="password" value={senha} onChange={(e) => { setSenha(e.target.value); setSenhaErro(false); }} placeholder="Senha" autoFocus />
             {senhaErro && <p className="text-sm text-destructive">Senha incorreta.</p>}

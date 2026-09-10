@@ -14,6 +14,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { Image as UIImage } from "@/components/ui/image";
 import EnvelopeCard from "@/components/EnvelopeCard";
 import DiretoriaFolders from "@/components/DiretoriaFolders";
+import DiretoriaBanner from "@/components/DiretoriaBanner";
 import { stageStyles, stageLabel } from "@/lib/stageStyles";
 
 const LOGO_URL = "https://media.base44.com/images/public/6aa074a5ce060f1b2caeee8f/86ee25d0d_image.png";
@@ -293,17 +294,20 @@ export default function Home() {
               ) : docsFiltrados.length === 0 ? (
                 <p className="text-sm text-muted-foreground">Nenhum envelope nesta etapa.</p>
               ) : stage === "pendente_diretoria" ? (
-                <DiretoriaFolders
-                  docs={docsFiltrados}
-                  signedCountFor={signedCountFor}
-                  hasPendente={hasPendente}
-                  linkPara={linkPara}
-                  onEnviarDiretoria={enviarDiretoria}
-                  onBaixar={baixar}
-                  onExcluir={(d) => { setExcluirDoc(d); setSenha(""); }}
-                  enviandoId={enviandoId}
-                  downloadingId={downloadingId}
-                />
+                <>
+                  <DiretoriaBanner docs={docsFiltrados} signedCountFor={signedCountFor} hasPendente={hasPendente} />
+                  <DiretoriaFolders
+                    docs={docsFiltrados}
+                    signedCountFor={signedCountFor}
+                    hasPendente={hasPendente}
+                    linkPara={linkPara}
+                    onEnviarDiretoria={enviarDiretoria}
+                    onBaixar={baixar}
+                    onExcluir={(d) => { setExcluirDoc(d); setSenha(""); }}
+                    enviandoId={enviandoId}
+                    downloadingId={downloadingId}
+                  />
+                </>
               ) : (
                 docsFiltrados.map((d) => (
                   <EnvelopeCard
