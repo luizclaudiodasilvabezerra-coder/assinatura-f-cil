@@ -24,6 +24,7 @@ export default function NovoDocumento() {
     signatario_nome: "",
     signatario_email: "",
     signatario_cadastro_id: "",
+    diretoria: "",
     unidade_negocio: "",
     data_limite: "",
   });
@@ -33,6 +34,7 @@ export default function NovoDocumento() {
   }, []);
 
   const unidades = cadastros.filter((c) => c.tipo === "unidade");
+  const diretorias = cadastros.filter((c) => c.tipo === "diretoria");
 
   const update = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
@@ -139,6 +141,14 @@ export default function NovoDocumento() {
                 <Input value={form.signatario_nome} onChange={update("signatario_nome")} placeholder="Ou digite o nome do signatário" className="mt-2" />
                 <Input type="email" value={form.signatario_email} onChange={update("signatario_email")} placeholder="E-mail do signatário" className="mt-2" />
                 </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="diretoria">Diretoria de destino (após assinatura do gestor)</Label>
+                <select id="diretoria" value={form.diretoria} onChange={update("diretoria")} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+                  <option value="">— Selecionar —</option>
+                  {diretorias.map((c) => (<option key={c.id} value={c.diretoria || c.nome}>{c.diretoria || c.nome}</option>))}
+                </select>
+              </div>
 
               <div className="space-y-2">
                 <Label htmlFor="unidade_negocio">Unidade de negócio</Label>

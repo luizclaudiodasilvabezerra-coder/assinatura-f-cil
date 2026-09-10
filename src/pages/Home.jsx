@@ -4,15 +4,17 @@ import { motion } from "framer-motion";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { FileText, Clock, CheckCircle2, Plus, ScrollText, Users, Paperclip, Download, Loader2, Send, Trash2, Timer, BarChart3, AlertTriangle, ShieldCheck } from "lucide-react";
+import { FileText, Clock, CheckCircle2, Plus, ScrollText, Users, Paperclip, Loader2, Trash2, Timer, BarChart3 } from "lucide-react";
 import OutlookConnect from "@/components/OutlookConnect";
 import { formatDate } from "@/lib/signatureUtils";
 import { baixarEnvelopePdf } from "@/lib/pdfDownload";
-import ShareIcons from "@/components/ShareIcons";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
 import { Image as UIImage } from "@/components/ui/image";
+import EnvelopeCard from "@/components/EnvelopeCard";
+import DiretoriaFolders from "@/components/DiretoriaFolders";
+import { stageStyles, stageLabel } from "@/lib/stageStyles";
 
 const LOGO_URL = "https://media.base44.com/images/public/6aa074a5ce060f1b2caeee8f/86ee25d0d_image.png";
 
@@ -22,22 +24,6 @@ const STAGES = [
   { key: "assinado_gestao", label: "Assinados gestão", icon: CheckCircle2, tone: "text-blue-600" },
   { key: "pendente_diretoria", label: "Pendentes diretoria", icon: Clock, tone: "text-purple-600" },
 ];
-
-const stageStyles = {
-  pendente_gestao: "bg-amber-100 text-amber-700",
-  assinado_gestao: "bg-blue-100 text-blue-700",
-  pendente_diretoria: "bg-purple-100 text-purple-700",
-  assinado_diretoria: "bg-emerald-100 text-emerald-700",
-  arquivado: "bg-slate-200 text-slate-500",
-};
-
-const stageLabel = {
-  pendente_gestao: "Pendente gestão",
-  assinado_gestao: "Assinado gestão",
-  pendente_diretoria: "Pendente diretoria",
-  assinado_diretoria: "Assinado diretoria",
-  arquivado: "Arquivado",
-};
 
 const fmtDur = (ms) => {
   if (!ms || ms < 0) return "—";
@@ -288,54 +274,33 @@ export default function Home() {
                 <p className="text-sm text-muted-foreground">Carregando…</p>
               ) : docsFiltrados.length === 0 ? (
                 <p className="text-sm text-muted-foreground">Nenhum envelope nesta etapa.</p>
+              ) : stage === "pendente_diretoria" ? (
+                <DiretoriaFolders
+                  docs={docsFiltrados}
+                  signedCountFor={signedCountFor}
+                  hasPendente={hasPendente}
+                  linkPara={linkPara}
+                  onEnviarDiretoria={enviarDiretoria}
+                  onBaixar={baixar}
+                  onExcluir={(d) => { setExcluirDoc(d); setSenha(""); }}
+                  enviandoId={enviandoId}
+                  downloadingId={downloadingId}
+                />
               ) : (
-                docsFiltrados.map((d) => {
-                  const signed = signedCountFor(d.id);
-                  const total = d.arquivos?.length || 0;
-                  const pendente = hasPendente(d);
-                  return (
-                    <Card key={d.id} className={`rounded-xl transition-all hover:shadow-md ${pendente ? "border-red-400 bg-red-50/40 hover:border-red-500" : "border-border/60 hover:border-foreground/20"}`}>
-                      <CardContent className="p-4 flex items-center justify-between gap-3">
-                        <Link to={linkPara(d)} className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2">
-                            {d.numero && <span className="text-xs font-mono px-2 py-0.5 rounded bg-muted text-muted-foreground">{d.numero}</span>}
-                            <p className="font-medium truncate">{d.titulo}</p>
-                            {pendente && <span className="inline-flex items-center gap-1 text-[11px] font-medium text-red-700 bg-red-100 px-2 py-0.5 rounded-full"><AlertTriangle className="w-3 h-3" /> Arquivo pendente</span>}
-                          </div>
-                          <p className="text-xs text-muted-foreground mt-1 flex flex-wrap gap-x-3 gap-y-1">
-                            <span className="inline-flex items-center gap-1"><Paperclip className="w-3 h-3" /> {signed}/{total} assinadas</span>
-                            {d.destinatario_nome && <span>Dest.: {d.destinatario_nome}</span>}
-                            {d.signatario_nome && <span>Gestão: {d.signatario_nome}</span>}
-                            {d.unidade_negocio && <span>UN: {d.unidade_negocio}</span>}
-                            {d.data_limite && <span>{formatDate(d.data_limite)}</span>}
-                          </p>
-                        </Link>
-                        <div className="flex items-center gap-2 shrink-0">
-                          {d.status === "assinado_gestao" && (
-                            <button type="button" onClick={() => enviarDiretoria(d)} disabled={enviandoId === d.id} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-purple-600 text-white text-xs font-medium hover:bg-purple-700 disabled:opacity-50" title="Enviar para assinatura da diretoria">
-                              {enviandoId === d.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />} Enviar à diretoria
-                            </button>
-                          )}
-                          {d.status === "pendente_diretoria" && (
-                            <Link to={`/assinar-diretoria/${d.id}`} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-purple-600 text-white text-xs font-medium hover:bg-purple-700" title="Assinar como diretoria">
-                              <ShieldCheck className="w-3.5 h-3.5" /> Diretoria
-                            </Link>
-                          )}
-                          {d.status !== "pendente_gestao" && (
-                            <button type="button" onClick={() => baixar(d)} className="p-1.5 rounded-md hover:bg-muted text-muted-foreground" title="Baixar envelope (PDF)">
-                              {downloadingId === d.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-                            </button>
-                          )}
-                          <button type="button" onClick={() => { setExcluirDoc(d); setSenha(""); }} className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-destructive" title="Excluir envelope">
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                          <ShareIcons title={d.titulo} signUrl={`${window.location.origin}${linkPara(d)}`} />
-                          <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${stageStyles[d.status] || "bg-slate-100 text-slate-600"}`}>{stageLabel[d.status] || d.status}</span>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  );
-                })
+                docsFiltrados.map((d) => (
+                  <EnvelopeCard
+                    key={d.id}
+                    d={d}
+                    signedCount={signedCountFor(d.id)}
+                    hasPendente={hasPendente(d)}
+                    linkPara={linkPara}
+                    onEnviarDiretoria={enviarDiretoria}
+                    onBaixar={baixar}
+                    onExcluir={(dd) => { setExcluirDoc(dd); setSenha(""); }}
+                    enviandoId={enviandoId}
+                    downloadingId={downloadingId}
+                  />
+                ))
               )}
             </div>
           </div>

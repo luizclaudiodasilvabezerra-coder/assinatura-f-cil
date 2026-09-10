@@ -65,6 +65,10 @@
       "type": "string",
       "title": "Cadastro do signat\u00e1rio"
     },
+    "diretoria": {
+      "type": "string",
+      "title": "Diretoria de destino"
+    },
     "unidade_negocio": {
       "type": "string",
       "title": "Unidade de neg\u00f3cio"
