@@ -94,6 +94,18 @@ export default function AssinarDiretoria() {
     catch { toast({ title: "Erro ao enviar imagem", variant: "destructive" }); }
   };
 
+  const buscarImagemCadastrada = () => {
+    if (!nome.trim()) { toast({ title: "Informe primeiro quem assina como diretoria", variant: "destructive" }); return; }
+    const norm = (s) => (s || "").trim().toUpperCase();
+    const c = cadastros.find((x) => norm(x.nome) === norm(nome) && x.imagem_assinatura);
+    if (c) {
+      setImagemUpload(c.imagem_assinatura);
+      toast({ title: "Assinatura encontrada no cadastro", description: `Imagem de ${c.nome} carregada.` });
+    } else {
+      toast({ title: "Assinatura não cadastrada", description: "Nenhuma imagem de assinatura encontrada para este nome. Envie um arquivo manualmente.", variant: "destructive" });
+    }
+  };
+
   const findNextUnsigned = (from) => {
     for (let step = 1; step <= arquivos.length; step++) {
       const idx = (from + step) % arquivos.length;
@@ -352,10 +364,22 @@ export default function AssinarDiretoria() {
                     <div className="space-y-2">
                       <Label>Assinatura da diretoria *</Label>
                       {modo === "desenhada" ? (<SignaturePad ref={padRef} />) : (
-                        <label className="flex items-center justify-center gap-2 cursor-pointer rounded-xl border-2 border-dashed border-border py-8 text-sm text-muted-foreground hover:border-foreground/20 hover:bg-muted/30 transition-colors">
-                          <Upload className="w-4 h-4" />{imagemUpload ? "Imagem carregada ✓ (clique para trocar)" : "Buscar imagem de assinatura"}
-                          <input type="file" accept="image/*" className="hidden" onChange={handleUpload} />
-                        </label>
+                        <div className="space-y-2">
+                          {imagemUpload ? (
+                            <div className="flex items-center gap-3">
+                              <img src={imagemUpload} alt="assinatura" className="h-16 w-32 object-contain bg-white rounded border border-border" />
+                              <button type="button" onClick={() => setImagemUpload("")} className="text-xs text-destructive hover:underline">Remover</button>
+                            </div>
+                          ) : (
+                            <button type="button" onClick={buscarImagemCadastrada} className="w-full flex items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border py-8 text-sm text-muted-foreground hover:border-foreground/20 hover:bg-muted/30 transition-colors">
+                              <Upload className="w-4 h-4" /> Buscar imagem de assinatura
+                            </button>
+                          )}
+                          <label className="flex items-center justify-center gap-1 text-xs text-muted-foreground cursor-pointer hover:text-foreground">
+                            ou enviar arquivo manualmente
+                            <input type="file" accept="image/*" className="hidden" onChange={handleUpload} />
+                          </label>
+                        </div>
                       )}
                     </div>
                     <div className="space-y-2">
