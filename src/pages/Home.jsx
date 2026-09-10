@@ -44,6 +44,7 @@ export default function Home() {
   const [filtroUnidade, setFiltroUnidade] = useState("");
   const [filtroData, setFiltroData] = useState("");
   const [filtroDestinatario, setFiltroDestinatario] = useState("");
+  const [filtroDiretoria, setFiltroDiretoria] = useState("");
   const [downloadingId, setDownloadingId] = useState(null);
   const [enviandoId, setEnviandoId] = useState(null);
   const [excluirDoc, setExcluirDoc] = useState(null);
@@ -86,6 +87,12 @@ export default function Home() {
   const destinatarios = useMemo(() => {
     const set = new Set();
     documentos.forEach((d) => d.destinatario_nome && set.add(d.destinatario_nome));
+    return Array.from(set);
+  }, [documentos]);
+
+  const diretorias = useMemo(() => {
+    const set = new Set();
+    documentos.forEach((d) => d.diretoria && set.add(d.diretoria));
     return Array.from(set);
   }, [documentos]);
 
@@ -133,6 +140,7 @@ export default function Home() {
     if (filtroUnidade && d.unidade_negocio !== filtroUnidade) return false;
     if (filtroData && d.data_limite !== filtroData) return false;
     if (filtroDestinatario && d.destinatario_nome !== filtroDestinatario) return false;
+    if (stage === "pendente_diretoria" && filtroDiretoria && d.diretoria !== filtroDiretoria) return false;
     return true;
   });
 
@@ -267,6 +275,15 @@ export default function Home() {
                 <label className="text-xs text-muted-foreground">Data limite</label>
                 <input type="date" value={filtroData} onChange={(e) => setFiltroData(e.target.value)} className="h-9 rounded-md border border-input bg-background px-3 text-sm" />
               </div>
+              {stage === "pendente_diretoria" && (
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs text-muted-foreground">Diretoria</label>
+                  <select value={filtroDiretoria} onChange={(e) => setFiltroDiretoria(e.target.value)} className="h-9 rounded-md border border-input bg-background px-3 text-sm">
+                    <option value="">Todas</option>
+                    {diretorias.map((u) => <option key={u} value={u}>{u}</option>)}
+                  </select>
+                </div>
+              )}
             </div>
 
             <div className="space-y-3">
