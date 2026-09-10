@@ -267,7 +267,8 @@ export default function AssinarDocumento() {
     try {
       await base44.entities.ArquivoRecusado.create({
         documento_id: id, documento_titulo: doc.titulo, arquivo_url: currentFile,
-        observacao: obsRecusa.trim(), data_recusa: new Date().toISOString(),
+        observacao: obsRecusa.trim(), gestor: doc.signatario_nome || assinanteNome || "",
+        data_recusa: new Date().toISOString(),
       });
       const novosArquivos = arquivos.filter((_, i) => i !== currentIndex);
       await base44.entities.Documento.update(id, { arquivos: novosArquivos });

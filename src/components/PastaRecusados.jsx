@@ -1,18 +1,26 @@
 import React, { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
-import { Ban, Download, FileText, ChevronDown, ChevronRight, Trash2 } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { Ban, FileText, ChevronDown, ChevronRight, FilePlus2, Loader2, User, Calendar } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 import { base44 } from "@/api/base44Client";
-import { baixarArquivoPdf } from "@/lib/pdfDownload";
 
 const fileName = (url) => (url ? decodeURIComponent(url.split("/").pop() || "arquivo") : "Documento");
 
+const formatData = (iso) => {
+  if (!iso) return "";
+  try {
+    const d = new Date(iso);
+    return d.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+  } catch { return iso; }
+};
+
 export default function PastaRecusados({ recusados = [], documentos = [], linkPara, onExcluir, onRecuperou }) {
+  const navigate = useNavigate();
   const { toast } = useToast();
   const [abertos, setAbertos] = useState({});
-  const [removendo, setRemovendo] = useState(null);
+  const [gerando, setGerando] = useState(null);
 
   const docById = useMemo(() => {
     const m = {};
@@ -31,20 +39,38 @@ export default function PastaRecusados({ recusados = [], documentos = [], linkPa
 
   const toggle = (id) => setAbertos((s) => ({ ...s, [id]: !s[id] }));
 
-  const removerRecusado = async (rec) => {
-    setRemovendo(rec.id);
+  const inserirNovoEnvelope = async (rec) => {
+    setGerando(rec.id);
     try {
       const d = docById[rec.documento_id];
-      const arqs = d?.arquivos ? [...d.arquivos] : [];
-      if (!arqs.includes(rec.arquivo_url)) arqs.push(rec.arquivo_url);
-      await base44.entities.Documento.update(rec.documento_id, { arquivos: arqs });
+      const novo = await base44.entities.Documento.create({
+        titulo: d?.titulo ? `${d.titulo} (reenvio)` : "Envelope reenvio",
+        descricao: d?.descricao || "",
+        numero: d?.numero || "",
+        arquivos: [rec.arquivo_url],
+        status: "pendente_gestao",
+        pasta: "pendente",
+        destinatario_nome: d?.destinatario_nome || "",
+        destinatario_email: d?.destinatario_email || "",
+        signatario_nome: d?.signatario_nome || "",
+        signatario_email: d?.signatario_email || "",
+        signatario_cadastro_id: d?.signatario_cadastro_id || "",
+        diretoria: d?.diretoria || "",
+        unidade_negocio: d?.unidade_negocio || "",
+        operacao: d?.operacao || "",
+        data_limite: d?.data_limite || "",
+        processado: false,
+        recusado: false,
+        observacao_recusa: "",
+      });
       await base44.entities.ArquivoRecusado.delete(rec.id);
-      toast({ title: "NF recuperada", description: "O arquivo voltou ao envelope." });
+      toast({ title: "Novo envelope criado", description: "A NF recusada foi inserida em um novo envelope." });
       onRecuperou?.();
+      navigate(`/assinar/${novo.id}`);
     } catch (e) {
-      toast({ title: "Erro ao recuperar NF", description: e.message, variant: "destructive" });
+      toast({ title: "Erro ao gerar envelope", description: e.message, variant: "destructive" });
     } finally {
-      setRemovendo(null);
+      setGerando(null);
     }
   };
 
@@ -84,16 +110,21 @@ export default function PastaRecusados({ recusados = [], documentos = [], linkPa
                           <FileText className="w-3.5 h-3.5 text-amber-700 shrink-0" /> {fileName(r.arquivo_url)}
                         </span>
                         <div className="flex items-center gap-2 shrink-0">
-                          <button type="button" onClick={() => baixarArquivoPdf(r.arquivo_url, fileName(r.arquivo_url))} className="inline-flex items-center gap-1 text-xs text-blue-600 hover:underline">
-                            <Download className="w-3.5 h-3.5" /> Baixar
-                          </button>
-                          <button type="button" onClick={() => removerRecusado(r)} disabled={removendo === r.id} className="inline-flex items-center gap-1 text-xs text-emerald-700 hover:underline disabled:opacity-50">
-                            {removendo === r.id ? "..." : <><Trash2 className="w-3.5 h-3.5" /> Recuperar</>}
+                          <button type="button" onClick={() => inserirNovoEnvelope(r)} disabled={gerando === r.id} className="inline-flex items-center gap-1 text-xs text-emerald-700 hover:underline disabled:opacity-50">
+                            {gerando === r.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FilePlus2 className="w-3.5 h-3.5" />} Inserir em novo envelope
                           </button>
                         </div>
                       </div>
+                      <div className="flex flex-wrap gap-x-4 gap-y-0.5 mt-1.5 text-xs text-amber-900">
+                        {r.gestor && (
+                          <span className="inline-flex items-center gap-1"><User className="w-3 h-3" /> Recusado por: <span className="font-medium">{r.gestor}</span></span>
+                        )}
+                        {r.data_recusa && (
+                          <span className="inline-flex items-center gap-1"><Calendar className="w-3 h-3" /> {formatData(r.data_recusa)}</span>
+                        )}
+                      </div>
                       {r.observacao && (
-                        <p className="text-xs text-amber-800 mt-1.5"><span className="font-medium">Obs.: </span>{r.observacao}</p>
+                        <p className="text-xs text-amber-800 mt-1"><span className="font-medium">Obs.: </span>{r.observacao}</p>
                       )}
                     </div>
                   ))}
