@@ -1,10 +1,13 @@
 import React, { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Ban, FileText, ChevronDown, ChevronRight, FilePlus2, Loader2, User, Calendar } from "lucide-react";
+import { Ban, FileText, ChevronDown, ChevronRight, FilePlus2, Loader2, User, Trash2, ShieldCheck, Lock } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/use-toast";
 import { base44 } from "@/api/base44Client";
+import { SENHA_MASTER_RECUSA } from "@/lib/acessos";
 
 const fileName = (url) => (url ? decodeURIComponent(url.split("/").pop() || "arquivo") : "Documento");
 
@@ -21,6 +24,10 @@ export default function PastaRecusados({ recusados = [], documentos = [], linkPa
   const { toast } = useToast();
   const [abertos, setAbertos] = useState({});
   const [gerando, setGerando] = useState(null);
+  const [excluindo, setExcluindo] = useState(null);
+  const [acao, setAcao] = useState(null); // { tipo: "inserir"|"excluir", rec }
+  const [senha, setSenha] = useState("");
+  const [senhaErro, setSenhaErro] = useState(false);
 
   const docById = useMemo(() => {
     const m = {};
@@ -38,6 +45,16 @@ export default function PastaRecusados({ recusados = [], documentos = [], linkPa
   }, [recusados]);
 
   const toggle = (id) => setAbertos((s) => ({ ...s, [id]: !s[id] }));
+
+  const pedirSenha = (tipo, rec) => { setAcao({ tipo, rec }); setSenha(""); setSenhaErro(false); };
+
+  const confirmarAcao = async () => {
+    if (senha !== SENHA_MASTER_RECUSA) { setSenhaErro(true); return; }
+    const { tipo, rec } = acao;
+    setAcao(null);
+    if (tipo === "inserir") await inserirNovoEnvelope(rec);
+    else await excluirArquivo(rec);
+  };
 
   const inserirNovoEnvelope = async (rec) => {
     setGerando(rec.id);
@@ -74,6 +91,19 @@ export default function PastaRecusados({ recusados = [], documentos = [], linkPa
     }
   };
 
+  const excluirArquivo = async (rec) => {
+    setExcluindo(rec.id);
+    try {
+      await base44.entities.ArquivoRecusado.delete(rec.id);
+      toast({ title: "Arquivo excluído", description: "A NF recusada foi removida da pasta." });
+      onRecuperou?.();
+    } catch (e) {
+      toast({ title: "Erro ao excluir", description: e.message, variant: "destructive" });
+    } finally {
+      setExcluindo(null);
+    }
+  };
+
   if (grupos.length === 0) {
     return <p className="text-sm text-muted-foreground">Nenhuma NF recusada.</p>;
   }
@@ -84,6 +114,7 @@ export default function PastaRecusados({ recusados = [], documentos = [], linkPa
         const d = docById[docId];
         const link = d ? linkPara(d) : "#";
         const open = abertos[docId] ?? true;
+        const gestor = recs.find((r) => r.gestor)?.gestor || d?.signatario_nome || "";
         return (
           <Card key={docId} className="rounded-xl border-amber-400 bg-amber-50/50">
             <CardContent className="p-4">
@@ -92,14 +123,20 @@ export default function PastaRecusados({ recusados = [], documentos = [], linkPa
                   {open ? <ChevronDown className="w-4 h-4 text-amber-700" /> : <ChevronRight className="w-4 h-4 text-amber-700" />}
                   <Ban className="w-4 h-4 text-amber-600" />
                   <div className="min-w-0">
-                    <p className="font-medium truncate">{d?.titulo || recs[0]?.documento_titulo || "Envelope"}</p>
-                    <p className="text-xs text-muted-foreground">{recs.length} NF recusada{recs.length > 1 ? "s" : ""}{d?.numero ? ` · ${d.numero}` : ""}</p>
+                    <p className="font-medium truncate">{d?.titulo || recs[0]?.documento_titulo || "Envelope"}{d?.numero ? ` · ${d.numero}` : ""}</p>
+                    <p className="text-xs text-muted-foreground">{recs.length} NF recusada{recs.length > 1 ? "s" : ""}</p>
                   </div>
                 </button>
                 <div className="flex items-center gap-2 shrink-0">
                   {d && <Button asChild variant="outline" size="sm"><Link to={link}>Abrir envelope</Link></Button>}
                 </div>
               </div>
+
+              {gestor && (
+                <div className="mt-2 inline-flex items-center gap-1.5 text-xs text-amber-900 bg-amber-100/70 rounded-md px-2 py-1">
+                  <User className="w-3.5 h-3.5" /> Gestor: <span className="font-medium">{gestor}</span>
+                </div>
+              )}
 
               {open && (
                 <div className="mt-3 space-y-2">
@@ -109,20 +146,18 @@ export default function PastaRecusados({ recusados = [], documentos = [], linkPa
                         <span className="text-sm truncate flex items-center gap-2 min-w-0">
                           <FileText className="w-3.5 h-3.5 text-amber-700 shrink-0" /> {fileName(r.arquivo_url)}
                         </span>
-                        <div className="flex items-center gap-2 shrink-0">
-                          <button type="button" onClick={() => inserirNovoEnvelope(r)} disabled={gerando === r.id} className="inline-flex items-center gap-1 text-xs text-emerald-700 hover:underline disabled:opacity-50">
+                        <div className="flex items-center gap-3 shrink-0">
+                          <button type="button" onClick={() => pedirSenha("inserir", r)} disabled={gerando === r.id || excluindo === r.id} className="inline-flex items-center gap-1 text-xs text-emerald-700 hover:underline disabled:opacity-50">
                             {gerando === r.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FilePlus2 className="w-3.5 h-3.5" />} Inserir em novo envelope
+                          </button>
+                          <button type="button" onClick={() => pedirSenha("excluir", r)} disabled={gerando === r.id || excluindo === r.id} className="inline-flex items-center gap-1 text-xs text-destructive hover:underline disabled:opacity-50">
+                            {excluindo === r.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />} Excluir
                           </button>
                         </div>
                       </div>
-                      <div className="flex flex-wrap gap-x-4 gap-y-0.5 mt-1.5 text-xs text-amber-900">
-                        {r.gestor && (
-                          <span className="inline-flex items-center gap-1"><User className="w-3 h-3" /> Recusado por: <span className="font-medium">{r.gestor}</span></span>
-                        )}
-                        {r.data_recusa && (
-                          <span className="inline-flex items-center gap-1"><Calendar className="w-3 h-3" /> {formatData(r.data_recusa)}</span>
-                        )}
-                      </div>
+                      {r.data_recusa && (
+                        <p className="text-xs text-amber-800 mt-1.5">Recusado em {formatData(r.data_recusa)}</p>
+                      )}
                       {r.observacao && (
                         <p className="text-xs text-amber-800 mt-1"><span className="font-medium">Obs.: </span>{r.observacao}</p>
                       )}
@@ -134,6 +169,25 @@ export default function PastaRecusados({ recusados = [], documentos = [], linkPa
           </Card>
         );
       })}
+
+      <Dialog open={!!acao} onOpenChange={(o) => { if (!o) setAcao(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><Lock className="w-4 h-4" /> Confirmação com senha master</DialogTitle>
+            <DialogDescription>
+              {acao?.tipo === "inserir"
+                ? "Informe a senha master para inserir esta NF em um novo envelope."
+                : "Informe a senha master para excluir esta NF recusada."}
+            </DialogDescription>
+          </DialogHeader>
+          <Input type="password" value={senha} onChange={(e) => { setSenha(e.target.value); setSenhaErro(false); }} placeholder="Senha master" autoFocus onKeyDown={(e) => { if (e.key === "Enter") confirmarAcao(); }} />
+          {senhaErro && <p className="text-sm text-destructive">Senha incorreta.</p>}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAcao(null)}>Cancelar</Button>
+            <Button onClick={confirmarAcao} className="gap-2"><ShieldCheck className="w-4 h-4" /> Confirmar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
