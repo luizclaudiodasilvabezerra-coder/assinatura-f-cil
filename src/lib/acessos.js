@@ -1,5 +1,8 @@
 // Módulo central de senhas e acessos por papel
 
+// Senha master para acessar/alterar envelopes com NF recusada
+export const SENHA_MASTER_RECUSA = "062026";
+
 // Part 1 — Concluídos (Financeiro / Fiscal)
 export const SENHA_CONCLUIDOS = {
   financeiro: "LOG@FIN",

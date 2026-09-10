@@ -7,14 +7,14 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, Loader2, FileText, CheckCircle2, Calendar, User, Upload, PenLine, Plus, Minus, ChevronRight, Pen, AlertTriangle, Download, Send, Lock, ShieldCheck } from "lucide-react";
+import { ArrowLeft, Loader2, FileText, CheckCircle2, Calendar, User, Upload, PenLine, Plus, Minus, ChevronRight, Pen, AlertTriangle, Download, Send, Lock, ShieldCheck, Ban } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import SignaturePad from "@/components/SignaturePad";
 import DocumentPositioner from "@/components/DocumentPositioner";
 import { dataURLToFile, formatDate } from "@/lib/signatureUtils";
 import { base64ToBlob, baixarEnvelopePdf, baixarArquivoPdf } from "@/lib/pdfDownload";
-import { validarSenhaGestor, gestorTemSenha } from "@/lib/acessos";
+import { validarSenhaGestor, gestorTemSenha, SENHA_MASTER_RECUSA } from "@/lib/acessos";
 
 const isImage = (url) => url && /\.(png|jpe?g|webp|gif)$/i.test(url);
 const fileName = (url) => (url ? decodeURIComponent(url.split("/").pop() || "arquivo") : "Documento");
@@ -37,6 +37,9 @@ export default function AssinarDocumento() {
   const [unlocked, setUnlocked] = useState(false);
   const [senha, setSenha] = useState("");
   const [senhaErro, setSenhaErro] = useState(false);
+  const [showRecusa, setShowRecusa] = useState(false);
+  const [obsRecusa, setObsRecusa] = useState("");
+  const [recusando, setRecusando] = useState(false);
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [signedMap, setSignedMap] = useState({});
@@ -62,7 +65,7 @@ export default function AssinarDocumento() {
         ]);
         setDoc(d);
         setCadastros(cad);
-        if (!gestorTemSenha(d.signatario_nome)) setUnlocked(true);
+        if (!d.recusado && !gestorTemSenha(d.signatario_nome)) setUnlocked(true);
         setUnidade(d.unidade_negocio || "");
         setOperacao(d.operacao || "");
         setExistentes(sigs);
@@ -84,6 +87,7 @@ export default function AssinarDocumento() {
   }, [id]);
 
   const arquivos = useMemo(() => (doc?.arquivos && doc.arquivos.length ? doc.arquivos : [""]), [doc]);
+  const cadastrosPessoas = useMemo(() => cadastros.filter((c) => ["signatario", "destinatario", "ambos"].includes(c.tipo)), [cadastros]);
   const currentFile = arquivos[currentIndex];
   const currentSigned = signedMap[currentIndex];
   const allSigned = arquivos.length > 0 && arquivos.every((_, i) => signedMap[i]);
@@ -244,6 +248,18 @@ export default function AssinarDocumento() {
     finally { setEnviando(false); setShowParcial(false); }
   };
 
+  const recusarNF = async () => {
+    if (!obsRecusa.trim()) { toast({ title: "Informe a observação da recusa", variant: "destructive" }); return; }
+    setRecusando(true);
+    try {
+      await base44.entities.Documento.update(id, { recusado: true, observacao_recusa: obsRecusa.trim() });
+      setDoc((d) => ({ ...d, recusado: true, observacao_recusa: obsRecusa.trim() }));
+      toast({ title: "NF recusada", description: "Envelope marcado como recusado no painel." });
+      navigate("/");
+    } catch { toast({ title: "Erro ao recusar", variant: "destructive" }); }
+    finally { setRecusando(false); setShowRecusa(false); }
+  };
+
   const someSigned = Object.keys(signedMap).length > 0;
   const someSignedButNotAll = someSigned && !allSigned;
 
@@ -253,6 +269,11 @@ export default function AssinarDocumento() {
   if (!unlocked) {
     const validar = (e) => {
       e.preventDefault();
+      if (doc.recusado) {
+        if (senha === SENHA_MASTER_RECUSA) { setUnlocked(true); setSenhaErro(false); }
+        else setSenhaErro(true);
+        return;
+      }
       const r = validarSenhaGestor(doc.signatario_nome, senha);
       if (r.naoConfigurado) { setUnlocked(true); return; }
       if (r.ok) { setUnlocked(true); setSenhaErro(false); }
@@ -262,12 +283,21 @@ export default function AssinarDocumento() {
       <div className="min-h-screen flex items-center justify-center px-6 bg-background">
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-sm">
           <div className="mx-auto w-14 h-14 rounded-full bg-primary/5 flex items-center justify-center mb-5">
-            <Lock className="w-7 h-7 text-primary" />
+            {doc.recusado ? <AlertTriangle className="w-7 h-7 text-amber-600" /> : <Lock className="w-7 h-7 text-primary" />}
           </div>
-          <h1 className="text-2xl font-heading text-center mb-1">Acesso do gestor</h1>
-          <p className="text-sm text-muted-foreground text-center mb-6">Envelope destinado a <span className="font-medium text-foreground">{doc.signatario_nome || "—"}</span>. Informe sua senha individual para assinar.</p>
+          <h1 className="text-2xl font-heading text-center mb-1">{doc.recusado ? "Envelope recusado" : "Acesso do gestor"}</h1>
+          <p className="text-sm text-muted-foreground text-center mb-6">
+            {doc.recusado
+              ? "Esta NF foi recusada. Acesso e alterações restritos à senha master."
+              : <>Envelope destinado a <span className="font-medium text-foreground">{doc.signatario_nome || "—"}</span>. Informe sua senha individual para assinar.</>}
+          </p>
+          {doc.recusado && doc.observacao_recusa && (
+            <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+              <span className="font-medium">Observação: </span>{doc.observacao_recusa}
+            </div>
+          )}
           <form onSubmit={validar} className="space-y-3">
-            <Input type="password" value={senha} onChange={(e) => { setSenha(e.target.value); setSenhaErro(false); }} placeholder="Senha do gestor" autoFocus />
+            <Input type="password" value={senha} onChange={(e) => { setSenha(e.target.value); setSenhaErro(false); }} placeholder={doc.recusado ? "Senha master" : "Senha do gestor"} autoFocus />
             {senhaErro && <p className="text-sm text-destructive">Senha incorreta.</p>}
             <Button type="submit" className="w-full gap-2"><ShieldCheck className="w-4 h-4" /> Entrar</Button>
           </form>
@@ -411,9 +441,8 @@ export default function AssinarDocumento() {
                       <Label htmlFor="cadastro">Quem está assinando (gestão) *</Label>
                       <select id="cadastro" value={cadastroId} onChange={onCadastroChange} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
                         <option value="">— Selecionar do cadastro —</option>
-                        {cadastros.map((c) => (<option key={c.id} value={c.id}>{c.nome}{c.email ? ` · ${c.email}` : ""}</option>))}
+                        {cadastrosPessoas.map((c) => (<option key={c.id} value={c.id}>{c.nome}{c.email ? ` · ${c.email}` : ""}</option>))}
                       </select>
-                      <Input value={assinanteNome} onChange={(e) => setAssinanteNome(e.target.value)} placeholder="Ou digite o nome" className="mt-2" />
                       <Input type="email" value={assinanteEmail} onChange={(e) => setAssinanteEmail(e.target.value)} placeholder="E-mail (opcional)" className="mt-2" />
                     </div>
                     <div className="grid grid-cols-2 gap-3">
@@ -466,6 +495,9 @@ export default function AssinarDocumento() {
                       <Textarea id="observacao" ref={obsRef} value={observacao} onChange={(e) => { setObservacao(e.target.value); if (e.target.value.trim()) setCritica(false); }} rows={2} style={{ paddingLeft: 8 + indent * 14 }} placeholder="Observação que aparece sob a assinatura" />
                     </div>
                     <Button type="button" disabled={saving} onClick={assinarArquivo} className="w-full gap-2">{saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Pen className="w-4 h-4" />} Assinar este arquivo e avançar</Button>
+                    <Button type="button" variant="outline" onClick={() => setShowRecusa(true)} className="w-full gap-2 border-amber-400 text-amber-700 hover:bg-amber-50">
+                      <Ban className="w-4 h-4" /> Recusar NF
+                    </Button>
                   </CardContent>
                 </Card>
               </>
@@ -484,6 +516,22 @@ export default function AssinarDocumento() {
             <Button variant="outline" onClick={() => { setShowParcial(false); const u = arquivos.findIndex((_, i) => !signedMap[i]); if (u >= 0) setCurrentIndex(u); }}>Não, voltar ao arquivo</Button>
             <Button onClick={enviarParcial} disabled={enviando} className="gap-2">
               {enviando ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />} Sim, enviar parcial
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showRecusa} onOpenChange={setShowRecusa}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Recusar NF</DialogTitle>
+            <DialogDescription>Informe a observação da recusa. O envelope será marcado como recusado no painel (card amarelo) e somente a senha master poderá acessá-lo ou alterá-lo.</DialogDescription>
+          </DialogHeader>
+          <Textarea value={obsRecusa} onChange={(e) => setObsRecusa(e.target.value)} rows={3} placeholder="Motivo da recusa" autoFocus />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setShowRecusa(false); setObsRecusa(""); }}>Cancelar</Button>
+            <Button onClick={recusarNF} disabled={recusando || !obsRecusa.trim()} className="gap-2 bg-amber-600 hover:bg-amber-700 text-white">
+              {recusando ? <Loader2 className="w-4 h-4 animate-spin" /> : <Ban className="w-4 h-4" />} Confirmar recusa
             </Button>
           </DialogFooter>
         </DialogContent>

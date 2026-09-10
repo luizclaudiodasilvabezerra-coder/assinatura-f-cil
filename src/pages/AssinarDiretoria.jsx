@@ -14,7 +14,7 @@ import SignaturePad from "@/components/SignaturePad";
 import DocumentPositioner from "@/components/DocumentPositioner";
 import { dataURLToFile, formatDate } from "@/lib/signatureUtils";
 import { base64ToBlob, baixarEnvelopePdf, baixarArquivoPdf } from "@/lib/pdfDownload";
-import { identificarDiretoria, diretoriaDoMembro } from "@/lib/acessos";
+import { identificarDiretoria, diretoriaDoMembro, SENHA_MASTER_RECUSA } from "@/lib/acessos";
 
 const isImage = (url) => url && /\.(png|jpe?g|webp|gif)$/i.test(url);
 const fileName = (url) => (url ? decodeURIComponent(url.split("/").pop() || "arquivo") : "Documento");
@@ -203,6 +203,11 @@ export default function AssinarDiretoria() {
 
   const validarSenha = (e) => {
     e.preventDefault();
+    if (doc && doc.recusado) {
+      if (senha === SENHA_MASTER_RECUSA) { setUnlocked(true); setDiretorIdentificado("Master"); setSenhaErro(false); }
+      else setSenhaErro(true);
+      return;
+    }
     const nome = identificarDiretoria(senha);
     if (!nome) { setSenhaErro(true); return; }
     // Verifica se o envelope pertence à diretoria deste membro
@@ -228,8 +233,13 @@ export default function AssinarDiretoria() {
           <div className="mx-auto w-14 h-14 rounded-full bg-primary/5 flex items-center justify-center mb-5">
             <Lock className="w-7 h-7 text-primary" />
           </div>
-          <h1 className="text-2xl font-heading text-center mb-1">Acesso restrito</h1>
-          <p className="text-sm text-muted-foreground text-center mb-6">Informe sua senha individual de diretoria. Você acessará apenas os envelopes da sua diretoria.</p>
+          <h1 className="text-2xl font-heading text-center mb-1">{doc?.recusado ? "Envelope recusado" : "Acesso restrito"}</h1>
+          <p className="text-sm text-muted-foreground text-center mb-6">{doc?.recusado ? "Esta NF foi recusada. Acesso e alterações restritos à senha master." : "Informe sua senha individual de diretoria. Você acessará apenas os envelopes da sua diretoria."}</p>
+          {doc?.recusado && doc?.observacao_recusa && (
+            <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+              <span className="font-medium">Observação: </span>{doc.observacao_recusa}
+            </div>
+          )}
           <form onSubmit={validarSenha} className="space-y-3">
             <Input type="password" value={senha} onChange={(e) => { setSenha(e.target.value); setSenhaErro(false); }} placeholder="Senha" autoFocus />
             {senhaErro && <p className="text-sm text-destructive">Senha incorreta.</p>}

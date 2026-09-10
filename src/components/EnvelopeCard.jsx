@@ -1,7 +1,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
-import { Paperclip, Loader2, Send, Download, Trash2, AlertTriangle, ShieldCheck } from "lucide-react";
+import { Paperclip, Loader2, Send, Download, Trash2, AlertTriangle, ShieldCheck, Ban } from "lucide-react";
 import { formatDate } from "@/lib/signatureUtils";
 import ShareIcons from "@/components/ShareIcons";
 import { stageStyles, stageLabel } from "@/lib/stageStyles";
@@ -20,14 +20,16 @@ export default function EnvelopeCard({
   const signed = signedCount;
   const total = d.arquivos?.length || 0;
   const pendente = hasPendente;
+  const recusado = !!d.recusado;
   return (
-    <Card className={`rounded-xl transition-all hover:shadow-md ${pendente ? "border-red-400 bg-red-50/40 hover:border-red-500" : "border-border/60 hover:border-foreground/20"}`}>
+    <Card className={`rounded-xl transition-all hover:shadow-md ${recusado ? "border-amber-400 bg-amber-50/60 hover:border-amber-500" : pendente ? "border-red-400 bg-red-50/40 hover:border-red-500" : "border-border/60 hover:border-foreground/20"}`}>
       <CardContent className="p-4 flex items-center justify-between gap-3">
         <Link to={linkPara(d)} className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             {d.numero && <span className="text-xs font-mono px-2 py-0.5 rounded bg-muted text-muted-foreground">{d.numero}</span>}
             <p className="font-medium truncate">{d.titulo}</p>
-            {pendente && <span className="inline-flex items-center gap-1 text-[11px] font-medium text-red-700 bg-red-100 px-2 py-0.5 rounded-full"><AlertTriangle className="w-3 h-3" /> Arquivo pendente</span>}
+            {recusado && <span className="inline-flex items-center gap-1 text-[11px] font-medium text-amber-800 bg-amber-200 px-2 py-0.5 rounded-full"><Ban className="w-3 h-3" /> NF recusada</span>}
+            {pendente && !recusado && <span className="inline-flex items-center gap-1 text-[11px] font-medium text-red-700 bg-red-100 px-2 py-0.5 rounded-full"><AlertTriangle className="w-3 h-3" /> Arquivo pendente</span>}
           </div>
           <p className="text-xs text-muted-foreground mt-1 flex flex-wrap gap-x-3 gap-y-1">
             <span className="inline-flex items-center gap-1"><Paperclip className="w-3 h-3" /> {signed}/{total} assinadas</span>
@@ -37,6 +39,12 @@ export default function EnvelopeCard({
             {d.unidade_negocio && <span>UN: {d.unidade_negocio}</span>}
             {d.data_limite && <span>{formatDate(d.data_limite)}</span>}
           </p>
+          {recusado && d.observacao_recusa && (
+            <p className="text-xs text-amber-800 mt-1.5 flex items-start gap-1.5">
+              <Ban className="w-3 h-3 mt-0.5 shrink-0" />
+              <span><span className="font-medium">NF(s) recusada(s): </span>{d.observacao_recusa}</span>
+            </p>
+          )}
         </Link>
         <div className="flex items-center gap-2 shrink-0">
           {d.status === "assinado_gestao" && (
