@@ -12,6 +12,7 @@ import { ArrowLeft, Loader2, FileText, CheckCircle2, Calendar, Upload, PenLine, 
 import { useToast } from "@/components/ui/use-toast";
 import SignaturePad from "@/components/SignaturePad";
 import DocumentPositioner from "@/components/DocumentPositioner";
+import EnvelopeRecusado from "@/components/EnvelopeRecusado";
 import { dataURLToFile, formatDate } from "@/lib/signatureUtils";
 import { base64ToBlob, baixarEnvelopePdf, baixarArquivoPdf } from "@/lib/pdfDownload";
 import { identificarDiretoria, diretoriaDoMembro, SENHA_MASTER_RECUSA } from "@/lib/acessos";
@@ -251,6 +252,10 @@ export default function AssinarDiretoria() {
         </motion.div>
       </div>
     );
+  }
+
+  if (doc.recusado) {
+    return <EnvelopeRecusado doc={doc} assinaturas={sigs} />;
   }
 
   if (allSigned) {

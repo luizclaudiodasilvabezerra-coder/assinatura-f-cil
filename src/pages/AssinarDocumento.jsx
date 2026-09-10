@@ -12,6 +12,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import SignaturePad from "@/components/SignaturePad";
 import DocumentPositioner from "@/components/DocumentPositioner";
+import EnvelopeRecusado from "@/components/EnvelopeRecusado";
 import { dataURLToFile, formatDate } from "@/lib/signatureUtils";
 import { base64ToBlob, baixarEnvelopePdf, baixarArquivoPdf } from "@/lib/pdfDownload";
 import { validarSenhaGestor, gestorTemSenha, SENHA_MASTER_RECUSA } from "@/lib/acessos";
@@ -307,6 +308,10 @@ export default function AssinarDocumento() {
         </motion.div>
       </div>
     );
+  }
+
+  if (doc.recusado) {
+    return <EnvelopeRecusado doc={doc} assinaturas={existentes} />;
   }
 
   if (gestaoDone) {
