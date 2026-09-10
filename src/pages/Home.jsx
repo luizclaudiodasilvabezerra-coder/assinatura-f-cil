@@ -15,6 +15,7 @@ import { Image as UIImage } from "@/components/ui/image";
 import EnvelopeCard from "@/components/EnvelopeCard";
 import DiretoriaFolders from "@/components/DiretoriaFolders";
 import DiretoriaBanner from "@/components/DiretoriaBanner";
+import GestorBanner from "@/components/GestorBanner";
 import { stageStyles, stageLabel } from "@/lib/stageStyles";
 
 const LOGO_URL = "https://media.base44.com/images/public/6aa074a5ce060f1b2caeee8f/86ee25d0d_image.png";
@@ -293,6 +294,24 @@ export default function Home() {
                 <p className="text-sm text-muted-foreground">Carregando…</p>
               ) : docsFiltrados.length === 0 ? (
                 <p className="text-sm text-muted-foreground">Nenhum envelope nesta etapa.</p>
+              ) : stage === "pendente_gestao" ? (
+                <>
+                  <GestorBanner docs={docsFiltrados} signedCountFor={signedCountFor} hasPendente={hasPendente} />
+                  {docsFiltrados.map((d) => (
+                    <EnvelopeCard
+                      key={d.id}
+                      d={d}
+                      signedCount={signedCountFor(d.id)}
+                      hasPendente={hasPendente(d)}
+                      linkPara={linkPara}
+                      onEnviarDiretoria={enviarDiretoria}
+                      onBaixar={baixar}
+                      onExcluir={(dd) => { setExcluirDoc(dd); setSenha(""); }}
+                      enviandoId={enviandoId}
+                      downloadingId={downloadingId}
+                    />
+                  ))}
+                </>
               ) : stage === "pendente_diretoria" ? (
                 <>
                   <DiretoriaBanner docs={docsFiltrados} signedCountFor={signedCountFor} hasPendente={hasPendente} />
