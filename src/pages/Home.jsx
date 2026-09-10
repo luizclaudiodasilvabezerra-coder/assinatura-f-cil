@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { FileText, Clock, CheckCircle2, Plus, ScrollText, Users, Paperclip, Loader2, Trash2, Timer, BarChart3 } from "lucide-react";
+import { FileText, Clock, CheckCircle2, Plus, ScrollText, Users, Paperclip, Loader2, Trash2, Timer, BarChart3, Ban } from "lucide-react";
 import OutlookConnect from "@/components/OutlookConnect";
 import { formatDate } from "@/lib/signatureUtils";
 import { baixarEnvelopePdf } from "@/lib/pdfDownload";
@@ -16,6 +16,7 @@ import EnvelopeCard from "@/components/EnvelopeCard";
 import DiretoriaFolders from "@/components/DiretoriaFolders";
 import DiretoriaBanner from "@/components/DiretoriaBanner";
 import GestorBanner from "@/components/GestorBanner";
+import PastaRecusados from "@/components/PastaRecusados";
 import { stageStyles, stageLabel } from "@/lib/stageStyles";
 
 const LOGO_URL = "https://media.base44.com/images/public/6aa074a5ce060f1b2caeee8f/86ee25d0d_image.png";
@@ -25,6 +26,7 @@ const STAGES = [
   { key: "pendente_gestao", label: "Pendentes gestão", icon: Clock, tone: "text-amber-600" },
   { key: "assinado_gestao", label: "Assinados gestão", icon: CheckCircle2, tone: "text-blue-600" },
   { key: "pendente_diretoria", label: "Pendentes diretoria", icon: Clock, tone: "text-purple-600" },
+  { key: "recusados", label: "Parc. recusados", icon: Ban, tone: "text-amber-600" },
 ];
 
 const fmtDur = (ms) => {
@@ -41,6 +43,7 @@ const fmtDur = (ms) => {
 export default function Home() {
   const [documentos, setDocumentos] = useState([]);
   const [assinaturas, setAssinaturas] = useState([]);
+  const [arquivosRecusados, setArquivosRecusados] = useState([]);
   const [loading, setLoading] = useState(true);
   const [stage, setStage] = useState("all");
   const [filtroUnidade, setFiltroUnidade] = useState("");
@@ -56,12 +59,14 @@ export default function Home() {
 
   const load = async () => {
     try {
-      const [docs, sigs] = await Promise.all([
+      const [docs, sigs, recus] = await Promise.all([
         base44.entities.Documento.list("-created_date", 200),
         base44.entities.Assinatura.list("-created_date", 500),
+        base44.entities.ArquivoRecusado.list("-created_date", 500),
       ]);
       setDocumentos(docs);
       setAssinaturas(sigs);
+      setArquivosRecusados(recus);
     } finally {
       setLoading(false);
     }
@@ -69,16 +74,19 @@ export default function Home() {
   useEffect(() => { load(); }, []);
 
   const counts = useMemo(() => {
-    const c = { all: 0, pendente_gestao: 0, assinado_gestao: 0, pendente_diretoria: 0 };
-    const arqs = { all: 0, pendente_gestao: 0, assinado_gestao: 0, pendente_diretoria: 0 };
+    const c = { all: 0, pendente_gestao: 0, assinado_gestao: 0, pendente_diretoria: 0, recusados: 0 };
+    const arqs = { all: 0, pendente_gestao: 0, assinado_gestao: 0, pendente_diretoria: 0, recusados: 0 };
     documentos.forEach((d) => {
       if (d.status === "assinado_diretoria") return;
       const n = d.arquivos?.length || 0;
       arqs.all += n; c.all++;
       if (c[d.status] !== undefined) { c[d.status]++; arqs[d.status] += n; }
     });
+    const recusadoDocIds = new Set(arquivosRecusados.map((r) => r.documento_id));
+    c.recusados = recusadoDocIds.size;
+    arqs.recusados = arquivosRecusados.length;
     return { c, arqs };
-  }, [documentos]);
+  }, [documentos, arquivosRecusados]);
 
   const unidades = useMemo(() => {
     const set = new Set();
@@ -136,7 +144,10 @@ export default function Home() {
     return { tempoMedio, maiorUnidade, maiorTempo, unidadesMes };
   }, [documentos, assinaturas]);
 
+  const recusadoDocIds = useMemo(() => new Set(arquivosRecusados.map((r) => r.documento_id)), [arquivosRecusados]);
+
   const docsFiltrados = documentos.filter((d) => {
+    if (stage === "recusados") return recusadoDocIds.has(d.id);
     if (d.status === "assinado_diretoria") return false;
     if (stage !== "all" && d.status !== stage) return false;
     if (filtroUnidade && d.unidade_negocio !== filtroUnidade) return false;
@@ -327,6 +338,14 @@ export default function Home() {
                     downloadingId={downloadingId}
                   />
                 </>
+              ) : stage === "recusados" ? (
+                <PastaRecusados
+                  recusados={arquivosRecusados.filter((r) => docsFiltrados.some((d) => d.id === r.documento_id))}
+                  documentos={docsFiltrados}
+                  linkPara={linkPara}
+                  onExcluir={(d) => { setExcluirDoc(d); setSenha(""); }}
+                  onRecuperou={load}
+                />
               ) : (
                 docsFiltrados.map((d) => (
                   <EnvelopeCard

@@ -20,6 +20,17 @@ import { validarSenhaGestor, gestorTemSenha, SENHA_MASTER_RECUSA } from "@/lib/a
 const isImage = (url) => url && /\.(png|jpe?g|webp|gif)$/i.test(url);
 const fileName = (url) => (url ? decodeURIComponent(url.split("/").pop() || "arquivo") : "Documento");
 
+const buildSignedMap = (arqs, sigs) => {
+  const map = {};
+  sigs.forEach((s) => {
+    if (s.etapa === "master") return;
+    const url = s.arquivo_original_url || s.arquivo_url || "";
+    const idx = arqs.indexOf(url);
+    if (idx >= 0) map[idx] = s;
+  });
+  return map;
+};
+
 export default function AssinarDocumento() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -251,14 +262,26 @@ export default function AssinarDocumento() {
 
   const recusarNF = async () => {
     if (!obsRecusa.trim()) { toast({ title: "Informe a observação da recusa", variant: "destructive" }); return; }
+    if (!currentFile) { toast({ title: "Nenhum arquivo selecionado para recusar", variant: "destructive" }); return; }
     setRecusando(true);
     try {
-      await base44.entities.Documento.update(id, { recusado: true, observacao_recusa: obsRecusa.trim() });
-      setDoc((d) => ({ ...d, recusado: true, observacao_recusa: obsRecusa.trim() }));
-      toast({ title: "NF recusada", description: "Envelope marcado como recusado no painel." });
-      navigate("/");
+      await base44.entities.ArquivoRecusado.create({
+        documento_id: id, documento_titulo: doc.titulo, arquivo_url: currentFile,
+        observacao: obsRecusa.trim(), data_recusa: new Date().toISOString(),
+      });
+      const novosArquivos = arquivos.filter((_, i) => i !== currentIndex);
+      await base44.entities.Documento.update(id, { arquivos: novosArquivos });
+      const newMap = buildSignedMap(novosArquivos, existentes);
+      setDoc((d) => ({ ...d, arquivos: novosArquivos }));
+      setSignedMap(newMap);
+      const firstUnsigned = novosArquivos.findIndex((_, i) => !newMap[i]);
+      setCurrentIndex(firstUnsigned >= 0 ? firstUnsigned : 0);
+      toast({ title: "NF recusada", description: "Arquivo enviado à pasta de parcialmente recusados. As demais NFs seguem no fluxo de assinatura." });
+      setShowRecusa(false);
+      setObsRecusa("");
+      if (novosArquivos.length === 0) navigate("/");
     } catch { toast({ title: "Erro ao recusar", variant: "destructive" }); }
-    finally { setRecusando(false); setShowRecusa(false); }
+    finally { setRecusando(false); }
   };
 
   const someSigned = Object.keys(signedMap).length > 0;
@@ -501,7 +524,7 @@ export default function AssinarDocumento() {
                     </div>
                     <Button type="button" disabled={saving} onClick={assinarArquivo} className="w-full gap-2">{saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Pen className="w-4 h-4" />} Assinar este arquivo e avançar</Button>
                     <Button type="button" variant="outline" onClick={() => setShowRecusa(true)} className="w-full gap-2 border-amber-400 text-amber-700 hover:bg-amber-50">
-                      <Ban className="w-4 h-4" /> Recusar NF
+                      <Ban className="w-4 h-4" /> Recusar esta NF
                     </Button>
                   </CardContent>
                 </Card>
@@ -529,8 +552,8 @@ export default function AssinarDocumento() {
       <Dialog open={showRecusa} onOpenChange={setShowRecusa}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Recusar NF</DialogTitle>
-            <DialogDescription>Informe a observação da recusa. O envelope será marcado como recusado no painel (card amarelo) e somente a senha master poderá acessá-lo ou alterá-lo.</DialogDescription>
+            <DialogTitle>Recusar esta NF</DialogTitle>
+            <DialogDescription>Esta NF ({fileName(currentFile)}) será recusada e enviada à pasta de "parcialmente recusados". As demais NFs do envelope seguem normalmente no fluxo de assinatura e podem ser enviadas à diretoria.</DialogDescription>
           </DialogHeader>
           <Textarea value={obsRecusa} onChange={(e) => setObsRecusa(e.target.value)} rows={3} placeholder="Motivo da recusa" autoFocus />
           <DialogFooter>
