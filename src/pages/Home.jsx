@@ -221,6 +221,7 @@ export default function Home() {
           <div className="flex flex-wrap gap-2">
             {podeVerCadastros(user) && <Button asChild variant="outline"><Link to="/cadastros" className="gap-2"><Users className="w-4 h-4" /> Cadastros</Link></Button>}
             {podeVerLog(user) && <Button asChild variant="outline"><Link to="/log" className="gap-2"><ScrollText className="w-4 h-4" /> Log</Link></Button>}
+            <Button asChild variant="outline"><Link to="/relatorios" className="gap-2"><BarChart3 className="w-4 h-4" /> Relatórios</Link></Button>
             {podeAcessarConcluidos(user, "financeiro") && <Button asChild variant="outline"><Link to="/concluidos/financeiro" className="gap-2"><CheckCircle2 className="w-4 h-4" /> Concl. Financeiro</Link></Button>}
             {podeAcessarConcluidos(user, "fiscal") && <Button asChild variant="outline"><Link to="/concluidos/fiscal" className="gap-2"><CheckCircle2 className="w-4 h-4" /> Concl. Fiscal</Link></Button>}
             {podeCriarEnvelope(user) && <Button asChild><Link to="/novo" className="gap-2"><Plus className="w-4 h-4" /> Novo envelope</Link></Button>}

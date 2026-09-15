@@ -77,6 +77,7 @@ export const podeEditarAtividadesConcluidos = (user, tipo) => podeAcessarConclui
 
 export const podeVerCadastros = (user) => getPermissoes(user)?.tipo === "admin";
 export const podeVerLog = (user) => getPermissoes(user)?.tipo === "admin";
+export const podeVerRelatorios = (user) => !!getPermissoes(user);
 
 // Etapas visíveis no painel
 export const stagesPermitidos = (user) => {

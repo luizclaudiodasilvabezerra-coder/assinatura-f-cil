@@ -19,6 +19,7 @@ import Cadastros from '@/pages/Cadastros';
 import AssinarDiretoria from '@/pages/AssinarDiretoria';
 import Capa from '@/pages/Capa';
 import EnvelopesAssinados from '@/pages/EnvelopesAssinados';
+import Relatorios from '@/pages/Relatorios';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -59,6 +60,7 @@ const AuthenticatedApp = () => {
         <Route path="/log" element={<LogAssinaturas />} />
         <Route path="/cadastros" element={<Cadastros />} />
         <Route path="/concluidos/:tipo" element={<EnvelopesAssinados />} />
+        <Route path="/relatorios" element={<Relatorios />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>

@@ -203,6 +203,8 @@ export default function AssinarDiretoria() {
         await base44.entities.Documento.update(id, { status: "assinado_diretoria", pasta: "assinados" });
         setDoc((d) => ({ ...d, status: "assinado_diretoria", pasta: "assinados" }));
         toast({ title: "Todos os arquivos assinados pela diretoria", description: "Envelope concluído." });
+        // Extrai dados das NFs para o módulo de relatórios (nao bloqueia o fluxo)
+        base44.functions.invoke("extrairDadosNF", { documento_id: id }).catch(() => {});
       } else {
         let next = -1;
         for (let step = 1; step <= arquivos.length; step++) {
