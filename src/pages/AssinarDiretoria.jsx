@@ -16,6 +16,8 @@ import EnvelopeRecusado from "@/components/EnvelopeRecusado";
 import { dataURLToFile, formatDate } from "@/lib/signatureUtils";
 import { base64ToBlob, baixarEnvelopePdf, baixarArquivoPdf } from "@/lib/pdfDownload";
 import { identificarDiretoria, diretoriaDoMembro, SENHA_MASTER_RECUSA } from "@/lib/acessos";
+import { useAuth } from "@/lib/AuthContext";
+import { getPermissoes, nomeDoUsuario, diretoriaDoUsuario, podeAssinarDiretoria } from "@/lib/permissoes";
 
 const isImage = (url) => url && /\.(png|jpe?g|webp|gif)$/i.test(url);
 const fileName = (url) => (url ? decodeURIComponent(url.split("/").pop() || "arquivo") : "Documento");
@@ -23,6 +25,7 @@ const fileName = (url) => (url ? decodeURIComponent(url.split("/").pop() || "arq
 export default function AssinarDiretoria() {
   const { id } = useParams();
   const { toast } = useToast();
+  const { user } = useAuth();
   const padRef = useRef(null);
   const obsRef = useRef(null);
   const [doc, setDoc] = useState(null);
@@ -70,9 +73,20 @@ export default function AssinarDiretoria() {
         setSignedMap(map);
         const firstUnsigned = gestao.findIndex((_, i) => !map[i]);
         setCurrentIndex(firstUnsigned >= 0 ? firstUnsigned : 0);
+        // Auto-unlock para membros da diretoria (identificados pelo e-mail)
+        const p = getPermissoes(user);
+        if (p?.tipo === "diretoria" && d && !d.recusado) {
+          const dir = diretoriaDoUsuario(user, cad);
+          if (dir && d.diretoria === dir) {
+            const nomeDir = nomeDoUsuario(user);
+            setDiretorIdentificado(nomeDir);
+            setNome(nomeDir || "");
+            setUnlocked(true);
+          }
+        }
       } finally { setLoading(false); }
     })();
-  }, [id]);
+  }, [id, user]);
 
   const gestaoSigs = useMemo(() => sigs.filter((s) => s.etapa !== "master" && s.arquivo_url), [sigs]);
   const diretoriaCadastros = useMemo(() => cadastros.filter((c) => c.tipo === "diretoria"), [cadastros]);
@@ -226,6 +240,19 @@ export default function AssinarDiretoria() {
 
   if (loading) return (<div className="min-h-screen flex items-center justify-center"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>);
   if (!doc) return (<div className="min-h-screen flex flex-col items-center justify-center gap-4"><p className="text-muted-foreground">Documento não encontrado.</p><Button asChild variant="outline"><Link to="/">Voltar</Link></Button></div>);
+
+  // Membros da diretoria sem permissão para este envelope
+  const p = getPermissoes(user);
+  if (p?.tipo === "diretoria" && !podeAssinarDiretoria(user, doc, cadastros) && !doc.recusado) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4 px-6">
+        <Lock className="w-10 h-10 text-muted-foreground" />
+        <h1 className="text-xl font-heading">Acesso negado</h1>
+        <p className="text-sm text-muted-foreground text-center max-w-sm">Este envelope pertence a outra diretoria. Você só pode assinar envelopes da sua diretoria.</p>
+        <Button asChild variant="outline"><Link to="/">Voltar</Link></Button>
+      </div>
+    );
+  }
 
   if (!unlocked) {
     return (

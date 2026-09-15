@@ -8,10 +8,13 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ArrowLeft, Loader2, Upload, X, FileText } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
+import { useAuth } from "@/lib/AuthContext";
+import { podeCriarEnvelope } from "@/lib/permissoes";
 
 export default function NovoDocumento() {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user } = useAuth();
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [arquivos, setArquivos] = useState([]);
@@ -32,6 +35,16 @@ export default function NovoDocumento() {
   useEffect(() => {
     base44.entities.Cadastro.list("-created_date", 200).then(setCadastros).catch(() => {});
   }, []);
+
+  if (!podeCriarEnvelope(user)) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4 px-6">
+        <h1 className="text-xl font-heading">Acesso não autorizado</h1>
+        <p className="text-sm text-muted-foreground text-center max-w-sm">Você não tem permissão para criar envelopes.</p>
+        <Button asChild variant="outline"><Link to="/">Voltar</Link></Button>
+      </div>
+    );
+  }
 
   const unidades = cadastros.filter((c) => c.tipo === "unidade");
   const diretorias = cadastros.filter((c) => c.tipo === "diretoria");

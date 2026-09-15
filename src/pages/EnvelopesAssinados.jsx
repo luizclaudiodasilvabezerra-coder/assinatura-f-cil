@@ -9,6 +9,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { Image as UIImage } from "@/components/ui/image";
 import { validarSenhaConcluidos, CONCLUIDOS_LABEL } from "@/lib/acessos";
 import { useAuth } from "@/lib/AuthContext";
+import { podeAcessarConcluidos } from "@/lib/permissoes";
 import PastaConcluidos from "@/components/PastaConcluidos";
 
 const LOGO_URL = "https://media.base44.com/images/public/6aa074a5ce060f1b2caeee8f/86ee25d0d_image.png";
@@ -32,6 +33,11 @@ export default function EnvelopesAssinados() {
 
   const label = CONCLUIDOS_LABEL[tipo] || "Concluídos";
   const splitDiretoria = tipo === "financeiro";
+  const autorizado = podeAcessarConcluidos(user, tipo);
+
+  useEffect(() => {
+    if (autorizado) setUnlocked(true);
+  }, [autorizado]);
 
   const validar = (e) => {
     e.preventDefault();
@@ -96,6 +102,19 @@ export default function EnvelopesAssinados() {
     setDocs((prev) => prev.map((x) => (idSet.has(x.id) ? { ...x, processado: true, data_processamento: agora, processado_por: resp } : x)));
     toast({ title: "Baixa registrada", description: `${ids.length} envelope(s) processado(s) por ${resp}.` });
   };
+
+  if (!autorizado) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-6 bg-background">
+        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-sm text-center">
+          <Lock className="w-10 h-10 text-muted-foreground mx-auto mb-4" />
+          <h1 className="text-2xl font-heading mb-2">Acesso não autorizado</h1>
+          <p className="text-sm text-muted-foreground mb-6">Você não tem permissão para acessar esta pasta.</p>
+          <Button asChild variant="outline"><Link to="/">Voltar ao painel</Link></Button>
+        </motion.div>
+      </div>
+    );
+  }
 
   if (!unlocked) {
     return (

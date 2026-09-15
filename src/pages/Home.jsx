@@ -5,9 +5,10 @@ import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { FileText, Clock, CheckCircle2, Plus, ScrollText, Users, Paperclip, Loader2, Trash2, Timer, BarChart3, Ban } from "lucide-react";
-import OutlookConnect from "@/components/OutlookConnect";
+import { useAuth } from "@/lib/AuthContext";
 import { formatDate } from "@/lib/signatureUtils";
 import { baixarEnvelopePdf } from "@/lib/pdfDownload";
+import { podeVerPainel, podeCriarEnvelope, podeExcluirEnvelope, podeAcessarConcluidos, podeVerCadastros, podeVerLog, stagesPermitidos, filtrarEnvelopesVisiveis } from "@/lib/permissoes";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
@@ -41,9 +42,11 @@ const fmtDur = (ms) => {
 };
 
 export default function Home() {
+  const { user } = useAuth();
   const [documentos, setDocumentos] = useState([]);
   const [assinaturas, setAssinaturas] = useState([]);
   const [arquivosRecusados, setArquivosRecusados] = useState([]);
+  const [cadastros, setCadastros] = useState([]);
   const [loading, setLoading] = useState(true);
   const [stage, setStage] = useState("all");
   const [filtroUnidade, setFiltroUnidade] = useState("");
@@ -59,24 +62,34 @@ export default function Home() {
 
   const load = async () => {
     try {
-      const [docs, sigs, recus] = await Promise.all([
+      const [docs, sigs, recus, cad] = await Promise.all([
         base44.entities.Documento.list("-created_date", 200),
         base44.entities.Assinatura.list("-created_date", 500),
         base44.entities.ArquivoRecusado.list("-created_date", 500),
+        base44.entities.Cadastro.list("-created_date", 200),
       ]);
       setDocumentos(docs);
       setAssinaturas(sigs);
       setArquivosRecusados(recus);
+      setCadastros(cad);
     } finally {
       setLoading(false);
     }
   };
   useEffect(() => { load(); }, []);
 
+  const documentosVisiveis = useMemo(() => filtrarEnvelopesVisiveis(user, documentos, cadastros), [user, documentos, cadastros]);
+  const stagesVisiveis = useMemo(() => STAGES.filter((s) => stagesPermitidos(user).includes(s.key)), [user]);
+
+  useEffect(() => {
+    const permitidos = stagesPermitidos(user);
+    if (permitidos.length && !permitidos.includes(stage)) setStage(permitidos[0]);
+  }, [user]);
+
   const counts = useMemo(() => {
     const c = { all: 0, pendente_gestao: 0, assinado_gestao: 0, pendente_diretoria: 0, recusados: 0 };
     const arqs = { all: 0, pendente_gestao: 0, assinado_gestao: 0, pendente_diretoria: 0, recusados: 0 };
-    documentos.forEach((d) => {
+    documentosVisiveis.forEach((d) => {
       if (d.status === "assinado_diretoria") return;
       const n = d.arquivos?.length || 0;
       arqs.all += n; c.all++;
@@ -86,32 +99,32 @@ export default function Home() {
     c.recusados = recusadoDocIds.size;
     arqs.recusados = arquivosRecusados.length;
     return { c, arqs };
-  }, [documentos, arquivosRecusados]);
+  }, [documentosVisiveis, arquivosRecusados]);
 
   const unidades = useMemo(() => {
     const set = new Set();
-    documentos.forEach((d) => d.unidade_negocio && set.add(d.unidade_negocio));
+    documentosVisiveis.forEach((d) => d.unidade_negocio && set.add(d.unidade_negocio));
     return Array.from(set);
-  }, [documentos]);
+  }, [documentosVisiveis]);
 
   const destinatarios = useMemo(() => {
     const set = new Set();
-    documentos.forEach((d) => d.destinatario_nome && set.add(d.destinatario_nome));
+    documentosVisiveis.forEach((d) => d.destinatario_nome && set.add(d.destinatario_nome));
     return Array.from(set);
-  }, [documentos]);
+  }, [documentosVisiveis]);
 
   const diretorias = useMemo(() => {
     const set = new Set();
-    documentos.forEach((d) => d.diretoria && set.add(d.diretoria));
+    documentosVisiveis.forEach((d) => d.diretoria && set.add(d.diretoria));
     return Array.from(set);
-  }, [documentos]);
+  }, [documentosVisiveis]);
 
   const signedCountFor = (docId) => assinaturas.filter((a) => a.documento_id === docId && a.etapa !== "master").length;
   const hasPendente = (d) => signedCountFor(d.id) < (d.arquivos?.length || 0);
 
   const indicadores = useMemo(() => {
     const docById = {};
-    documentos.forEach((d) => { docById[d.id] = d; });
+    documentosVisiveis.forEach((d) => { docById[d.id] = d; });
     let totalMs = 0, count = 0;
     const porUnidade = {};
     assinaturas.forEach((a) => {
@@ -126,7 +139,7 @@ export default function Home() {
       }
     });
     const now = new Date();
-    documentos.forEach((d) => {
+    documentosVisiveis.forEach((d) => {
       const cd = new Date(d.created_date);
       if (cd.getMonth() === now.getMonth() && cd.getFullYear() === now.getFullYear()) {
         const un = d.unidade_negocio || "Sem unidade";
@@ -142,11 +155,11 @@ export default function Home() {
     });
     const unidadesMes = Object.entries(porUnidade).filter(([, v]) => v.mesCount > 0).sort((a, b) => b[1].mesCount - a[1].mesCount);
     return { tempoMedio, maiorUnidade, maiorTempo, unidadesMes };
-  }, [documentos, assinaturas]);
+  }, [documentosVisiveis, assinaturas]);
 
   const recusadoDocIds = useMemo(() => new Set(arquivosRecusados.map((r) => r.documento_id)), [arquivosRecusados]);
 
-  const docsFiltrados = documentos.filter((d) => {
+  const docsFiltrados = documentosVisiveis.filter((d) => {
     if (stage === "recusados") return recusadoDocIds.has(d.id);
     if (d.status === "assinado_diretoria") return false;
     if (stage !== "all" && d.status !== stage) return false;
@@ -177,6 +190,8 @@ export default function Home() {
     return `/assinar/${d.id}`;
   };
 
+  const excluirHandler = podeExcluirEnvelope(user) ? (doc) => { setExcluirDoc(doc); setSenha(""); } : undefined;
+
   const confirmarExclusao = async () => {
     if (senha !== "062026") { toast({ title: "Senha incorreta", variant: "destructive" }); return; }
     setExcluindo(true);
@@ -204,17 +219,17 @@ export default function Home() {
             <p className="text-muted-foreground mt-2">Pipeline de assinaturas: gestão → diretoria.</p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button asChild variant="outline"><Link to="/cadastros" className="gap-2"><Users className="w-4 h-4" /> Cadastros</Link></Button>
-            <Button asChild variant="outline"><Link to="/log" className="gap-2"><ScrollText className="w-4 h-4" /> Log</Link></Button>
-            <Button asChild variant="outline"><Link to="/concluidos/financeiro" className="gap-2"><CheckCircle2 className="w-4 h-4" /> Concl. Financeiro</Link></Button>
-            <Button asChild variant="outline"><Link to="/concluidos/fiscal" className="gap-2"><CheckCircle2 className="w-4 h-4" /> Concl. Fiscal</Link></Button>
-            <OutlookConnect />
-            <Button asChild><Link to="/novo" className="gap-2"><Plus className="w-4 h-4" /> Novo envelope</Link></Button>
+            {podeVerCadastros(user) && <Button asChild variant="outline"><Link to="/cadastros" className="gap-2"><Users className="w-4 h-4" /> Cadastros</Link></Button>}
+            {podeVerLog(user) && <Button asChild variant="outline"><Link to="/log" className="gap-2"><ScrollText className="w-4 h-4" /> Log</Link></Button>}
+            {podeAcessarConcluidos(user, "financeiro") && <Button asChild variant="outline"><Link to="/concluidos/financeiro" className="gap-2"><CheckCircle2 className="w-4 h-4" /> Concl. Financeiro</Link></Button>}
+            {podeAcessarConcluidos(user, "fiscal") && <Button asChild variant="outline"><Link to="/concluidos/fiscal" className="gap-2"><CheckCircle2 className="w-4 h-4" /> Concl. Fiscal</Link></Button>}
+            {podeCriarEnvelope(user) && <Button asChild><Link to="/novo" className="gap-2"><Plus className="w-4 h-4" /> Novo envelope</Link></Button>}
           </div>
         </header>
 
+        {podeVerPainel(user) && (
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-8">
-          {STAGES.map((s, i) => (
+          {stagesVisiveis.map((s, i) => (
             <motion.button key={s.key} type="button" onClick={() => setStage(s.key)}
               initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}
               className={`text-left rounded-2xl border shadow-sm transition-all ${stage === s.key ? "border-foreground/30 ring-1 ring-foreground/20" : "border-border/60 hover:border-foreground/20"}`}>
@@ -231,7 +246,9 @@ export default function Home() {
             </motion.button>
           ))}
         </div>
+        )}
 
+        {podeVerPainel(user) ? (
         <div className="grid lg:grid-cols-12 gap-6">
           {/* Painel vertical de indicadores */}
           <aside className="lg:col-span-3 space-y-3">
@@ -317,7 +334,7 @@ export default function Home() {
                       linkPara={linkPara}
                       onEnviarDiretoria={enviarDiretoria}
                       onBaixar={baixar}
-                      onExcluir={(dd) => { setExcluirDoc(dd); setSenha(""); }}
+                      onExcluir={excluirHandler}
                       enviandoId={enviandoId}
                       downloadingId={downloadingId}
                     />
@@ -333,7 +350,7 @@ export default function Home() {
                     linkPara={linkPara}
                     onEnviarDiretoria={enviarDiretoria}
                     onBaixar={baixar}
-                    onExcluir={(d) => { setExcluirDoc(d); setSenha(""); }}
+                    onExcluir={excluirHandler}
                     enviandoId={enviandoId}
                     downloadingId={downloadingId}
                   />
@@ -343,7 +360,7 @@ export default function Home() {
                   recusados={arquivosRecusados.filter((r) => docsFiltrados.some((d) => d.id === r.documento_id))}
                   documentos={docsFiltrados}
                   linkPara={linkPara}
-                  onExcluir={(d) => { setExcluirDoc(d); setSenha(""); }}
+                  onExcluir={excluirHandler}
                   onRecuperou={load}
                 />
               ) : (
@@ -356,7 +373,7 @@ export default function Home() {
                     linkPara={linkPara}
                     onEnviarDiretoria={enviarDiretoria}
                     onBaixar={baixar}
-                    onExcluir={(dd) => { setExcluirDoc(dd); setSenha(""); }}
+                    onExcluir={excluirHandler}
                     enviandoId={enviandoId}
                     downloadingId={downloadingId}
                   />
@@ -365,6 +382,11 @@ export default function Home() {
             </div>
           </div>
         </div>
+        ) : (
+          <div className="text-center py-20">
+            <p className="text-muted-foreground">Selecione uma das pastas de concluídos no topo para gerenciar as atividades.</p>
+          </div>
+        )}
 
       <Dialog open={!!excluirDoc} onOpenChange={(o) => !o && setExcluirDoc(null)}>
         <DialogContent>
