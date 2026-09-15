@@ -92,6 +92,10 @@
       "title": "Data e hor\u00e1rio do processamento",
       "format": "date-time"
     },
+    "processado_por": {
+      "type": "string",
+      "title": "Respons\u00e1vel pela baixa"
+    },
     "recusado": {
       "type": "boolean",
       "title": "NF recusada",

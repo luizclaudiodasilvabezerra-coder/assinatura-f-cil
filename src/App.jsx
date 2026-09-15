@@ -1,7 +1,7 @@
 import { Toaster } from "@/components/ui/toaster"
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
-import { BrowserRouter as Router, Route, Routes, Navigate, Outlet } from 'react-router-dom';
+import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
 import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
@@ -19,17 +19,6 @@ import Cadastros from '@/pages/Cadastros';
 import AssinarDiretoria from '@/pages/AssinarDiretoria';
 import Capa from '@/pages/Capa';
 import EnvelopesAssinados from '@/pages/EnvelopesAssinados';
-
-function CapaGate() {
-  const ok = typeof window !== "undefined" && window.sessionStorage.getItem("capa_ok") === "1";
-  if (!ok) return <Navigate to="/capa" replace />;
-  return <Outlet />;
-}
-
-function CapaOrLogin() {
-  const ok = typeof window !== "undefined" && window.sessionStorage.getItem("capa_ok") === "1";
-  return ok ? <Navigate to="/login" replace /> : <Navigate to="/capa" replace />;
-}
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -62,16 +51,14 @@ const AuthenticatedApp = () => {
       <Route path="/register" element={<Register />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
-      <Route element={<CapaGate />}>
-        <Route element={<ProtectedRoute unauthenticatedElement={<CapaOrLogin />} />}>
-          <Route path="/" element={<Home />} />
-          <Route path="/novo" element={<NovoDocumento />} />
-          <Route path="/assinar/:id" element={<AssinarDocumento />} />
-          <Route path="/assinar-diretoria/:id" element={<AssinarDiretoria />} />
-          <Route path="/log" element={<LogAssinaturas />} />
-          <Route path="/cadastros" element={<Cadastros />} />
-          <Route path="/concluidos/:tipo" element={<EnvelopesAssinados />} />
-        </Route>
+      <Route element={<ProtectedRoute unauthenticatedElement={<Navigate to="/capa" replace />} />}>
+        <Route path="/" element={<Home />} />
+        <Route path="/novo" element={<NovoDocumento />} />
+        <Route path="/assinar/:id" element={<AssinarDocumento />} />
+        <Route path="/assinar-diretoria/:id" element={<AssinarDiretoria />} />
+        <Route path="/log" element={<LogAssinaturas />} />
+        <Route path="/cadastros" element={<Cadastros />} />
+        <Route path="/concluidos/:tipo" element={<EnvelopesAssinados />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>

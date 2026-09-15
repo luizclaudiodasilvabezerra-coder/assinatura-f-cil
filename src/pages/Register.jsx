@@ -10,6 +10,7 @@ import AuthLayout from "@/components/AuthLayout";
 import GoogleIcon from "@/components/GoogleIcon";
 import { toast } from "@/components/ui/use-toast";
 import { safeReturnTo } from "@/lib/authReturnTo";
+import { isEmailAutorizado } from "@/lib/allowlist";
 
 export default function Register() {
   const [email, setEmail] = useState("");
@@ -25,6 +26,10 @@ export default function Register() {
     setError("");
     if (password !== confirmPassword) {
       setError("Passwords do not match");
+      return;
+    }
+    if (!isEmailAutorizado(email)) {
+      setError("E-mail não autorizado. Contate o administrador para acessar o app.");
       return;
     }
     setLoading(true);

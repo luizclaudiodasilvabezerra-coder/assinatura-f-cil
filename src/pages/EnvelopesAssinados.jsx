@@ -8,6 +8,7 @@ import { ArrowLeft, Loader2, PackageCheck, Lock, ShieldCheck, Filter } from "luc
 import { useToast } from "@/components/ui/use-toast";
 import { Image as UIImage } from "@/components/ui/image";
 import { validarSenhaConcluidos, CONCLUIDOS_LABEL } from "@/lib/acessos";
+import { useAuth } from "@/lib/AuthContext";
 import PastaConcluidos from "@/components/PastaConcluidos";
 
 const LOGO_URL = "https://media.base44.com/images/public/6aa074a5ce060f1b2caeee8f/86ee25d0d_image.png";
@@ -15,6 +16,7 @@ const LOGO_URL = "https://media.base44.com/images/public/6aa074a5ce060f1b2caeee8
 export default function EnvelopesAssinados() {
   const { tipo } = useParams();
   const { toast } = useToast();
+  const { user } = useAuth();
   const [unlocked, setUnlocked] = useState(false);
   const [senha, setSenha] = useState("");
   const [senhaErro, setSenhaErro] = useState(false);
@@ -76,11 +78,23 @@ export default function EnvelopesAssinados() {
   const naoConcluidas = useMemo(() => aplicarFiltros(docs.filter((d) => d.status === "pendente_diretoria")), [docs, filtroProc, filtroGestor, filtroDiretoria]);
   const docsFiltrados = splitDiretoria ? [...concluidas, ...naoConcluidas] : concluidas;
 
+  const responsavel = () => user?.email || user?.full_name || "—";
+
   const processar = async (d) => {
     const agora = new Date().toISOString();
-    await base44.entities.Documento.update(d.id, { processado: true, data_processamento: agora });
-    setDocs((prev) => prev.map((x) => (x.id === d.id ? { ...x, processado: true, data_processamento: agora } : x)));
+    const resp = responsavel();
+    await base44.entities.Documento.update(d.id, { processado: true, data_processamento: agora, processado_por: resp });
+    setDocs((prev) => prev.map((x) => (x.id === d.id ? { ...x, processado: true, data_processamento: agora, processado_por: resp } : x)));
     toast({ title: "Envelope processado", description: "Processamento registrado." });
+  };
+
+  const darBaixa = async (ids) => {
+    const agora = new Date().toISOString();
+    const resp = responsavel();
+    await base44.entities.Documento.bulkUpdate(ids.map((id) => ({ id, processado: true, data_processamento: agora, processado_por: resp })));
+    const idSet = new Set(ids);
+    setDocs((prev) => prev.map((x) => (idSet.has(x.id) ? { ...x, processado: true, data_processamento: agora, processado_por: resp } : x)));
+    toast({ title: "Baixa registrada", description: `${ids.length} envelope(s) processado(s) por ${resp}.` });
   };
 
   if (!unlocked) {
@@ -151,13 +165,13 @@ export default function EnvelopesAssinados() {
           <div className="flex justify-center py-20"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>
         ) : splitDiretoria ? (
           <div className="space-y-2">
-            <PastaConcluidos titulo="Assinaturas Concluídas pela Diretoria" docs={concluidas} sigs={sigs} accent="emerald" showProcessar onProcessar={processar} />
+            <PastaConcluidos titulo="Assinaturas Concluídas pela Diretoria" docs={concluidas} sigs={sigs} accent="emerald" showProcessar onProcessar={processar} onDarBaixa={darBaixa} />
             <PastaConcluidos titulo="Não Concluídas pela Diretoria" docs={naoConcluidas} sigs={sigs} accent="amber" />
           </div>
         ) : docsFiltrados.length === 0 ? (
           <p className="text-sm text-muted-foreground">Nenhum envelope com os filtros selecionados.</p>
         ) : (
-          <PastaConcluidos titulo="Assinaturas Concluídas pela Diretoria" docs={docsFiltrados} sigs={sigs} accent="emerald" showProcessar onProcessar={processar} />
+          <PastaConcluidos titulo="Assinaturas Concluídas pela Diretoria" docs={docsFiltrados} sigs={sigs} accent="emerald" showProcessar onProcessar={processar} onDarBaixa={darBaixa} />
         )}
       </div>
     </div>
