@@ -11,7 +11,7 @@ import RelatorioFilters from "@/components/RelatorioFilters";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
+import html2canvas from "html2canvas";
 
 const LOGO_URL = "https://media.base44.com/images/public/6aa074a5ce060f1b2caeee8f/86ee25d0d_image.png";
 
@@ -35,6 +35,7 @@ const statusTone = (s) =>
 
 export default function Relatorios() {
   const { user } = useAuth();
+  const tableRef = React.useRef(null);
   const [registros, setRegistros] = useState([]);
   const [loading, setLoading] = useState(false);
   const [buscou, setBuscou] = useState(false);
@@ -104,44 +105,29 @@ export default function Relatorios() {
     a.click(); URL.revokeObjectURL(url);
   };
 
-  const exportarPdf = () => {
-    const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
-    doc.setFontSize(14);
-    doc.text("Relatório de Envelopes", 14, 15);
-    doc.setFontSize(9);
-    doc.setTextColor(100);
-    const periodoTxt = filtros.dataDe || filtros.dataAte
-      ? `Período: ${filtros.dataDe ? fmtData(filtros.dataDe) : "início"} até ${filtros.dataAte ? fmtData(filtros.dataAte) : "hoje"}`
-      : "Período: todos";
-    doc.text(periodoTxt, 14, 22);
-    doc.text(`Total: ${filtrados.length} envelope(s)`, 14, 27);
-    doc.setTextColor(0);
-
-    autoTable(doc, {
-      startY: 32,
-      head: [["Envelope", "Status", "Gestor", "Unidade", "Operação", "Diretoria", "Destinatário", "Data Limite", "Criado em"]],
-      body: filtrados.map((r) => [
-        r.titulo || "—",
-        statusLabel(r.status),
-        r.signatario_nome || "—",
-        r.unidade_negocio || "—",
-        r.operacao || "—",
-        r.diretoria || "—",
-        r.destinatario_nome || "—",
-        fmtData(r.data_limite),
-        fmtDataHora(r.created_date),
-      ]),
-      styles: { fontSize: 7, cellPadding: 1.5 },
-      headStyles: { fillColor: [0, 100, 45], fontSize: 7 },
-      columnStyles: { 0: { cellWidth: 45 } },
-      didDrawPage: () => {
-        doc.setFontSize(7);
-        doc.setTextColor(150);
-        doc.text(`Gerado em ${fmtDataHora(new Date().toISOString())}`, 14, doc.internal.pageSize.height - 5);
-      },
-    });
-
-    doc.save(`relatorio_envelopes_${format(new Date(), "dd-MM-yyyy")}.pdf`);
+  const exportarPdf = async () => {
+    const el = tableRef.current;
+    if (!el) return;
+    try {
+      const canvas = await html2canvas(el, { scale: 2, backgroundColor: "#ffffff" });
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const imgWidth = pageWidth;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      let heightLeft = imgHeight;
+      let position = 0;
+      pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+      while (heightLeft > 0) {
+        position -= pageHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+      }
+      pdf.save(`relatorio_envelopes_${format(new Date(), "dd-MM-yyyy")}.pdf`);
+    } catch {}
   };
 
   if (!podeVerRelatorios(user)) {
@@ -226,7 +212,7 @@ export default function Relatorios() {
                 <p className="text-muted-foreground">Nenhum envelope encontrado com os filtros aplicados.</p>
               </div>
             ) : (
-              <div className="rounded-xl border border-border/60 overflow-hidden">
+              <div ref={tableRef} className="rounded-xl border border-border/60 overflow-hidden bg-white">
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead className="bg-muted/50">
