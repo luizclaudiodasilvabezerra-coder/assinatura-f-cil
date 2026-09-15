@@ -2,14 +2,17 @@ import React, { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Download, Loader2, CheckCircle2, Calendar, Paperclip, FolderOpen, ChevronDown, ChevronRight, CheckCheck, UserCheck } from "lucide-react";
+import { Download, Loader2, CheckCircle2, Calendar, Paperclip, FolderOpen, ChevronDown, ChevronRight, CheckCheck, UserCheck, ShieldCheck, Lock } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { baixarEnvelopePdf, baixarArquivoPdf } from "@/lib/pdfDownload";
 import { formatDate } from "@/lib/signatureUtils";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { SENHA_AUTORIZACAO_MANUAL } from "@/lib/acessos";
 
 const fileName = (url) => (url ? decodeURIComponent(url.split("/").pop() || "arquivo") : "Documento");
 
-export default function PastaConcluidos({ titulo, docs, sigs, accent = "emerald", showProcessar = false, onProcessar, onDarBaixa }) {
+export default function PastaConcluidos({ titulo, docs, sigs, accent = "emerald", showProcessar = false, onProcessar, onDarBaixa, showConcluirManual = false, onConcluirManual }) {
   const { toast } = useToast();
   const [open, setOpen] = useState(true);
   const [downloadingId, setDownloadingId] = useState(null);
@@ -17,6 +20,11 @@ export default function PastaConcluidos({ titulo, docs, sigs, accent = "emerald"
   const [processingId, setProcessingId] = useState(null);
   const [selected, setSelected] = useState(new Set());
   const [baixandoSelecionados, setBaixandoSelecionados] = useState(false);
+  const [fileFlags, setFileFlags] = useState({});
+  const [dialogDoc, setDialogDoc] = useState(null);
+  const [senhaInput, setSenhaInput] = useState("");
+  const [senhaErro, setSenhaErro] = useState(false);
+  const [concluindoManual, setConcluindoManual] = useState(false);
 
   const mastersFor = (docId) => sigs.filter((s) => s.documento_id === docId && s.etapa === "master" && s.arquivo_url);
 
@@ -76,6 +84,46 @@ export default function PastaConcluidos({ titulo, docs, sigs, accent = "emerald"
     setProcessingId(d.id);
     try { await onProcessar(d); }
     finally { setProcessingId(null); }
+  };
+
+  const toggleFile = (docId, fileUrl) => {
+    setFileFlags((prev) => {
+      const next = { ...prev };
+      const set = new Set(next[docId] || []);
+      if (set.has(fileUrl)) set.delete(fileUrl);
+      else set.add(fileUrl);
+      next[docId] = set;
+      return next;
+    });
+  };
+
+  const allFilesSelected = (docId, files) => {
+    const set = fileFlags[docId] || new Set();
+    return files.length > 0 && set.size === files.length;
+  };
+
+  const abrirDialogConcluir = (docId) => {
+    setDialogDoc(docId);
+    setSenhaInput("");
+    setSenhaErro(false);
+  };
+
+  const confirmarConcluirManual = async () => {
+    if (senhaInput !== SENHA_AUTORIZACAO_MANUAL) {
+      setSenhaErro(true);
+      return;
+    }
+    if (!onConcluirManual || !dialogDoc) return;
+    setConcluindoManual(true);
+    try {
+      await onConcluirManual(dialogDoc);
+      setFileFlags((prev) => { const n = { ...prev }; delete n[dialogDoc]; return n; });
+      setDialogDoc(null);
+    } catch (e) {
+      setSenhaErro(true);
+    } finally {
+      setConcluindoManual(false);
+    }
   };
 
   if (!docs.length) {
@@ -158,12 +206,26 @@ export default function PastaConcluidos({ titulo, docs, sigs, accent = "emerald"
                   <div className="border-t border-border/60 pt-2">
                     <p className="text-xs text-muted-foreground mb-1.5">Arquivos (clique para baixar individual):</p>
                     <div className="flex flex-col gap-1">
-                      {individuais.map((m, i) => (
-                        <button key={m.id || i} type="button" onClick={() => baixarArquivoPdf(m.arquivo_url, fileName(m.arquivo_url))} className="flex items-center gap-2 text-sm text-blue-600 hover:underline text-left">
-                          <Download className="w-3.5 h-3.5" /> {fileName(m.arquivo_url)}
-                        </button>
-                      ))}
+                      {individuais.map((m, i) => {
+                        const url = m.arquivo_url;
+                        const checked = (fileFlags[d.id] || new Set()).has(url);
+                        return (
+                          <div key={m.id || i} className="flex items-center gap-2">
+                            {showConcluirManual && (
+                              <Checkbox checked={checked} onCheckedChange={() => toggleFile(d.id, url)} />
+                            )}
+                            <button type="button" onClick={() => baixarArquivoPdf(url, fileName(url))} className="flex items-center gap-2 text-sm text-blue-600 hover:underline text-left">
+                              <Download className="w-3.5 h-3.5" /> {fileName(url)}
+                            </button>
+                          </div>
+                        );
+                      })}
                     </div>
+                    {showConcluirManual && allFilesSelected(d.id, individuais) && (
+                      <Button type="button" size="sm" onClick={() => abrirDialogConcluir(d.id)} className="gap-2 bg-amber-600 hover:bg-amber-700 text-white mt-2">
+                        <ShieldCheck className="w-3.5 h-3.5" /> Concluir envelope (autorização manual)
+                      </Button>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -171,6 +233,23 @@ export default function PastaConcluidos({ titulo, docs, sigs, accent = "emerald"
           })}
         </div>
       )}
+
+      <Dialog open={dialogDoc !== null} onOpenChange={(v) => !v && setDialogDoc(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><Lock className="w-4 h-4" /> Autorização manual</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">Informe a senha para concluir o envelope sem assinatura da diretoria.</p>
+          <Input type="password" value={senhaInput} onChange={(e) => { setSenhaInput(e.target.value); setSenhaErro(false); }} placeholder="Senha" autoFocus onKeyDown={(e) => e.key === "Enter" && confirmarConcluirManual()} />
+          {senhaErro && <p className="text-sm text-destructive">Senha incorreta.</p>}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialogDoc(null)}>Cancelar</Button>
+            <Button onClick={confirmarConcluirManual} disabled={concluindoManual} className="gap-2">
+              {concluindoManual ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />} Confirmar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

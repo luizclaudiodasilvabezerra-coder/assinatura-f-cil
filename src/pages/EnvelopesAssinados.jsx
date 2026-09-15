@@ -103,6 +103,12 @@ export default function EnvelopesAssinados() {
     toast({ title: "Baixa registrada", description: `${ids.length} envelope(s) processado(s) por ${resp}.` });
   };
 
+  const concluirManual = async (docId) => {
+    await base44.entities.Documento.update(docId, { status: "assinado_diretoria" });
+    setDocs((prev) => prev.map((x) => (x.id === docId ? { ...x, status: "assinado_diretoria" } : x)));
+    toast({ title: "Envelope concluído", description: "Autorização manual registrada. Envelope movido para assinaturas concluídas." });
+  };
+
   if (!autorizado) {
     return (
       <div className="min-h-screen flex items-center justify-center px-6 bg-background">
@@ -185,7 +191,7 @@ export default function EnvelopesAssinados() {
         ) : splitDiretoria ? (
           <div className="space-y-2">
             <PastaConcluidos titulo="Assinaturas Concluídas pela Diretoria" docs={concluidas} sigs={sigs} accent="emerald" showProcessar onProcessar={processar} onDarBaixa={darBaixa} />
-            <PastaConcluidos titulo="Não Concluídas pela Diretoria" docs={naoConcluidas} sigs={sigs} accent="amber" />
+            <PastaConcluidos titulo="Não Concluídas pela Diretoria" docs={naoConcluidas} sigs={sigs} accent="amber" showConcluirManual onConcluirManual={concluirManual} />
           </div>
         ) : docsFiltrados.length === 0 ? (
           <p className="text-sm text-muted-foreground">Nenhum envelope com os filtros selecionados.</p>

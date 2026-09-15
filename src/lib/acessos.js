@@ -3,6 +3,9 @@
 // Senha master para acessar/alterar envelopes com NF recusada
 export const SENHA_MASTER_RECUSA = "LOG@2026";
 
+// Senha para autorização manual de conclusão sem assinatura da diretoria
+export const SENHA_AUTORIZACAO_MANUAL = "ASS@LOG";
+
 // Part 1 — Concluídos (Financeiro / Fiscal)
 export const SENHA_CONCLUIDOS = {
   financeiro: "LOG@FIN",
