@@ -34,7 +34,8 @@ export default function RelatorioFilters({ filtros, setFiltros, opcoes, onLimpar
             <SelectTrigger><SelectValue placeholder="Todos" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todos</SelectItem>
-              <SelectItem value="assinado_gestao">Pendente diretoria</SelectItem>
+              <SelectItem value="pendente_diretoria">Pendente diretoria</SelectItem>
+              <SelectItem value="assinado_gestao">Assinado gestao</SelectItem>
               <SelectItem value="assinado_diretoria">Assinado diretoria</SelectItem>
             </SelectContent>
           </Select>

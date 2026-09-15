@@ -26,11 +26,13 @@ const fmtDataHora = (d) => {
 };
 
 const statusLabel = (s) =>
-  s === "assinado_gestao" ? "Pendente diretoria" :
+  s === "pendente_diretoria" ? "Pendente diretoria" :
+  s === "assinado_gestao" ? "Assinado gestao" :
   s === "assinado_diretoria" ? "Assinado diretoria" : s;
 
 const statusTone = (s) =>
-  s === "assinado_gestao" ? "bg-amber-100 text-amber-800" :
+  s === "pendente_diretoria" ? "bg-amber-100 text-amber-800" :
+  s === "assinado_gestao" ? "bg-blue-100 text-blue-800" :
   s === "assinado_diretoria" ? "bg-emerald-100 text-emerald-800" : "bg-muted text-muted-foreground";
 
 export default function Relatorios() {
@@ -47,11 +49,12 @@ export default function Relatorios() {
   const buscar = async () => {
     setLoading(true);
     try {
-      const [pendentes, concluidos] = await Promise.all([
+      const [pendentesDir, assinadosGestao, concluidos] = await Promise.all([
+        base44.entities.Documento.filter({ status: "pendente_diretoria" }, "-created_date", 500),
         base44.entities.Documento.filter({ status: "assinado_gestao" }, "-created_date", 500),
         base44.entities.Documento.filter({ status: "assinado_diretoria" }, "-created_date", 500),
       ]);
-      const docs = [...pendentes, ...concluidos];
+      const docs = [...pendentesDir, ...assinadosGestao, ...concluidos];
       const docIds = new Set(docs.map((d) => d.id));
 
       const [todasAssinaturas, todosRelatorios] = await Promise.all([
@@ -254,7 +257,7 @@ export default function Relatorios() {
               <Card className="rounded-2xl border-border/60">
                 <CardContent className="p-4">
                   <p className="text-xs text-muted-foreground">Pendentes diretoria</p>
-                  <p className="text-2xl font-heading mt-1">{filtrados.filter((r) => r.status === "assinado_gestao").length}</p>
+                  <p className="text-2xl font-heading mt-1">{filtrados.filter((r) => r.status === "pendente_diretoria" || r.status === "assinado_gestao").length}</p>
                 </CardContent>
               </Card>
               <Card className="rounded-2xl border-border/60">
