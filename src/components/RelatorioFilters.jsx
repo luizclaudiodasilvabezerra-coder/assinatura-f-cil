@@ -3,9 +3,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Filter, X } from "lucide-react";
+import { Filter, X, Search, Loader2 } from "lucide-react";
 
-export default function RelatorioFilters({ filtros, setFiltros, opcoes, onLimpar }) {
+export default function RelatorioFilters({ filtros, setFiltros, opcoes, onLimpar, onBuscar, loading }) {
   const upd = (k, v) => setFiltros((f) => ({ ...f, [k]: v }));
 
   return (
@@ -21,24 +21,23 @@ export default function RelatorioFilters({ filtros, setFiltros, opcoes, onLimpar
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <div className="space-y-1.5">
-          <Label className="text-xs text-muted-foreground">Período assinatura — de</Label>
+          <Label className="text-xs text-muted-foreground">Período — de</Label>
           <Input type="date" value={filtros.dataDe} onChange={(e) => upd("dataDe", e.target.value)} />
         </div>
         <div className="space-y-1.5">
-          <Label className="text-xs text-muted-foreground">Período assinatura — até</Label>
+          <Label className="text-xs text-muted-foreground">Período — até</Label>
           <Input type="date" value={filtros.dataAte} onChange={(e) => upd("dataAte", e.target.value)} />
         </div>
         <div className="space-y-1.5">
-          <Label className="text-xs text-muted-foreground">Emitente da NF</Label>
-          <Input placeholder="Nome do emitente" value={filtros.emitente} onChange={(e) => upd("emitente", e.target.value)} />
-        </div>
-        <div className="space-y-1.5">
-          <Label className="text-xs text-muted-foreground">Valor mínimo (R$)</Label>
-          <Input type="number" min="0" step="0.01" placeholder="0,00" value={filtros.valorMin} onChange={(e) => upd("valorMin", e.target.value)} />
-        </div>
-        <div className="space-y-1.5">
-          <Label className="text-xs text-muted-foreground">Valor máximo (R$)</Label>
-          <Input type="number" min="0" step="0.01" placeholder="0,00" value={filtros.valorMax} onChange={(e) => upd("valorMax", e.target.value)} />
+          <Label className="text-xs text-muted-foreground">Status</Label>
+          <Select value={filtros.status || "all"} onValueChange={(v) => upd("status", v === "all" ? "" : v)}>
+            <SelectTrigger><SelectValue placeholder="Todos" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos</SelectItem>
+              <SelectItem value="assinado_gestao">Pendente diretoria</SelectItem>
+              <SelectItem value="assinado_diretoria">Assinado diretoria</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
         <div className="space-y-1.5">
           <Label className="text-xs text-muted-foreground">Unidade de negócio</Label>
@@ -49,10 +48,6 @@ export default function RelatorioFilters({ filtros, setFiltros, opcoes, onLimpar
               {opcoes.unidades.map((u) => <SelectItem key={u} value={u}>{u}</SelectItem>)}
             </SelectContent>
           </Select>
-        </div>
-        <div className="space-y-1.5">
-          <Label className="text-xs text-muted-foreground">Data de emissão da NF</Label>
-          <Input type="date" value={filtros.dataEmissao} onChange={(e) => upd("dataEmissao", e.target.value)} />
         </div>
         <div className="space-y-1.5">
           <Label className="text-xs text-muted-foreground">Gestor</Label>
@@ -74,6 +69,13 @@ export default function RelatorioFilters({ filtros, setFiltros, opcoes, onLimpar
             </SelectContent>
           </Select>
         </div>
+      </div>
+
+      <div className="flex justify-end pt-1">
+        <Button onClick={onBuscar} disabled={loading} className="gap-2">
+          {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+          Buscar
+        </Button>
       </div>
     </div>
   );
