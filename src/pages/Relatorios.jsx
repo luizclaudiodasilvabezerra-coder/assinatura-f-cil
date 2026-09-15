@@ -20,6 +20,11 @@ const fmtData = (d) => {
   try { return format(new Date(d), "dd/MM/yyyy"); } catch { return d; }
 };
 
+const nomeArquivo = (url) => {
+  if (!url) return "—";
+  try { return decodeURIComponent(url.split("/").pop().split("?")[0]); } catch { return url; }
+};
+
 const fmtDataHora = (d) => {
   if (!d) return "—";
   try { return format(new Date(d), "dd/MM/yyyy HH:mm", { locale: ptBR }); } catch { return d; }
@@ -55,6 +60,8 @@ export default function Relatorios() {
         base44.entities.Documento.filter({ status: "assinado_diretoria" }, "-created_date", 500),
       ]);
       const docs = [...pendentesDir, ...assinadosGestao, ...concluidos];
+      const docMap = {};
+      docs.forEach((d) => docMap[d.id] = d);
       const docIds = new Set(docs.map((d) => d.id));
 
       const [todasAssinaturas, todosRelatorios] = await Promise.all([
@@ -64,18 +71,11 @@ export default function Relatorios() {
       const assinaturasDoc = todasAssinaturas.filter((a) => docIds.has(a.documento_id));
       const relatoriosDoc = todosRelatorios.filter((r) => docIds.has(r.documento_id));
 
-      const assinaturasPorDoc = {};
-      assinaturasDoc.forEach((a) => {
-        if (!assinaturasPorDoc[a.documento_id]) assinaturasPorDoc[a.documento_id] = [];
-        assinaturasPorDoc[a.documento_id].push(a);
-      });
-      const relatoriosPorDoc = {};
-      relatoriosDoc.forEach((r) => {
-        if (!relatoriosPorDoc[r.documento_id]) relatoriosPorDoc[r.documento_id] = [];
-        relatoriosPorDoc[r.documento_id].push(r);
-      });
+      // Indexa relatorios por arquivo_url para join por arquivo
+      const relatorioPorUrl = {};
+      relatoriosDoc.forEach((r) => { if (r.arquivo_url) relatorioPorUrl[r.arquivo_url] = r; });
 
-      // Dispara extracao (varredura) para envelopes sem dados extraidos
+      // Dispara extracao para envelopes sem dados extraidos
       const docIdsComRelatorio = new Set(relatoriosDoc.map((r) => r.documento_id));
       docs.forEach((d) => {
         if (!docIdsComRelatorio.has(d.id)) {
@@ -83,23 +83,29 @@ export default function Relatorios() {
         }
       });
 
-      const docsComDados = docs.map((d) => {
-        const assinaturas = assinaturasPorDoc[d.id] || [];
-        const relatorios = relatoriosPorDoc[d.id] || [];
-        const observacoes = [...new Set(assinaturas.map((a) => a.observacao).filter(Boolean))];
-        const emitentes = [...new Set(relatorios.map((r) => r.emitente).filter(Boolean))];
-        const valorTotal = relatorios.reduce((s, r) => s + (Number(r.valor_total) || 0), 0);
-        const datasEmissao = [...new Set(relatorios.map((r) => r.data_emissao).filter(Boolean))];
-        return {
-          ...d,
-          _observacoes: observacoes.join(" | "),
-          _emitente: emitentes.join(", "),
-          _valor_total: valorTotal,
-          _data_emissao: datasEmissao.join(", "),
-        };
+      // Cria uma linha por NF/arquivo (deduplicado por arquivo_url)
+      const vistos = new Set();
+      const rows = [];
+      assinaturasDoc.forEach((a) => {
+        const url = a.arquivo_url;
+        if (!url || vistos.has(url)) return;
+        vistos.add(url);
+        const doc = docMap[a.documento_id];
+        if (!doc) return;
+        const rel = relatorioPorUrl[url] || {};
+        rows.push({
+          ...doc,
+          _arquivo_url: url,
+          _arquivo_nome: nomeArquivo(url),
+          _observacao: a.observacao || "",
+          _emitente: rel.emitente || "",
+          _valor_total: Number(rel.valor_total) || 0,
+          _data_emissao: rel.data_emissao || "",
+          _data_assinatura: a.data_assinatura || "",
+        });
       });
 
-      setRegistros(docsComDados);
+      setRegistros(rows);
       setBuscou(true);
     } catch { setRegistros([]); } finally { setLoading(false); }
   };
@@ -108,9 +114,10 @@ export default function Relatorios() {
     if (filtrados.length === 0) return;
     setVarreduraLoading(true);
     try {
+      const docIds = [...new Set(filtrados.map((r) => r.id))];
       await Promise.all(
-        filtrados.map((d) =>
-          base44.functions.invoke("extrairDadosNF", { documento_id: d.id }).catch(() => {})
+        docIds.map((id) =>
+          base44.functions.invoke("extrairDadosNF", { documento_id: id }).catch(() => {})
         )
       );
       await buscar();
@@ -147,7 +154,7 @@ export default function Relatorios() {
   });
 
   const exportarCsv = () => {
-    const headers = ["Envelope", "Status", "Gestor", "Unidade", "Operação", "Diretoria", "Destinatário", "Observação", "Emitente", "Valor Total", "Data Emissão", "Data Limite", "Criado em"];
+    const headers = ["Envelope", "Status", "Gestor", "Unidade", "Operação", "Diretoria", "Destinatário", "Arquivo", "Observação", "Emitente", "Valor Total", "Data Emissão", "Data Assinatura", "Data Limite", "Criado em"];
     const rows = filtrados.map((r) => [
       `"${(r.titulo || "").replace(/"/g, '""')}"`,
       statusLabel(r.status),
@@ -156,10 +163,12 @@ export default function Relatorios() {
       `"${(r.operacao || "").replace(/"/g, '""')}"`,
       r.diretoria || "",
       `"${(r.destinatario_nome || "").replace(/"/g, '""')}"`,
-      `"${(r._observacoes || "").replace(/"/g, '""')}"`,
+      `"${(r._arquivo_nome || "").replace(/"/g, '""')}"`,
+      `"${(r._observacao || "").replace(/"/g, '""')}"`,
       `"${(r._emitente || "").replace(/"/g, '""')}"`,
-      r._valor_total || 0,
+      (r._valor_total || 0).toFixed(2).replace(".", ","),
       r._data_emissao || "",
+      r._data_assinatura || "",
       r.data_limite || "",
       r.created_date || "",
     ]);
@@ -167,7 +176,7 @@ export default function Relatorios() {
     const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    a.href = url; a.download = `relatorio_envelopes_${format(new Date(), "dd-MM-yyyy")}.csv`;
+    a.href = url; a.download = `relatorio_nfs_${format(new Date(), "dd-MM-yyyy")}.csv`;
     a.click(); URL.revokeObjectURL(url);
   };
 
@@ -192,7 +201,7 @@ export default function Relatorios() {
         pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
         heightLeft -= pageHeight;
       }
-      pdf.save(`relatorio_envelopes_${format(new Date(), "dd-MM-yyyy")}.pdf`);
+      pdf.save(`relatorio_nfs_${format(new Date(), "dd-MM-yyyy")}.pdf`);
     } catch {}
   };
 
@@ -218,7 +227,7 @@ export default function Relatorios() {
             <h1 className="text-4xl font-heading tracking-tight text-foreground flex items-center gap-3">
               <FileBarChart className="w-8 h-8" /> Relatórios
             </h1>
-            <p className="text-muted-foreground mt-2">Envelopes assinados pelo gestor e pendentes/assinados pela diretoria.</p>
+            <p className="text-muted-foreground mt-2">Relatório detalhado por NF/arquivo — um arquivo por linha com dados extraídos.</p>
           </div>
           <div className="flex gap-2">
             <Button asChild variant="outline"><Link to="/" className="gap-2"><ArrowLeft className="w-4 h-4" /> Voltar</Link></Button>
@@ -250,7 +259,7 @@ export default function Relatorios() {
             <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-6">
               <Card className="rounded-2xl border-border/60">
                 <CardContent className="p-4">
-                  <p className="text-xs text-muted-foreground">Total de envelopes</p>
+                  <p className="text-xs text-muted-foreground">Total de NFs</p>
                   <p className="text-2xl font-heading mt-1">{filtrados.length}</p>
                 </CardContent>
               </Card>
@@ -284,7 +293,7 @@ export default function Relatorios() {
               <div className="flex justify-center py-20"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>
             ) : filtrados.length === 0 ? (
               <div className="text-center py-20">
-                <p className="text-muted-foreground">Nenhum envelope encontrado com os filtros aplicados.</p>
+                <p className="text-muted-foreground">Nenhuma NF encontrada com os filtros aplicados.</p>
               </div>
             ) : (
               <div ref={tableRef} className="rounded-xl border border-border/60 overflow-hidden bg-white">
@@ -299,18 +308,20 @@ export default function Relatorios() {
                         <th className="px-4 py-3 font-medium">Operação</th>
                         <th className="px-4 py-3 font-medium">Diretoria</th>
                         <th className="px-4 py-3 font-medium">Destinatário</th>
+                        <th className="px-4 py-3 font-medium">Arquivo</th>
                         <th className="px-4 py-3 font-medium">Observação</th>
                         <th className="px-4 py-3 font-medium">Emitente</th>
                         <th className="px-4 py-3 font-medium">Valor total</th>
                         <th className="px-4 py-3 font-medium">Data emissão</th>
+                        <th className="px-4 py-3 font-medium">Data assinatura</th>
                         <th className="px-4 py-3 font-medium">Data limite</th>
                         <th className="px-4 py-3 font-medium">Criado em</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border/60">
                       {filtrados.map((r) => (
-                        <tr key={r.id} className="hover:bg-muted/30">
-                          <td className="px-4 py-3 max-w-[200px] truncate" title={r.titulo}>{r.titulo || "—"}</td>
+                        <tr key={`${r.id}_${r._arquivo_url}`} className="hover:bg-muted/30">
+                          <td className="px-4 py-3 max-w-[180px] truncate" title={r.titulo}>{r.titulo || "—"}</td>
                           <td className="px-4 py-3">
                             <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${statusTone(r.status)}`}>
                               {statusLabel(r.status)}
@@ -321,10 +332,12 @@ export default function Relatorios() {
                           <td className="px-4 py-3">{r.operacao || "—"}</td>
                           <td className="px-4 py-3">{r.diretoria || "—"}</td>
                           <td className="px-4 py-3">{r.destinatario_nome || "—"}</td>
-                          <td className="px-4 py-3 max-w-[260px] truncate" title={r._observacoes}>{r._observacoes || "—"}</td>
-                          <td className="px-4 py-3 max-w-[160px] truncate" title={r._emitente}>{r._emitente || "—"}</td>
+                          <td className="px-4 py-3 max-w-[200px] truncate" title={r._arquivo_nome}>{r._arquivo_nome || "—"}</td>
+                          <td className="px-4 py-3 max-w-[220px] truncate" title={r._observacao}>{r._observacao || "—"}</td>
+                          <td className="px-4 py-3 max-w-[140px] truncate" title={r._emitente}>{r._emitente || "—"}</td>
                           <td className="px-4 py-3 whitespace-nowrap">{r._valor_total ? r._valor_total.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : "—"}</td>
                           <td className="px-4 py-3 whitespace-nowrap">{fmtData(r._data_emissao)}</td>
+                          <td className="px-4 py-3 whitespace-nowrap">{fmtDataHora(r._data_assinatura)}</td>
                           <td className="px-4 py-3 whitespace-nowrap">{fmtData(r.data_limite)}</td>
                           <td className="px-4 py-3 whitespace-nowrap">{fmtDataHora(r.created_date)}</td>
                         </tr>
@@ -339,7 +352,7 @@ export default function Relatorios() {
 
         {!buscou && !loading && (
           <div className="text-center py-20">
-            <p className="text-muted-foreground">Defina os filtros e clique em <strong>Buscar</strong> para consultar os envelopes.</p>
+            <p className="text-muted-foreground">Defina os filtros e clique em <strong>Buscar</strong> para consultar as NFs.</p>
           </div>
         )}
       </div>
