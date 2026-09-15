@@ -193,7 +193,7 @@ export default function Home() {
   const excluirHandler = podeExcluirEnvelope(user) ? (doc) => { setExcluirDoc(doc); setSenha(""); } : undefined;
 
   const confirmarExclusao = async () => {
-    if (senha !== "062026") { toast({ title: "Senha incorreta", variant: "destructive" }); return; }
+    if (senha !== "LOG@2026") { toast({ title: "Senha incorreta", variant: "destructive" }); return; }
     setExcluindo(true);
     try {
       await base44.entities.Assinatura.deleteMany({ documento_id: excluirDoc.id });
