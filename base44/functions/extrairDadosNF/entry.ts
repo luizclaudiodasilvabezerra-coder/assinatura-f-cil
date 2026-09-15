@@ -18,9 +18,19 @@ export default async function(req: Request): Promise<Response> {
     }
 
     // Busca assinaturas da diretoria (arquivos finais assinados)
-    const assinaturas = await base44.asServiceRole.entities.Assinatura.filter({
+    const assinaturasMaster = await base44.asServiceRole.entities.Assinatura.filter({
       documento_id: documentoId, etapa: "master", status: "assinado"
     }, "-created_date", 200);
+
+    // Se nao houver assinaturas da diretoria, busca as do gestor (signatario)
+    let assinaturas;
+    if (assinaturasMaster.length > 0) {
+      assinaturas = assinaturasMaster;
+    } else {
+      assinaturas = await base44.asServiceRole.entities.Assinatura.filter({
+        documento_id: documentoId, etapa: "signatario", status: "assinado"
+      }, "-created_date", 200);
+    }
 
     // Usa os arquivos assinados; se nao houver, cai para os arquivos originais
     const signedUrls = assinaturas.map((a) => a.arquivo_url).filter(Boolean);

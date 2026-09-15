@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { ArrowLeft, FileBarChart, Loader2, Download, FileDown } from "lucide-react";
+import { ArrowLeft, FileBarChart, Loader2, Download, FileDown, FileSearch } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
 import { podeVerRelatorios } from "@/lib/permissoes";
 import { Image as UIImage } from "@/components/ui/image";
@@ -39,6 +39,7 @@ export default function Relatorios() {
   const [registros, setRegistros] = useState([]);
   const [loading, setLoading] = useState(false);
   const [buscou, setBuscou] = useState(false);
+  const [varreduraLoading, setVarreduraLoading] = useState(false);
   const [filtros, setFiltros] = useState({
     dataDe: "", dataAte: "", status: "", unidade: "", gestor: "", diretoria: "",
   });
@@ -50,9 +51,67 @@ export default function Relatorios() {
         base44.entities.Documento.filter({ status: "assinado_gestao" }, "-created_date", 500),
         base44.entities.Documento.filter({ status: "assinado_diretoria" }, "-created_date", 500),
       ]);
-      setRegistros([...pendentes, ...concluidos]);
+      const docs = [...pendentes, ...concluidos];
+      const docIds = new Set(docs.map((d) => d.id));
+
+      const [todasAssinaturas, todosRelatorios] = await Promise.all([
+        base44.entities.Assinatura.list("-created_date", 2000),
+        base44.entities.RelatorioNF.list("-created_date", 2000),
+      ]);
+      const assinaturasDoc = todasAssinaturas.filter((a) => docIds.has(a.documento_id));
+      const relatoriosDoc = todosRelatorios.filter((r) => docIds.has(r.documento_id));
+
+      const assinaturasPorDoc = {};
+      assinaturasDoc.forEach((a) => {
+        if (!assinaturasPorDoc[a.documento_id]) assinaturasPorDoc[a.documento_id] = [];
+        assinaturasPorDoc[a.documento_id].push(a);
+      });
+      const relatoriosPorDoc = {};
+      relatoriosDoc.forEach((r) => {
+        if (!relatoriosPorDoc[r.documento_id]) relatoriosPorDoc[r.documento_id] = [];
+        relatoriosPorDoc[r.documento_id].push(r);
+      });
+
+      // Dispara extracao (varredura) para envelopes sem dados extraidos
+      const docIdsComRelatorio = new Set(relatoriosDoc.map((r) => r.documento_id));
+      docs.forEach((d) => {
+        if (!docIdsComRelatorio.has(d.id)) {
+          base44.functions.invoke("extrairDadosNF", { documento_id: d.id }).catch(() => {});
+        }
+      });
+
+      const docsComDados = docs.map((d) => {
+        const assinaturas = assinaturasPorDoc[d.id] || [];
+        const relatorios = relatoriosPorDoc[d.id] || [];
+        const observacoes = [...new Set(assinaturas.map((a) => a.observacao).filter(Boolean))];
+        const emitentes = [...new Set(relatorios.map((r) => r.emitente).filter(Boolean))];
+        const valorTotal = relatorios.reduce((s, r) => s + (Number(r.valor_total) || 0), 0);
+        const datasEmissao = [...new Set(relatorios.map((r) => r.data_emissao).filter(Boolean))];
+        return {
+          ...d,
+          _observacoes: observacoes.join(" | "),
+          _emitente: emitentes.join(", "),
+          _valor_total: valorTotal,
+          _data_emissao: datasEmissao.join(", "),
+        };
+      });
+
+      setRegistros(docsComDados);
       setBuscou(true);
     } catch { setRegistros([]); } finally { setLoading(false); }
+  };
+
+  const varredura = async () => {
+    if (filtrados.length === 0) return;
+    setVarreduraLoading(true);
+    try {
+      await Promise.all(
+        filtrados.map((d) =>
+          base44.functions.invoke("extrairDadosNF", { documento_id: d.id }).catch(() => {})
+        )
+      );
+      await buscar();
+    } catch { } finally { setVarreduraLoading(false); }
   };
 
   const opcoes = useMemo(() => {
@@ -85,7 +144,7 @@ export default function Relatorios() {
   });
 
   const exportarCsv = () => {
-    const headers = ["Envelope", "Status", "Gestor", "Unidade", "Operação", "Diretoria", "Destinatário", "Data Limite", "Criado em"];
+    const headers = ["Envelope", "Status", "Gestor", "Unidade", "Operação", "Diretoria", "Destinatário", "Observação", "Emitente", "Valor Total", "Data Emissão", "Data Limite", "Criado em"];
     const rows = filtrados.map((r) => [
       `"${(r.titulo || "").replace(/"/g, '""')}"`,
       statusLabel(r.status),
@@ -94,6 +153,10 @@ export default function Relatorios() {
       `"${(r.operacao || "").replace(/"/g, '""')}"`,
       r.diretoria || "",
       `"${(r.destinatario_nome || "").replace(/"/g, '""')}"`,
+      `"${(r._observacoes || "").replace(/"/g, '""')}"`,
+      `"${(r._emitente || "").replace(/"/g, '""')}"`,
+      r._valor_total || 0,
+      r._data_emissao || "",
       r.data_limite || "",
       r.created_date || "",
     ]);
@@ -156,6 +219,9 @@ export default function Relatorios() {
           </div>
           <div className="flex gap-2">
             <Button asChild variant="outline"><Link to="/" className="gap-2"><ArrowLeft className="w-4 h-4" /> Voltar</Link></Button>
+            <Button onClick={varredura} disabled={varreduraLoading || filtrados.length === 0} variant="outline" className="gap-2">
+              {varreduraLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileSearch className="w-4 h-4" />} Varredura
+            </Button>
             <Button onClick={exportarPdf} disabled={filtrados.length === 0} variant="outline" className="gap-2">
               <FileDown className="w-4 h-4" /> PDF
             </Button>
@@ -178,7 +244,7 @@ export default function Relatorios() {
 
         {buscou && (
           <>
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+            <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-6">
               <Card className="rounded-2xl border-border/60">
                 <CardContent className="p-4">
                   <p className="text-xs text-muted-foreground">Total de envelopes</p>
@@ -203,6 +269,12 @@ export default function Relatorios() {
                   <p className="text-2xl font-heading mt-1">{new Set(filtrados.map((r) => r.unidade_negocio).filter(Boolean)).size}</p>
                 </CardContent>
               </Card>
+              <Card className="rounded-2xl border-border/60">
+                <CardContent className="p-4">
+                  <p className="text-xs text-muted-foreground">Valor total NFs</p>
+                  <p className="text-2xl font-heading mt-1">{filtrados.reduce((s, r) => s + (Number(r._valor_total) || 0), 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</p>
+                </CardContent>
+              </Card>
             </div>
 
             {loading ? (
@@ -224,6 +296,10 @@ export default function Relatorios() {
                         <th className="px-4 py-3 font-medium">Operação</th>
                         <th className="px-4 py-3 font-medium">Diretoria</th>
                         <th className="px-4 py-3 font-medium">Destinatário</th>
+                        <th className="px-4 py-3 font-medium">Observação</th>
+                        <th className="px-4 py-3 font-medium">Emitente</th>
+                        <th className="px-4 py-3 font-medium">Valor total</th>
+                        <th className="px-4 py-3 font-medium">Data emissão</th>
                         <th className="px-4 py-3 font-medium">Data limite</th>
                         <th className="px-4 py-3 font-medium">Criado em</th>
                       </tr>
@@ -242,6 +318,10 @@ export default function Relatorios() {
                           <td className="px-4 py-3">{r.operacao || "—"}</td>
                           <td className="px-4 py-3">{r.diretoria || "—"}</td>
                           <td className="px-4 py-3">{r.destinatario_nome || "—"}</td>
+                          <td className="px-4 py-3 max-w-[260px] truncate" title={r._observacoes}>{r._observacoes || "—"}</td>
+                          <td className="px-4 py-3 max-w-[160px] truncate" title={r._emitente}>{r._emitente || "—"}</td>
+                          <td className="px-4 py-3 whitespace-nowrap">{r._valor_total ? r._valor_total.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : "—"}</td>
+                          <td className="px-4 py-3 whitespace-nowrap">{fmtData(r._data_emissao)}</td>
                           <td className="px-4 py-3 whitespace-nowrap">{fmtData(r.data_limite)}</td>
                           <td className="px-4 py-3 whitespace-nowrap">{fmtDataHora(r.created_date)}</td>
                         </tr>
