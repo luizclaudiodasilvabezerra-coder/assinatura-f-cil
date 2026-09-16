@@ -43,6 +43,15 @@
       ],
       "default": "pendente"
     },
+    "categoria": {
+      "type": "string",
+      "title": "Categoria",
+      "enum": [
+        "notas_boletos",
+        "abastecimento"
+      ],
+      "default": "notas_boletos"
+    },
     "destinatario_nome": {
       "type": "string",
       "title": "Destinat\u00e1rio"

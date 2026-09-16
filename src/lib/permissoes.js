@@ -5,6 +5,8 @@ const EMAIL_PARA_NOME = {
   "luiz.dias@logmam.com.br": "LUIZ DIAS",
   "breno@logmam.com.br": "BRENO",
   "gilmar@logmam.com.br": "GILMAR PEREIRA",
+  "compras@logmam.com.br": "TAMIRES",
+  "nf@logmam.com.br": "RAYANE",
 };
 
 // Permissões por e-mail
@@ -16,6 +18,7 @@ const PERMISSOES = {
   "financeiro@logmam.com.br": { tipo: "operacional", concluidos: ["fiscal"] },
   "gilmar@logmam.com.br": { tipo: "gestor" },
   "jerusa.dias@logmam.com.br": { tipo: "operacional", concluidos: ["financeiro", "fiscal"] },
+  "compras@logmam.com.br": { tipo: "operacional", podeCriarEnvelope: true, podeExcluirEnvelope: true, podeVerPainel: true, concluidos: ["abastecimento"], criaCategoria: "abastecimento" },
 };
 
 const norm = (s) => (s || "").trim().toLowerCase();
@@ -114,6 +117,21 @@ export const podeAssinarDiretoria = (user, doc, cadastros) => {
   if (p.tipo !== "diretoria") return false;
   const dir = diretoriaDoUsuario(user, cadastros);
   return !!(dir && doc.diretoria === dir);
+};
+
+// Categoria de envelope que o usuário cria (notas_boletos ou abastecimento)
+export const categoriaEnvelopeDoUsuario = (user) => {
+  const p = getPermissoes(user);
+  if (!p) return "notas_boletos";
+  return p.criaCategoria || "notas_boletos";
+};
+
+// Somente usuários com criaCategoria "abastecimento" (Tamires) podem criar envelopes de abastecimento
+export const podeCriarEnvelopeAbastecimento = (user) => {
+  const p = getPermissoes(user);
+  if (!p) return false;
+  if (p.tipo === "admin") return true;
+  return p.criaCategoria === "abastecimento";
 };
 
 // Pode assinar um envelope na etapa gestao

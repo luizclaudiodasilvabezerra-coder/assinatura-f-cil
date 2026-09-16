@@ -10,11 +10,13 @@ export const SENHA_AUTORIZACAO_MANUAL = "ASS@LOG";
 export const SENHA_CONCLUIDOS = {
   financeiro: "LOG@FIN",
   fiscal: "LOG@FISCAL1",
+  abastecimento: "LOG@ABAST",
 };
 
 export const CONCLUIDOS_LABEL = {
   financeiro: "Concluídos Financeiro",
   fiscal: "Concluídos Fiscal",
+  abastecimento: "Concluídos Abastecimento",
 };
 
 // Part 2 — Senhas individuais dos gestores (signatários)

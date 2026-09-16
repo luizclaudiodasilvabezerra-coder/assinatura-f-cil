@@ -52,7 +52,10 @@ export default function EnvelopesAssinados() {
         Promise.all(statusList.map((st) => base44.entities.Documento.filter({ status: st }, "-created_date", 200))).then((r) => r.flat()),
         base44.entities.Assinatura.list("-created_date", 1000),
       ]);
-      setDocs(d);
+      const filtrados = tipo === "abastecimento"
+        ? d.filter((doc) => doc.categoria === "abastecimento")
+        : d.filter((doc) => doc.categoria !== "abastecimento");
+      setDocs(filtrados);
       setSigs(s);
     } finally {
       setLoading(false);

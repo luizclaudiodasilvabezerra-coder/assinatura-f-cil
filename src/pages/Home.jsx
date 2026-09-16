@@ -18,6 +18,7 @@ import DiretoriaFolders from "@/components/DiretoriaFolders";
 import DiretoriaBanner from "@/components/DiretoriaBanner";
 import GestorBanner from "@/components/GestorBanner";
 import PastaRecusados from "@/components/PastaRecusados";
+import ColunasCategorias from "@/components/ColunasCategorias";
 import { stageStyles, stageLabel } from "@/lib/stageStyles";
 
 const LOGO_URL = "https://media.base44.com/images/public/6aa074a5ce060f1b2caeee8f/86ee25d0d_image.png";
@@ -224,6 +225,7 @@ export default function Home() {
             <Button asChild variant="outline"><Link to="/relatorios" className="gap-2"><BarChart3 className="w-4 h-4" /> Relatórios</Link></Button>
             {podeAcessarConcluidos(user, "financeiro") && <Button asChild variant="outline"><Link to="/concluidos/financeiro" className="gap-2"><CheckCircle2 className="w-4 h-4" /> Concl. Financeiro</Link></Button>}
             {podeAcessarConcluidos(user, "fiscal") && <Button asChild variant="outline"><Link to="/concluidos/fiscal" className="gap-2"><CheckCircle2 className="w-4 h-4" /> Concl. Fiscal</Link></Button>}
+            {podeAcessarConcluidos(user, "abastecimento") && <Button asChild variant="outline"><Link to="/concluidos/abastecimento" className="gap-2"><CheckCircle2 className="w-4 h-4" /> Concl. Abastecimento</Link></Button>}
             {podeCriarEnvelope(user) && <Button asChild><Link to="/novo" className="gap-2"><Plus className="w-4 h-4" /> Novo envelope</Link></Button>}
           </div>
         </header>
@@ -247,6 +249,10 @@ export default function Home() {
             </motion.button>
           ))}
         </div>
+        )}
+
+        {podeVerPainel(user) && (
+          <ColunasCategorias documentos={documentosVisiveis} linkPara={linkPara} />
         )}
 
         {podeVerPainel(user) ? (

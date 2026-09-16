@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { ArrowLeft, Loader2, Upload, X, FileText } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/lib/AuthContext";
-import { podeCriarEnvelope } from "@/lib/permissoes";
+import { podeCriarEnvelope, categoriaEnvelopeDoUsuario } from "@/lib/permissoes";
 
 export default function NovoDocumento() {
   const navigate = useNavigate();
@@ -109,6 +109,7 @@ export default function NovoDocumento() {
         arquivos,
         status: "pendente_gestao",
         pasta: "pendente",
+        categoria: categoriaEnvelopeDoUsuario(user),
       });
       toast({ title: "Envelope criado", description: numero });
       if (created && created.destinatario_email) {

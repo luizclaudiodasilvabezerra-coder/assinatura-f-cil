@@ -11,6 +11,7 @@ export const EMAILS_AUTORIZADOS = [
   "joselio@logmam.com.br",
   "silvana@logmam.com.br",
   "luizclaudiodasilvabezerra@gmail.com",
+  "compras@logmam.com.br",
 ];
 
 const norm = (s) => (s || "").trim().toLowerCase();
