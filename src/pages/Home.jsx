@@ -253,6 +253,40 @@ export default function Home() {
 
         {podeVerPainel(user) ? (
           <div className="space-y-6">
+            {/* Indicadores */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <Card className="rounded-2xl border-border/60">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1"><Timer className="w-3.5 h-3.5" /> Tempo médio criação → assinatura</div>
+                  <p className="text-2xl font-heading text-foreground">{loading ? "—" : fmtDur(indicadores.tempoMedio)}</p>
+                </CardContent>
+              </Card>
+              <Card className="rounded-2xl border-border/60">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2"><Paperclip className="w-3.5 h-3.5" /> NFs este mês por unidade</div>
+                  {indicadores.unidadesMes.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">Nenhuma NF no mês.</p>
+                  ) : (
+                    <ul className="space-y-1.5">
+                      {indicadores.unidadesMes.map(([un, v]) => (
+                        <li key={un} className="flex items-center justify-between text-sm">
+                          <span className="truncate text-muted-foreground">{un}</span>
+                          <span className="font-medium tabular-nums">{v.mesCount}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </CardContent>
+              </Card>
+              <Card className="rounded-2xl border-border/60">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1"><Clock className="w-3.5 h-3.5" /> Unidade com maior tempo para assinar</div>
+                  <p className="text-lg font-heading text-foreground truncate">{indicadores.maiorUnidade}</p>
+                  <p className="text-sm text-muted-foreground tabular-nums">{fmtDur(indicadores.maiorTempo)}</p>
+                </CardContent>
+              </Card>
+            </div>
+
             <div className="flex flex-wrap items-end gap-4">
               <div className="flex flex-col gap-1">
                 <label className="text-xs text-muted-foreground">Unidade de negócio</label>
