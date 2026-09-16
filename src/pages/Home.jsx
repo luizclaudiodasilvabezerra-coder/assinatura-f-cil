@@ -251,49 +251,8 @@ export default function Home() {
         </div>
         )}
 
-        {podeVerPainel(user) && (
-          <ColunasCategorias documentos={documentosVisiveis} linkPara={linkPara} />
-        )}
-
         {podeVerPainel(user) ? (
-        <div className="grid lg:grid-cols-12 gap-6">
-          {/* Painel vertical de indicadores */}
-          <aside className="lg:col-span-3 space-y-3">
-            <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground px-1"><BarChart3 className="w-4 h-4" /> Indicadores</div>
-            <Card className="rounded-2xl border-border/60">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1"><Timer className="w-3.5 h-3.5" /> Tempo médio criação → assinatura</div>
-                <p className="text-2xl font-heading text-foreground">{loading ? "—" : fmtDur(indicadores.tempoMedio)}</p>
-              </CardContent>
-            </Card>
-            <Card className="rounded-2xl border-border/60">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2"><Paperclip className="w-3.5 h-3.5" /> NFs este mês por unidade</div>
-                {indicadores.unidadesMes.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">Nenhuma NF no mês.</p>
-                ) : (
-                  <ul className="space-y-1.5">
-                    {indicadores.unidadesMes.map(([un, v]) => (
-                      <li key={un} className="flex items-center justify-between text-sm">
-                        <span className="truncate text-muted-foreground">{un}</span>
-                        <span className="font-medium tabular-nums">{v.mesCount}</span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </CardContent>
-            </Card>
-            <Card className="rounded-2xl border-border/60">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1"><Clock className="w-3.5 h-3.5" /> Unidade com maior tempo para assinar</div>
-                <p className="text-lg font-heading text-foreground truncate">{indicadores.maiorUnidade}</p>
-                <p className="text-sm text-muted-foreground tabular-nums">{fmtDur(indicadores.maiorTempo)}</p>
-              </CardContent>
-            </Card>
-          </aside>
-
-          {/* Conteúdo principal */}
-          <div className="lg:col-span-9 space-y-6">
+          <div className="space-y-6">
             <div className="flex flex-wrap items-end gap-4">
               <div className="flex flex-col gap-1">
                 <label className="text-xs text-muted-foreground">Unidade de negócio</label>
@@ -324,71 +283,30 @@ export default function Home() {
               )}
             </div>
 
-            <div className="space-y-3">
-              {loading ? (
-                <p className="text-sm text-muted-foreground">Carregando…</p>
-              ) : docsFiltrados.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Nenhum envelope nesta etapa.</p>
-              ) : stage === "pendente_gestao" ? (
-                <>
-                  <GestorBanner docs={docsFiltrados} signedCountFor={signedCountFor} hasPendente={hasPendente} />
-                  {docsFiltrados.map((d) => (
-                    <EnvelopeCard
-                      key={d.id}
-                      d={d}
-                      signedCount={signedCountFor(d.id)}
-                      hasPendente={hasPendente(d)}
-                      linkPara={linkPara}
-                      onEnviarDiretoria={enviarDiretoria}
-                      onBaixar={baixar}
-                      onExcluir={excluirHandler}
-                      enviandoId={enviandoId}
-                      downloadingId={downloadingId}
-                    />
-                  ))}
-                </>
-              ) : stage === "pendente_diretoria" ? (
-                <>
-                  <DiretoriaBanner docs={docsFiltrados} signedCountFor={signedCountFor} hasPendente={hasPendente} />
-                  <DiretoriaFolders
-                    docs={docsFiltrados}
-                    signedCountFor={signedCountFor}
-                    hasPendente={hasPendente}
-                    linkPara={linkPara}
-                    onEnviarDiretoria={enviarDiretoria}
-                    onBaixar={baixar}
-                    onExcluir={excluirHandler}
-                    enviandoId={enviandoId}
-                    downloadingId={downloadingId}
-                  />
-                </>
-              ) : stage === "recusados" ? (
-                <PastaRecusados
-                  recusados={arquivosRecusados.filter((r) => docsFiltrados.some((d) => d.id === r.documento_id))}
-                  documentos={docsFiltrados}
-                  linkPara={linkPara}
-                  onExcluir={excluirHandler}
-                  onRecuperou={load}
-                />
-              ) : (
-                docsFiltrados.map((d) => (
-                  <EnvelopeCard
-                    key={d.id}
-                    d={d}
-                    signedCount={signedCountFor(d.id)}
-                    hasPendente={hasPendente(d)}
-                    linkPara={linkPara}
-                    onEnviarDiretoria={enviarDiretoria}
-                    onBaixar={baixar}
-                    onExcluir={excluirHandler}
-                    enviandoId={enviandoId}
-                    downloadingId={downloadingId}
-                  />
-                ))
-              )}
-            </div>
+            {loading ? (
+              <p className="text-sm text-muted-foreground">Carregando…</p>
+            ) : stage === "recusados" ? (
+              <PastaRecusados
+                recusados={arquivosRecusados.filter((r) => docsFiltrados.some((d) => d.id === r.documento_id))}
+                documentos={docsFiltrados}
+                linkPara={linkPara}
+                onExcluir={excluirHandler}
+                onRecuperou={load}
+              />
+            ) : (
+              <ColunasCategorias
+                documentos={docsFiltrados}
+                signedCountFor={signedCountFor}
+                hasPendente={hasPendente}
+                linkPara={linkPara}
+                onEnviarDiretoria={enviarDiretoria}
+                onBaixar={baixar}
+                onExcluir={excluirHandler}
+                enviandoId={enviandoId}
+                downloadingId={downloadingId}
+              />
+            )}
           </div>
-        </div>
         ) : (
           <div className="text-center py-20">
             <p className="text-muted-foreground">Selecione uma das pastas de concluídos no topo para gerenciar as atividades.</p>
