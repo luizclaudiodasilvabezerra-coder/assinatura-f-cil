@@ -5,7 +5,7 @@ const EMAIL_PARA_NOME = {
   "luiz.dias@logmam.com.br": "LUIZ DIAS",
   "breno@logmam.com.br": "BRENO",
   "gilmar@logmam.com.br": "GILMAR PEREIRA",
-  "compras@logmam.com.br": "TAMIRES",
+  "faturas@logmam.com.br": "TAMIRES",
   "nf@logmam.com.br": "RAYANE",
 };
 
@@ -18,7 +18,7 @@ const PERMISSOES = {
   "financeiro@logmam.com.br": { tipo: "operacional", concluidos: ["fiscal"] },
   "gilmar@logmam.com.br": { tipo: "gestor" },
   "jerusa.dias@logmam.com.br": { tipo: "operacional", concluidos: ["financeiro", "fiscal"] },
-  "compras@logmam.com.br": { tipo: "operacional", podeCriarEnvelope: true, podeExcluirEnvelope: true, podeVerPainel: true, concluidos: ["abastecimento"], criaCategoria: "abastecimento" },
+  "faturas@logmam.com.br": { tipo: "operacional", podeCriarEnvelope: true, podeExcluirEnvelope: true, podeVerPainel: true, concluidos: ["abastecimento"], criaCategoria: "abastecimento" },
 };
 
 const norm = (s) => (s || "").trim().toLowerCase();
