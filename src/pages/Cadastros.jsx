@@ -58,7 +58,7 @@ export default function Cadastros() {
     if (!file) return;
     setUploading(true);
     try {
-      const { file_url } = await base44.integrations.Core.UploadFile({ file });
+      const { file_url } = await base44.integrations.Core.UploadPublicFile({ file });
       setPessoa((p) => ({ ...p, imagem_assinatura: file_url }));
     } catch { toast({ title: "Erro ao enviar imagem", variant: "destructive" }); }
     finally { setUploading(false); }
