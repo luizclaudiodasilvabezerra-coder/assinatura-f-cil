@@ -13,23 +13,58 @@ async function findBlankArea(pdfBuf) {
     const pageW = viewport.width;
     const pageH = viewport.height;
 
-    const textContent = await page.getTextContent();
-
-    const bandH = 8;
+    const bandH = 6;
     const numBands = Math.ceil(pageH / bandH);
     const occupied = new Array(numBands).fill(false);
 
+    // 1. Marca bandas com texto (com altura e largura para melhor cobertura)
+    const textContent = await page.getTextContent();
     for (const item of textContent.items) {
       if (!item.transform) continue;
       const y = item.transform[5];
-      const x = item.transform[4];
-      if (x > pageW * 0.85) continue;
-      const band = Math.floor(y / bandH);
-      if (band >= 0 && band < numBands) occupied[band] = true;
+      const h = item.height || 10;
+      const startBand = Math.floor((y - 2) / bandH);
+      const endBand = Math.ceil((y + h + 2) / bandH);
+      for (let b = Math.max(0, startBand); b <= Math.min(numBands - 1, endBand); b++) {
+        occupied[b] = true;
+      }
     }
 
-    // Procura maior banda em branco na metade inferior da página
-    const maxBand = Math.floor(numBands * 0.50);
+    // 2. Marca bandas com imagens (assinaturas já carimbadas, logos, etc.)
+    try {
+      const OPS = pdfjs.OPS;
+      if (OPS) {
+        const opList = await page.getOperatorList();
+        let ctm = [1, 0, 0, 1, 0, 0];
+        for (let i = 0; i < opList.fnArray.length; i++) {
+          const fn = opList.fnArray[i];
+          const args = opList.argsArray[i];
+          if (fn === OPS.transform) {
+            ctm = args;
+          } else if (
+            fn === OPS.paintImageXObject ||
+            fn === OPS.paintImageMaskXObject ||
+            fn === OPS.paintInlineImage ||
+            fn === OPS.paintImageXObjectRepeat
+          ) {
+            const y = ctm[5] || 0;
+            const w = Math.abs(ctm[0] || 0);
+            const h = Math.abs(ctm[3] || 0);
+            if (w > 20 && h > 20) {
+              const startBand = Math.floor((y - 2) / bandH);
+              const endBand = Math.ceil((y + h + 2) / bandH);
+              for (let b = Math.max(0, startBand); b <= Math.min(numBands - 1, endBand); b++) {
+                occupied[b] = true;
+              }
+            }
+          }
+        }
+      }
+    } catch {}
+
+    // 3. Procura maior banda em branco nos 60% inferiores da página
+    const minLen = 12;
+    const maxBand = Math.floor(numBands * 0.60);
     let bestStart = -1, bestLen = 0, curStart = -1, curLen = 0;
     for (let i = 0; i <= maxBand; i++) {
       if (!occupied[i]) {
@@ -41,7 +76,21 @@ async function findBlankArea(pdfBuf) {
       }
     }
 
-    if (bestStart === -1 || bestLen < 10) return null;
+    // Se não encontrou nos 60% inferiores, busca na página toda
+    if (bestStart === -1 || bestLen < minLen) {
+      bestStart = -1; bestLen = 0; curStart = -1; curLen = 0;
+      for (let i = 0; i < numBands; i++) {
+        if (!occupied[i]) {
+          if (curStart === -1) curStart = i;
+          curLen++;
+          if (curLen > bestLen) { bestLen = curLen; bestStart = curStart; }
+        } else {
+          curStart = -1; curLen = 0;
+        }
+      }
+    }
+
+    if (bestStart === -1 || bestLen < minLen) return null;
     const centerY = (bestStart + bestLen / 2) * bandH;
     const posYPercent = (1 - centerY / pageH) * 100;
     return { x: 5, y: posYPercent };
