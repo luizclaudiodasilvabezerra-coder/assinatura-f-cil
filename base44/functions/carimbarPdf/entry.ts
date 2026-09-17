@@ -2,103 +2,6 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 import { PDFDocument, StandardFonts, rgb } from 'npm:pdf-lib@1.17.1';
 import { bytesToBase64 } from '../../shared/pdfUtils.ts';
 
-async function findBlankArea(pdfBuf) {
-  try {
-    const pdfjs = await import('npm:pdfjs-dist@3.11.174');
-    if (pdfjs.GlobalWorkerOptions) pdfjs.GlobalWorkerOptions.workerSrc = '';
-    const loadingTask = pdfjs.getDocument({ data: new Uint8Array(pdfBuf) });
-    const pdf = await loadingTask.promise;
-    const page = await pdf.getPage(1);
-    const viewport = page.getViewport({ scale: 1 });
-    const pageW = viewport.width;
-    const pageH = viewport.height;
-
-    const bandH = 6;
-    const numBands = Math.ceil(pageH / bandH);
-    const occupied = new Array(numBands).fill(false);
-
-    // 1. Marca bandas com texto (com altura e largura para melhor cobertura)
-    const textContent = await page.getTextContent();
-    for (const item of textContent.items) {
-      if (!item.transform) continue;
-      const y = item.transform[5];
-      const h = item.height || 10;
-      const startBand = Math.floor((y - 2) / bandH);
-      const endBand = Math.ceil((y + h + 2) / bandH);
-      for (let b = Math.max(0, startBand); b <= Math.min(numBands - 1, endBand); b++) {
-        occupied[b] = true;
-      }
-    }
-
-    // 2. Marca bandas com imagens (assinaturas já carimbadas, logos, etc.)
-    try {
-      const OPS = pdfjs.OPS;
-      if (OPS) {
-        const opList = await page.getOperatorList();
-        let ctm = [1, 0, 0, 1, 0, 0];
-        for (let i = 0; i < opList.fnArray.length; i++) {
-          const fn = opList.fnArray[i];
-          const args = opList.argsArray[i];
-          if (fn === OPS.transform) {
-            ctm = args;
-          } else if (
-            fn === OPS.paintImageXObject ||
-            fn === OPS.paintImageMaskXObject ||
-            fn === OPS.paintInlineImage ||
-            fn === OPS.paintImageXObjectRepeat
-          ) {
-            const y = ctm[5] || 0;
-            const w = Math.abs(ctm[0] || 0);
-            const h = Math.abs(ctm[3] || 0);
-            if (w > 20 && h > 20) {
-              const startBand = Math.floor((y - 2) / bandH);
-              const endBand = Math.ceil((y + h + 2) / bandH);
-              for (let b = Math.max(0, startBand); b <= Math.min(numBands - 1, endBand); b++) {
-                occupied[b] = true;
-              }
-            }
-          }
-        }
-      }
-    } catch {}
-
-    // 3. Procura maior banda em branco nos 60% inferiores da página
-    const minLen = 12;
-    const maxBand = Math.floor(numBands * 0.60);
-    let bestStart = -1, bestLen = 0, curStart = -1, curLen = 0;
-    for (let i = 0; i <= maxBand; i++) {
-      if (!occupied[i]) {
-        if (curStart === -1) curStart = i;
-        curLen++;
-        if (curLen > bestLen) { bestLen = curLen; bestStart = curStart; }
-      } else {
-        curStart = -1; curLen = 0;
-      }
-    }
-
-    // Se não encontrou nos 60% inferiores, busca na página toda
-    if (bestStart === -1 || bestLen < minLen) {
-      bestStart = -1; bestLen = 0; curStart = -1; curLen = 0;
-      for (let i = 0; i < numBands; i++) {
-        if (!occupied[i]) {
-          if (curStart === -1) curStart = i;
-          curLen++;
-          if (curLen > bestLen) { bestLen = curLen; bestStart = curStart; }
-        } else {
-          curStart = -1; curLen = 0;
-        }
-      }
-    }
-
-    if (bestStart === -1 || bestLen < minLen) return null;
-    const centerY = (bestStart + bestLen / 2) * bandH;
-    const posYPercent = (1 - centerY / pageH) * 100;
-    return { x: 5, y: posYPercent };
-  } catch {
-    return null;
-  }
-}
-
 export default async function(req) {
   try {
     const base44 = createClientFromRequest(req);
@@ -116,8 +19,9 @@ export default async function(req) {
     let finalPosX = Number(posX || 5);
     let finalPosY = Number(posY || 88);
     if (autoPosition) {
-      const blank = await findBlankArea(pdfBytes.slice(0));
-      if (blank) { finalPosX = blank.x; finalPosY = blank.y; }
+      // Posição fixa: lado esquerdo, parte inferior da página
+      finalPosX = 5;
+      finalPosY = 92;
     }
 
     const pdfDoc = await PDFDocument.load(pdfBytes, { ignoreEncryption: true });
