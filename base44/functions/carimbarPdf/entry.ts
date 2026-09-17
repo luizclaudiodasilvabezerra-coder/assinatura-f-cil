@@ -19,8 +19,8 @@ export default async function(req) {
     let finalPosX = Number(posX || 5);
     let finalPosY = Number(posY || 88);
     if (autoPosition) {
-      // Posição fixa: lado esquerdo, parte inferior da página
-      finalPosX = 5;
+      // Posição fixa: lado direito, parte inferior da página
+      finalPosX = 75;
       finalPosY = 92;
     }
 
