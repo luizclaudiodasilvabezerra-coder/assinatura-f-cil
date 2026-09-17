@@ -78,7 +78,10 @@ export const podeAcessarConcluidos = (user, tipo) => {
 
 export const podeEditarAtividadesConcluidos = (user, tipo) => podeAcessarConcluidos(user, tipo);
 
-export const podeVerCadastros = (user) => getPermissoes(user)?.tipo === "admin";
+export const podeVerCadastros = (user) => {
+  const t = getPermissoes(user)?.tipo;
+  return t === "admin" || t === "diretoria";
+};
 export const podeVerLog = (user) => getPermissoes(user)?.tipo === "admin";
 export const podeVerRelatorios = (user) => !!getPermissoes(user);
 
