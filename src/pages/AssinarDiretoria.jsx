@@ -17,7 +17,7 @@ import { dataURLToFile, formatDate } from "@/lib/signatureUtils";
 import { base64ToBlob, baixarEnvelopePdf, baixarArquivoPdf } from "@/lib/pdfDownload";
 import { identificarDiretoria, diretoriaDoMembro, SENHA_MASTER_RECUSA } from "@/lib/acessos";
 import { useAuth } from "@/lib/AuthContext";
-import { getPermissoes, nomeDoUsuario, diretoriaDoUsuario, podeAssinarDiretoria } from "@/lib/permissoes";
+import { getPermissoes, nomeDoUsuario, diretoriaDoUsuario } from "@/lib/permissoes";
 
 const isImage = (url) => url && /\.(png|jpe?g|webp|gif)$/i.test(url);
 const fileName = (url) => (url ? decodeURIComponent(url.split("/").pop() || "arquivo") : "Documento");
@@ -81,9 +81,10 @@ export default function AssinarDiretoria() {
             const nomeDir = nomeDoUsuario(user);
             setDiretorIdentificado(nomeDir);
             setNome(nomeDir || "");
-            setUnlocked(true);
           }
         }
+        // Acesso livre para envelopes normais (sem senha); recusados ainda exigem senha master
+        if (d && !d.recusado) setUnlocked(true);
       } finally { setLoading(false); }
     })();
   }, [id, user]);
@@ -243,19 +244,7 @@ export default function AssinarDiretoria() {
   if (loading) return (<div className="min-h-screen flex items-center justify-center"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>);
   if (!doc) return (<div className="min-h-screen flex flex-col items-center justify-center gap-4"><p className="text-muted-foreground">Documento não encontrado.</p><Button asChild variant="outline"><Link to="/">Voltar</Link></Button></div>);
 
-  // Membros da diretoria sem permissão para este envelope
-  const p = getPermissoes(user);
-  if (p?.tipo === "diretoria" && !podeAssinarDiretoria(user, doc, cadastros) && !doc.recusado) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-4 px-6">
-        <Lock className="w-10 h-10 text-muted-foreground" />
-        <h1 className="text-xl font-heading">Acesso negado</h1>
-        <p className="text-sm text-muted-foreground text-center max-w-sm">Este envelope pertence a outra diretoria. Você só pode assinar envelopes da sua diretoria.</p>
-        <Button asChild variant="outline"><Link to="/">Voltar</Link></Button>
-      </div>
-    );
-  }
-
+  // Envelopes recusados ainda exigem senha master
   if (!unlocked) {
     return (
       <div className="min-h-screen flex items-center justify-center px-6 bg-background">
@@ -263,15 +252,15 @@ export default function AssinarDiretoria() {
           <div className="mx-auto w-14 h-14 rounded-full bg-primary/5 flex items-center justify-center mb-5">
             <Lock className="w-7 h-7 text-primary" />
           </div>
-          <h1 className="text-2xl font-heading text-center mb-1">{doc?.recusado ? "Envelope recusado" : "Acesso restrito"}</h1>
-          <p className="text-sm text-muted-foreground text-center mb-6">{doc?.recusado ? "Esta NF foi recusada. Acesso e alterações restritos à senha master." : "Informe sua senha individual de diretoria. Você acessará apenas os envelopes da sua diretoria."}</p>
-          {doc?.recusado && doc?.observacao_recusa && (
+          <h1 className="text-2xl font-heading text-center mb-1">Envelope recusado</h1>
+          <p className="text-sm text-muted-foreground text-center mb-6">Esta NF foi recusada. Acesso e alterações restritos à senha master.</p>
+          {doc?.observacao_recusa && (
             <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
               <span className="font-medium">Observação: </span>{doc.observacao_recusa}
             </div>
           )}
           <form onSubmit={validarSenha} className="space-y-3">
-            <Input type="password" value={senha} onChange={(e) => { setSenha(e.target.value); setSenhaErro(false); }} placeholder="Senha" autoFocus />
+            <Input type="password" value={senha} onChange={(e) => { setSenha(e.target.value); setSenhaErro(false); }} placeholder="Senha master" autoFocus />
             {senhaErro && <p className="text-sm text-destructive">Senha incorreta.</p>}
             <Button type="submit" className="w-full gap-2"><ShieldCheck className="w-4 h-4" /> Entrar</Button>
           </form>
