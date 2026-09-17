@@ -89,6 +89,17 @@ export default function AssinarDiretoria() {
     })();
   }, [id, user]);
 
+  // Auto-busca imagem de assinatura quando o nome coincide com cadastro
+  useEffect(() => {
+    if (!nome.trim() || imagemUpload) return;
+    const norm = (s) => (s || "").trim().toUpperCase();
+    const c = cadastros.find((x) => norm(x.nome) === norm(nome) && x.imagem_assinatura);
+    if (c) {
+      setImagemUpload(c.imagem_assinatura);
+      setModo("uploadada");
+    }
+  }, [nome, cadastros]);
+
   const gestaoSigs = useMemo(() => sigs.filter((s) => s.etapa !== "master" && s.arquivo_url), [sigs]);
   const diretoriaCadastros = useMemo(() => cadastros.filter((c) => c.tipo === "diretoria"), [cadastros]);
   const arquivos = gestaoSigs;
@@ -102,8 +113,12 @@ export default function AssinarDiretoria() {
     setCadastroId(e.target.value);
     if (c) {
       setNome(c.nome);
-      if (c.imagem_assinatura) {
-        setImagemUpload(c.imagem_assinatura);
+      const norm = (s) => (s || "").trim().toUpperCase();
+      const comImagem = c.imagem_assinatura
+        ? c
+        : cadastros.find((x) => norm(x.nome) === norm(c.nome) && x.imagem_assinatura);
+      if (comImagem?.imagem_assinatura) {
+        setImagemUpload(comImagem.imagem_assinatura);
         setModo("uploadada");
       } else {
         setImagemUpload("");
@@ -172,7 +187,8 @@ export default function AssinarDiretoria() {
       let stampRes;
       try {
         stampRes = await base44.functions.invoke("carimbarPdf", {
-          fileUrl: currentFile, imagemUrl: imagem_url, posX: pos.x, posY: pos.y,
+          fileUrl: currentFile, imagemUrl: imagem_url, autoPosition: true,
+          posX: pos.x, posY: pos.y,
           nome, data: new Date().toLocaleString("pt-BR"),
           observacao, operacao: doc.operacao || "", unidade: doc.unidade_negocio || "", indent,
         });
@@ -319,8 +335,7 @@ export default function AssinarDiretoria() {
     );
   }
 
-  const pendingBlock = !currentSigned && nome ? [{ id: "pending", nome, imagem_url: imagemUpload || "", observacao, indent, pos_x: pos.x, pos_y: pos.y, draggable: true }] : [];
-  const positionerBlocks = currentSigned ? [{ id: currentSigned.id, nome: currentSigned.assinante_nome, imagem_url: currentSigned.imagem_url, observacao: currentSigned.observacao, indent: currentSigned.indent || 0, pos_x: currentSigned.pos_x ?? 3, pos_y: currentSigned.pos_y ?? 90, draggable: false }] : pendingBlock;
+  const positionerBlocks = currentSigned ? [{ id: currentSigned.id, nome: currentSigned.assinante_nome, imagem_url: currentSigned.imagem_url, observacao: currentSigned.observacao, indent: currentSigned.indent || 0, pos_x: currentSigned.pos_x ?? 3, pos_y: currentSigned.pos_y ?? 90, draggable: false }] : [];
 
   return (
     <div className="min-h-screen bg-background">
@@ -360,7 +375,21 @@ export default function AssinarDiretoria() {
         <div className="grid lg:grid-cols-12 gap-4">
           <div className="space-y-3 lg:col-span-8">
             <p className="text-sm font-medium">{currentSigned ? "Arquivo já assinado pela diretoria" : `Assinando: ${fileName(currentFile)}`}</p>
-            <DocumentPositioner fileUrl={currentFile} blocks={positionerBlocks} onMove={(bid, x, y) => setPos({ x, y })} />
+            {currentSigned ? (
+              <DocumentPositioner fileUrl={currentFile} blocks={positionerBlocks} onMove={() => {}} />
+            ) : (
+              <>
+                {currentFile && isImage(currentFile) ? (
+                  <img src={currentFile} alt="documento" className="w-full rounded-lg border border-border" />
+                ) : (
+                  <iframe src={currentFile} title="documento" className="w-full h-[600px] rounded-lg border border-border" />
+                )}
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                  A assinatura será posicionada automaticamente em uma área em branco do documento.
+                </div>
+              </>
+            )}
             {currentFile && !isImage(currentFile) && (<a href={currentFile} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-sm text-blue-600 hover:underline"><FileText className="w-4 h-4" /> Abrir arquivo em nova aba</a>)}
           </div>
 
