@@ -100,7 +100,15 @@ export default function AssinarDiretoria() {
   const onCadastroChange = (e) => {
     const c = diretoriaCadastros.find((x) => x.id === e.target.value);
     setCadastroId(e.target.value);
-    if (c) setNome(c.nome);
+    if (c) {
+      setNome(c.nome);
+      if (c.imagem_assinatura) {
+        setImagemUpload(c.imagem_assinatura);
+        setModo("uploadada");
+      } else {
+        setImagemUpload("");
+      }
+    }
   };
 
   const handleUpload = async (e) => {
