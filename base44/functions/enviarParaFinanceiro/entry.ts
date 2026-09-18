@@ -20,15 +20,13 @@ export default async function(req) {
       return Response.json({ error: 'Apenas notas fiscais podem ser exportadas para o Financeiro' }, { status: 400 });
     }
 
-    // Varredura dos arquivos assinados no envelope
-    // Prioriza assinaturas da diretoria (master); se não houver, usa as da gestão
-    const assinaturas = await base44.entities.Assinatura.filter({ documento_id }, "-created_date", 100);
-    const masters = assinaturas.filter(a => a.etapa === "master" && a.arquivo_url);
-    const gestao = assinaturas.filter(a => a.etapa !== "master" && a.arquivo_url);
-    const arquivos = (masters.length > 0 ? masters : gestao).map(a => a.arquivo_url);
+    // Varredura: somente as NF do envelope (registradas em RelatorioNF)
+    // Cada registro de RelatorioNF já aponta para o arquivo assinado correspondente
+    const relatorios = await base44.entities.RelatorioNF.filter({ documento_id }, "-created_date", 200);
+    const arquivos = relatorios.map(r => r.arquivo_url).filter(Boolean);
 
     if (arquivos.length === 0) {
-      return Response.json({ error: 'Nenhum arquivo assinado encontrado no envelope' }, { status: 400 });
+      return Response.json({ error: 'Nenhuma NF encontrada para exportação neste envelope' }, { status: 400 });
     }
 
     // Determina a pasta do mês a partir da data de criação do envelope
