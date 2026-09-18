@@ -84,10 +84,10 @@ export default function AssinarDiretoria() {
             // Auto-seleciona o cadastro correspondente para carregar a assinatura
             const norm = (s) => (s || "").trim().toUpperCase();
             const cadDir = cad.find((x) => norm(x.nome) === norm(nomeDir) && x.tipo === "diretoria");
-            if (cadDir) {
-              setCadastroId(cadDir.id);
-              if (cadDir.imagem_assinatura) { setImagemUpload(cadDir.imagem_assinatura); setModo("uploadada"); }
-            }
+            if (cadDir) setCadastroId(cadDir.id);
+            // Busca imagem de assinatura em qualquer cadastro com o mesmo nome
+            const comImagem = cad.find((x) => norm(x.nome) === norm(nomeDir) && x.imagem_assinatura);
+            if (comImagem) { setImagemUpload(comImagem.imagem_assinatura); setModo("uploadada"); }
             setPos({ x: 75, y: 92 });
           }
         }
@@ -243,8 +243,9 @@ export default function AssinarDiretoria() {
         setNome(diretorIdentificado);
         const norm = (s) => (s || "").trim().toUpperCase();
         const cadDir = cadastros.find((x) => norm(x.nome) === norm(diretorIdentificado) && x.tipo === "diretoria");
-        if (cadDir) { setCadastroId(cadDir.id); if (cadDir.imagem_assinatura) { setImagemUpload(cadDir.imagem_assinatura); setModo("uploadada"); } else { setImagemUpload(""); } }
-        else { setCadastroId(""); setImagemUpload(""); }
+        if (cadDir) setCadastroId(cadDir.id);
+        const comImagem = cadastros.find((x) => norm(x.nome) === norm(diretorIdentificado) && x.imagem_assinatura);
+        if (comImagem) { setImagemUpload(comImagem.imagem_assinatura); setModo("uploadada"); } else { setImagemUpload(""); }
         setPos({ x: 75, y: 92 });
       } else { setImagemUpload(""); setCadastroId(""); setNome(""); setPos({ x: 3, y: 90 }); }
       const allDone = arquivos.every((_, i) => newMap[i]);
