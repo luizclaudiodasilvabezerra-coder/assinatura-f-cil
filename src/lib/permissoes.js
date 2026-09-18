@@ -15,7 +15,7 @@ const PERMISSOES = {
   "luiz.dias@logmam.com.br": { tipo: "diretoria" },
   "breno@logmam.com.br": { tipo: "diretoria" },
   "nf@logmam.com.br": { tipo: "operacional", podeCriarEnvelope: true, podeExcluirEnvelope: true, podeVerPainel: true, concluidos: ["financeiro"] },
-  "financeiro@logmam.com.br": { tipo: "operacional", concluidos: ["fiscal"] },
+  "financeiro@logmam.com.br": { tipo: "operacional", concluidos: ["fiscal", "financeiro"] },
   "gilmar@logmam.com.br": { tipo: "gestor" },
   "jerusa.dias@logmam.com.br": { tipo: "operacional", concluidos: ["financeiro", "fiscal"] },
   "faturas@logmam.com.br": { tipo: "operacional", podeCriarEnvelope: true, podeExcluirEnvelope: true, podeVerPainel: true, concluidos: ["abastecimento"], criaCategoria: "abastecimento" },
