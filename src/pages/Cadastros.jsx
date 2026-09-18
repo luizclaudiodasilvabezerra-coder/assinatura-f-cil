@@ -28,6 +28,7 @@ export default function Cadastros() {
   const [saving, setSaving] = useState(null);
   const [editId, setEditId] = useState(null);
   const [uploading, setUploading] = useState(false);
+  const [reseting, setReseting] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -98,6 +99,16 @@ export default function Cadastros() {
 
   const remove = async (id) => { await base44.entities.Cadastro.delete(id); load(); };
 
+  const handleResetSenha = async (email) => {
+    if (!email) { toast({ title: "Informe um e-mail", variant: "destructive" }); return; }
+    setReseting(true);
+    try {
+      await base44.auth.resetPasswordRequest(email);
+      toast({ title: `Link de reset enviado para ${email}` });
+    } catch { toast({ title: "Erro ao enviar link", variant: "destructive" }); }
+    finally { setReseting(false); }
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <div className="max-w-5xl mx-auto px-6 py-10">
@@ -159,6 +170,11 @@ export default function Cadastros() {
                     )}
                   </div>
                   <Button type="submit" disabled={saving === "pessoa"} className="w-full gap-2">{saving === "pessoa" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />} {editId ? "Salvar alterações" : "Adicionar"}</Button>
+                  {pessoa.email && (
+                    <button type="button" onClick={() => handleResetSenha(pessoa.email)} disabled={reseting} className="w-full text-xs text-muted-foreground hover:text-foreground underline-offset-4 hover:underline disabled:opacity-50">
+                      {reseting ? <Loader2 className="w-3 h-3 animate-spin inline mr-1" /> : <Mail className="w-3 h-3 inline mr-1" />} Enviar link de reset de senha para {pessoa.email}
+                    </button>
+                  )}
                 </form>
               </CardContent>
             </Card>
@@ -182,6 +198,7 @@ export default function Cadastros() {
                       <div className="flex items-center gap-3 shrink-0">
                         {c.imagem_assinatura && <img src={c.imagem_assinatura} alt="assinatura" className="h-8 w-16 object-contain bg-white rounded border border-border" />}
                         <span className="text-xs px-2.5 py-1 rounded-full bg-slate-100 text-slate-600">{tipoLabel[c.tipo] || c.tipo}</span>
+                        {c.email && <Button type="button" variant="ghost" size="icon" title="Resetar senha" onClick={() => handleResetSenha(c.email)} className="hover:bg-muted"><Mail className="w-4 h-4" /></Button>}
                         <Button type="button" variant="ghost" size="icon" onClick={() => editar(c)} className="hover:bg-muted"><Pencil className="w-4 h-4" /></Button>
                         <Button type="button" variant="ghost" size="icon" onClick={() => remove(c.id)} className="text-destructive hover:bg-destructive/10"><Trash2 className="w-4 h-4" /></Button>
                       </div>
