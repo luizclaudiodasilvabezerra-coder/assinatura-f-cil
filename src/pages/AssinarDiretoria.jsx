@@ -17,7 +17,7 @@ import { dataURLToFile, formatDate } from "@/lib/signatureUtils";
 import { base64ToBlob, baixarEnvelopePdf, baixarArquivoPdf } from "@/lib/pdfDownload";
 import { identificarDiretoria, diretoriaDoMembro, SENHA_MASTER_RECUSA } from "@/lib/acessos";
 import { useAuth } from "@/lib/AuthContext";
-import { getPermissoes, nomeDoUsuario, diretoriaDoUsuario } from "@/lib/permissoes";
+import { getPermissoes, nomeDoUsuario, nomeExibicao, diretoriaDoUsuario } from "@/lib/permissoes";
 
 const isImage = (url) => url && /\.(png|jpe?g|webp|gif)$/i.test(url);
 const fileName = (url) => (url ? decodeURIComponent(url.split("/").pop() || "arquivo") : "Documento");
@@ -78,9 +78,16 @@ export default function AssinarDiretoria() {
         if (p?.tipo === "diretoria" && d && !d.recusado) {
           const dir = diretoriaDoUsuario(user, cad);
           if (dir && d.diretoria === dir) {
-            const nomeDir = nomeDoUsuario(user);
+            const nomeDir = nomeExibicao(user) || nomeDoUsuario(user);
             setDiretorIdentificado(nomeDir);
             setNome(nomeDir || "");
+            // Auto-seleciona o cadastro correspondente para carregar a assinatura
+            const norm = (s) => (s || "").trim().toUpperCase();
+            const cadDir = cad.find((x) => norm(x.nome) === norm(nomeDir) && x.tipo === "diretoria");
+            if (cadDir) {
+              setCadastroId(cadDir.id);
+              if (cadDir.imagem_assinatura) { setImagemUpload(cadDir.imagem_assinatura); setModo("uploadada"); }
+            }
           }
         }
         // Acesso livre para envelopes normais (sem senha); recusados ainda exigem senha master
@@ -188,7 +195,7 @@ export default function AssinarDiretoria() {
       try {
         stampRes = await base44.functions.invoke("carimbarPdf", {
           fileUrl: currentFile, imagemUrl: imagem_url, autoPosition: true,
-          posX: pos.x, posY: pos.y,
+          posX: pos.x, posY: pos.y, lado: "direita",
           nome, data: new Date().toLocaleString("pt-BR"),
           observacao, operacao: doc.operacao || "", unidade: doc.unidade_negocio || "", indent,
         });

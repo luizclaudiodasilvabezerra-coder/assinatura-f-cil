@@ -23,7 +23,8 @@ export default async function(req) {
       unidade: unidade || '',
       operacao: operacao || '',
       data: data || '',
-      autoPosition: true
+      autoPosition: true,
+      lado: "direita"
     });
 
     const pdfBase64 = carimboResp.data?.pdf_base64;

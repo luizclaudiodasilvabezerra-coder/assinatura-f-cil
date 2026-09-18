@@ -38,6 +38,13 @@ export const nomeDoUsuario = (user) => {
   return found ? EMAIL_PARA_NOME[found] : null;
 };
 
+// Nome para exibição em Title Case (ex: "LUIZ DIAS" -> "Luiz Dias")
+export const nomeExibicao = (user) => {
+  const nome = nomeDoUsuario(user);
+  if (!nome) return null;
+  return nome.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
+};
+
 // Descobre a diretoria do usuário (membros da diretoria) via Cadastro
 export const diretoriaDoUsuario = (user, cadastros) => {
   const nome = nomeDoUsuario(user);
