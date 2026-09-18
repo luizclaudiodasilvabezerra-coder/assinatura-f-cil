@@ -203,7 +203,7 @@ export default function PastaConcluidos({ titulo, docs, sigs, accent = "emerald"
                         </Button>
                       )}
                       {showExportarFinanceiro && (
-                        <BotaoExportarFinanceiro docId={d.id} />
+                        <BotaoExportarFinanceiro docId={d.id} docCriadoEm={d.created_date} />
                       )}
                     </div>
                   </div>

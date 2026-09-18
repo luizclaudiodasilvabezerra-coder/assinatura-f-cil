@@ -9,7 +9,7 @@ export default async function(req) {
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
     const body = await req.json();
-    const { documento_id } = body;
+    const { documento_id, caminho_destino: caminhoCustom, mes_ano: mesAnoCustom } = body;
     if (!documento_id) return Response.json({ error: 'documento_id é obrigatório' }, { status: 400 });
 
     const doc = await base44.entities.Documento.get(documento_id);
@@ -32,11 +32,12 @@ export default async function(req) {
     }
 
     // Determina a pasta do mês a partir da data de criação do envelope
+    // (pode ser sobrescrita pelo usuário ao escolher o diretório de destino)
     const data = new Date(doc.created_date);
     const mes = MESES[data.getMonth()];
     const ano = data.getFullYear();
-    const mes_ano = `${mes}_${ano}`;
-    const caminho_destino = `Z:\\Financeiro\\NOTAS_${mes_ano}`;
+    const mes_ano = mesAnoCustom || `${mes}_${ano}`;
+    const caminho_destino = caminhoCustom || `Z:\\Financeiro\\NOTAS_${mes_ano}`;
 
     // Cria o job de exportação (o agente local processará)
     const exportJob = await base44.entities.ExportFinanceiro.create({
