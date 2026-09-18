@@ -22,6 +22,7 @@ export default function NovoDocumento() {
   const [form, setForm] = useState({
     titulo: "",
     descricao: "",
+    categoria: categoriaEnvelopeDoUsuario(user),
     destinatario_nome: "",
     destinatario_email: "",
     signatario_nome: "",
@@ -109,7 +110,7 @@ export default function NovoDocumento() {
         arquivos,
         status: "pendente_gestao",
         pasta: "pendente",
-        categoria: categoriaEnvelopeDoUsuario(user),
+        categoria: form.categoria,
       });
       toast({ title: "Envelope criado", description: numero });
       if (created && created.destinatario_email) {
@@ -142,6 +143,15 @@ export default function NovoDocumento() {
               <div className="space-y-2">
                 <Label htmlFor="descricao">Descrição</Label>
                 <Textarea id="descricao" value={form.descricao} onChange={update("descricao")} rows={3} placeholder="Resumo do envelope a ser assinado" />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="categoria">Categoria / Direcionamento *</Label>
+                <select id="categoria" value={form.categoria} onChange={update("categoria")} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+                  <option value="notas_boletos">Notas e Boletos</option>
+                  <option value="abastecimento">Abastecimento</option>
+                </select>
+                <p className="text-xs text-muted-foreground">Define para qual fluxo o envelope será direcionado.</p>
               </div>
 
               <div className="space-y-2">
