@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
@@ -19,6 +19,7 @@ export default function NovoDocumento() {
   const [uploading, setUploading] = useState(false);
   const [arquivos, setArquivos] = useState([]);
   const [cadastros, setCadastros] = useState([]);
+  const fileInputRef = useRef(null);
   const [form, setForm] = useState({
     titulo: "",
     descricao: "",
@@ -95,7 +96,7 @@ export default function NovoDocumento() {
   };
 
   const removeArquivo = (url) => setArquivos((prev) => prev.filter((u) => u !== url));
-  const fileName = (url) => decodeURIComponent(url.split("/").pop() || "arquivo").slice(0, 40);
+  const fileName = (url) => (url ? decodeURIComponent(url.split("/").pop() || "arquivo").slice(0, 40) : "arquivo");
 
   const submit = async (e) => {
     e.preventDefault();
@@ -202,11 +203,11 @@ export default function NovoDocumento() {
               </div>
               <div className="space-y-2">
                 <Label>Anexos (múltiplos)</Label>
-                <label className="flex items-center justify-center gap-2 cursor-pointer rounded-xl border-2 border-dashed border-border py-6 text-sm text-muted-foreground hover:border-foreground/20 hover:bg-muted/30 transition-colors">
+                <button type="button" onClick={() => fileInputRef.current?.click()} className="flex items-center justify-center gap-2 cursor-pointer rounded-xl border-2 border-dashed border-border py-6 text-sm text-muted-foreground hover:border-foreground/20 hover:bg-muted/30 transition-colors w-full">
                   {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
                   {uploading ? "Enviando…" : "Clique para enviar um ou mais arquivos"}
-                  <input type="file" className="hidden" multiple onChange={handleFiles} />
-                </label>
+                </button>
+                <input ref={fileInputRef} type="file" className="hidden" multiple onChange={handleFiles} />
                 {arquivos.length > 0 && (
                   <div className="space-y-2 mt-2">
                     {arquivos.map((url) => (
