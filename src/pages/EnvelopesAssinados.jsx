@@ -9,7 +9,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { Image as UIImage } from "@/components/ui/image";
 import { validarSenhaConcluidos, CONCLUIDOS_LABEL } from "@/lib/acessos";
 import { useAuth } from "@/lib/AuthContext";
-import { podeAcessarConcluidos } from "@/lib/permissoes";
+import { podeAcessarConcluidos, podeExportarFinanceiro } from "@/lib/permissoes";
 import PastaConcluidos from "@/components/PastaConcluidos";
 
 const LOGO_URL = "https://media.base44.com/images/public/6aa074a5ce060f1b2caeee8f/86ee25d0d_image.png";
@@ -34,6 +34,7 @@ export default function EnvelopesAssinados() {
   const label = CONCLUIDOS_LABEL[tipo] || "Concluídos";
   const splitDiretoria = tipo === "financeiro";
   const autorizado = podeAcessarConcluidos(user, tipo);
+  const podeExportar = podeExportarFinanceiro(user);
 
   useEffect(() => {
     if (autorizado) setUnlocked(true);
@@ -193,13 +194,13 @@ export default function EnvelopesAssinados() {
           <div className="flex justify-center py-20"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>
         ) : splitDiretoria ? (
           <div className="space-y-2">
-            <PastaConcluidos titulo="Assinaturas Concluídas pela Diretoria" docs={concluidas} sigs={sigs} accent="emerald" showProcessar onProcessar={processar} onDarBaixa={darBaixa} showExportarFinanceiro={tipo === "financeiro"} />
+            <PastaConcluidos titulo="Assinaturas Concluídas pela Diretoria" docs={concluidas} sigs={sigs} accent="emerald" showProcessar onProcessar={processar} onDarBaixa={darBaixa} showExportarFinanceiro={podeExportar} />
             <PastaConcluidos titulo="Não Concluídas pela Diretoria" docs={naoConcluidas} sigs={sigs} accent="amber" showConcluirManual onConcluirManual={concluirManual} />
           </div>
         ) : docsFiltrados.length === 0 ? (
           <p className="text-sm text-muted-foreground">Nenhum envelope com os filtros selecionados.</p>
         ) : (
-          <PastaConcluidos titulo="Assinaturas Concluídas pela Diretoria" docs={docsFiltrados} sigs={sigs} accent="emerald" showProcessar onProcessar={processar} onDarBaixa={darBaixa} />
+          <PastaConcluidos titulo="Assinaturas Concluídas pela Diretoria" docs={docsFiltrados} sigs={sigs} accent="emerald" showProcessar onProcessar={processar} onDarBaixa={darBaixa} showExportarFinanceiro={podeExportar} />
         )}
       </div>
     </div>

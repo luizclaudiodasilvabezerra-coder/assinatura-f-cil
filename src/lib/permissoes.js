@@ -144,6 +144,16 @@ export const podeCriarEnvelopeAbastecimento = (user) => {
   return p.criaCategoria === "abastecimento";
 };
 
+// Pode executar a exportação para o diretório de rede (Z:\Financeiro)
+// nf@ e financeiro@ têm acesso direto ao diretório pela máquina local
+export const podeExportarFinanceiro = (user) => {
+  const p = getPermissoes(user);
+  if (!p) return false;
+  if (p.tipo === "admin") return true;
+  const email = norm(user?.email);
+  return email === "nf@logmam.com.br" || email === "financeiro@logmam.com.br";
+};
+
 // Pode assinar um envelope na etapa gestao
 export const podeAssinarGestao = (user, doc) => {
   const p = getPermissoes(user);
