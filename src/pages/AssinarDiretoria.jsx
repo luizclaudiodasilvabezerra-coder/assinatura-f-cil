@@ -88,6 +88,7 @@ export default function AssinarDiretoria() {
               setCadastroId(cadDir.id);
               if (cadDir.imagem_assinatura) { setImagemUpload(cadDir.imagem_assinatura); setModo("uploadada"); }
             }
+            setPos({ x: 75, y: 92 });
           }
         }
         // Acesso livre para envelopes normais (sem senha); recusados ainda exigem senha master
@@ -237,7 +238,15 @@ export default function AssinarDiretoria() {
       });
       const newMap = { ...signedMap, [currentIndex]: rec };
       setSignedMap(newMap);
-      setObservacao(""); setIndent(0); setImagemUpload(""); setCadastroId(""); setNome(""); setAutorizado(false); setPos({ x: 3, y: 90 }); setCritica(false);
+      setObservacao(""); setIndent(0); setAutorizado(false); setCritica(false);
+      if (diretorIdentificado) {
+        setNome(diretorIdentificado);
+        const norm = (s) => (s || "").trim().toUpperCase();
+        const cadDir = cadastros.find((x) => norm(x.nome) === norm(diretorIdentificado) && x.tipo === "diretoria");
+        if (cadDir) { setCadastroId(cadDir.id); if (cadDir.imagem_assinatura) { setImagemUpload(cadDir.imagem_assinatura); setModo("uploadada"); } else { setImagemUpload(""); } }
+        else { setCadastroId(""); setImagemUpload(""); }
+        setPos({ x: 75, y: 92 });
+      } else { setImagemUpload(""); setCadastroId(""); setNome(""); setPos({ x: 3, y: 90 }); }
       const allDone = arquivos.every((_, i) => newMap[i]);
       if (allDone) {
         await base44.entities.Documento.update(id, { status: "assinado_diretoria", pasta: "assinados" });
