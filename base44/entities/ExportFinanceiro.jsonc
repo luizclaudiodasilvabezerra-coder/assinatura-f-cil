@@ -1,0 +1,57 @@
+{
+  "name": "ExportFinanceiro",
+  "type": "object",
+  "properties": {
+    "documento_id": {
+      "type": "string",
+      "title": "Documento"
+    },
+    "documento_titulo": {
+      "type": "string",
+      "title": "T\u00edtulo do envelope"
+    },
+    "arquivos": {
+      "type": "array",
+      "title": "Arquivos para exportar",
+      "items": {
+        "type": "string",
+        "format": "uri"
+      }
+    },
+    "mes_ano": {
+      "type": "string",
+      "title": "M\u00eas/Ano (ex: SETEMBRO_2026)"
+    },
+    "caminho_destino": {
+      "type": "string",
+      "title": "Caminho de destino no Z:"
+    },
+    "status": {
+      "type": "string",
+      "title": "Status",
+      "enum": [
+        "pendente",
+        "concluido",
+        "erro"
+      ],
+      "default": "pendente"
+    },
+    "data_export": {
+      "type": "string",
+      "title": "Data da exporta\u00e7\u00e3o",
+      "format": "date-time"
+    },
+    "exportado_por": {
+      "type": "string",
+      "title": "Solicitado por"
+    },
+    "erro_mensagem": {
+      "type": "string",
+      "title": "Mensagem de erro"
+    }
+  },
+  "required": [
+    "documento_id",
+    "arquivos"
+  ]
+}

@@ -193,7 +193,7 @@ export default function EnvelopesAssinados() {
           <div className="flex justify-center py-20"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>
         ) : splitDiretoria ? (
           <div className="space-y-2">
-            <PastaConcluidos titulo="Assinaturas Concluídas pela Diretoria" docs={concluidas} sigs={sigs} accent="emerald" showProcessar onProcessar={processar} onDarBaixa={darBaixa} />
+            <PastaConcluidos titulo="Assinaturas Concluídas pela Diretoria" docs={concluidas} sigs={sigs} accent="emerald" showProcessar onProcessar={processar} onDarBaixa={darBaixa} showExportarFinanceiro={tipo === "financeiro"} />
             <PastaConcluidos titulo="Não Concluídas pela Diretoria" docs={naoConcluidas} sigs={sigs} accent="amber" showConcluirManual onConcluirManual={concluirManual} />
           </div>
         ) : docsFiltrados.length === 0 ? (

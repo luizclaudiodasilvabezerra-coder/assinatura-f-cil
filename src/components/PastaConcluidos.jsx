@@ -9,10 +9,11 @@ import { formatDate } from "@/lib/signatureUtils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { SENHA_AUTORIZACAO_MANUAL } from "@/lib/acessos";
+import BotaoExportarFinanceiro from "@/components/BotaoExportarFinanceiro";
 
 const fileName = (url) => (url ? decodeURIComponent(url.split("/").pop() || "arquivo") : "Documento");
 
-export default function PastaConcluidos({ titulo, docs, sigs, accent = "emerald", showProcessar = false, onProcessar, onDarBaixa, showConcluirManual = false, onConcluirManual }) {
+export default function PastaConcluidos({ titulo, docs, sigs, accent = "emerald", showProcessar = false, onProcessar, onDarBaixa, showConcluirManual = false, onConcluirManual, showExportarFinanceiro = false }) {
   const { toast } = useToast();
   const [open, setOpen] = useState(true);
   const [downloadingId, setDownloadingId] = useState(null);
@@ -200,6 +201,9 @@ export default function PastaConcluidos({ titulo, docs, sigs, accent = "emerald"
                         <Button type="button" size="sm" onClick={() => handleProcessar(d)} disabled={processingId === d.id} className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white">
                           {processingId === d.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />} Processar
                         </Button>
+                      )}
+                      {showExportarFinanceiro && (
+                        <BotaoExportarFinanceiro docId={d.id} />
                       )}
                     </div>
                   </div>
