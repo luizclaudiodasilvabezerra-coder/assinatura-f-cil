@@ -108,7 +108,15 @@ export default function AssinarDiretoria() {
   }, [nome, cadastros]);
 
   const gestaoSigs = useMemo(() => sigs.filter((s) => s.etapa !== "master" && s.arquivo_url), [sigs]);
-  const diretoriaCadastros = useMemo(() => cadastros.filter((c) => c.tipo === "diretoria"), [cadastros]);
+  const diretoriaCadastros = useMemo(() => {
+    const todos = cadastros.filter((c) => c.tipo === "diretoria");
+    if (diretorIdentificado) {
+      const norm = (s) => (s || "").trim().toUpperCase();
+      const filtrado = todos.filter((c) => norm(c.nome) === norm(diretorIdentificado));
+      return filtrado.length ? filtrado : todos;
+    }
+    return todos;
+  }, [cadastros, diretorIdentificado]);
   const arquivos = gestaoSigs;
   const currentSig = arquivos[currentIndex];
   const currentFile = currentSig?.arquivo_url;
