@@ -16,6 +16,7 @@ import EnvelopeRecusado from "@/components/EnvelopeRecusado";
 import { dataURLToFile, formatDate } from "@/lib/signatureUtils";
 import { base64ToBlob, baixarEnvelopePdf, baixarArquivoPdf } from "@/lib/pdfDownload";
 import { validarSenhaGestor, gestorTemSenha, SENHA_MASTER_RECUSA } from "@/lib/acessos";
+import { useAuth } from "@/lib/AuthContext";
 
 const isImage = (url) => url && /\.(png|jpe?g|webp|gif)$/i.test(url);
 const fileName = (url) => (url ? decodeURIComponent(url.split("/").pop() || "arquivo") : "Documento");
