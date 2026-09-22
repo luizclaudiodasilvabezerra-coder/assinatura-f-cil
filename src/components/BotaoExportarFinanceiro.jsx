@@ -46,7 +46,7 @@ async function ensurePermission(handle) {
   return (await handle.requestPermission(opts)) === "granted";
 }
 
-export default function BotaoExportarFinanceiro({ docId, docCriadoEm }) {
+export default function BotaoExportarFinanceiro({ docId, docData }) {
   const { toast } = useToast();
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
@@ -67,8 +67,8 @@ export default function BotaoExportarFinanceiro({ docId, docCriadoEm }) {
         await saveHandle(dirHandle);
       }
 
-      // 2. Subpasta do mês conforme a data de criação do envelope
-      const data = docCriadoEm ? new Date(docCriadoEm) : new Date();
+      // 2. Subpasta do mês conforme a data do envelope (data_limite)
+      const data = docData ? new Date(docData) : new Date();
       const mes = MESES[data.getMonth()];
       const ano = data.getFullYear();
       const subpasta = `NOTAS_${mes}_${ano}`;
@@ -77,9 +77,9 @@ export default function BotaoExportarFinanceiro({ docId, docCriadoEm }) {
       // Cria (se não existir) ou abre a subpasta do mês
       const monthDir = await dirHandle.getDirectoryHandle(subpasta, { create: true });
 
-      // 3. Varredura: somente as NF do envelope (registradas em RelatorioNF)
+      // 3. Varredura: somente as NF do envelope (registradas em RelatorioNF), sem duplicatas
       const relatorios = await base44.entities.RelatorioNF.filter({ documento_id: docId }, "-created_date", 200);
-      const arquivos = relatorios.map((r) => r.arquivo_url).filter(Boolean);
+      const arquivos = [...new Set(relatorios.map((r) => r.arquivo_url).filter(Boolean))];
 
       if (arquivos.length === 0) {
         toast({ title: "Nenhuma NF encontrada", description: "Não há notas fiscais registradas para este envelope.", variant: "destructive" });
