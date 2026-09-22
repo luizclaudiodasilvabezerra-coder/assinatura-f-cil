@@ -1,9 +1,8 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Plus, Minus, Loader2 } from "lucide-react";
 import * as pdfjsLib from "pdfjs-dist";
-import PdfjsWorker from "pdfjs-dist/build/pdf.worker.min.js?worker";
 
-pdfjsLib.GlobalWorkerOptions.workerPort = new PdfjsWorker();
+pdfjsLib.GlobalWorkerOptions.workerSrc = new URL("pdfjs-dist/build/pdf.worker.min.js", import.meta.url).href;
 
 const isImage = (url) => url && /\.(png|jpe?g|webp|gif)$/i.test(url);
 const isPdf = (url) => url && /\.pdf$/i.test(url);
