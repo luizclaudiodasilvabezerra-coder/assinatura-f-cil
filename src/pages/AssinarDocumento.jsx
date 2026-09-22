@@ -36,6 +36,7 @@ export default function AssinarDocumento() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user } = useAuth();
   const padRef = useRef(null);
   const obsRef = useRef(null);
   const [doc, setDoc] = useState(null);
@@ -78,7 +79,7 @@ export default function AssinarDocumento() {
         ]);
         setDoc(d);
         setCadastros(cad);
-        if (!d.recusado && !gestorTemSenha(d.signatario_nome)) setUnlocked(true);
+        if (!d.recusado && (!gestorTemSenha(d.signatario_nome) || user?.role === "admin")) setUnlocked(true);
         setUnidade(d.unidade_negocio || "");
         setOperacao(d.operacao || "");
         setExistentes(sigs);
@@ -300,6 +301,7 @@ export default function AssinarDocumento() {
         else setSenhaErro(true);
         return;
       }
+      if (senha === SENHA_MASTER_RECUSA) { setUnlocked(true); setSenhaErro(false); return; }
       const r = validarSenhaGestor(doc.signatario_nome, senha);
       if (r.naoConfigurado) { setUnlocked(true); return; }
       if (r.ok) { setUnlocked(true); setSenhaErro(false); }
