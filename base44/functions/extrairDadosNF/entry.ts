@@ -49,6 +49,7 @@ export default async function(req: Request): Promise<Response> {
       // Extrai dados da NF via IA
       let emitente = "";
       let valor_total = 0;
+      let valor_boleto = 0;
       let data_emissao = "";
       let numero_nf = "";
 
@@ -57,6 +58,7 @@ export default async function(req: Request): Promise<Response> {
           prompt: `Analise esta Nota Fiscal e extraia as seguintes informacoes:
 - numero_nf: numero da Nota Fiscal (apenas digitos, sem simbolos. Se nao encontrar, retorne null)
 - emitente: nome ou razao social do emitente da NF
+- valor_boleto: valor do boleto bancario como numero (apenas digitos e ponto decimal, sem simbolos monetarios. Se nao houver boleto, retorne 0)
 - valor_total: valor total da NF como numero (apenas digitos e ponto decimal, sem simbolos monetarios)
 - data_emissao: data de emissao da NF no formato YYYY-MM-DD (se nao encontrar, retorne null)
 
@@ -67,6 +69,7 @@ Retorne APENAS o JSON.`,
             "properties": {
               numero_nf: { type: "string" },
               emitente: { type: "string" },
+              valor_boleto: { type: "number" },
               valor_total: { type: "number" },
               data_emissao: { type: "string" }
             }
@@ -74,6 +77,7 @@ Retorne APENAS o JSON.`,
         });
         numero_nf = (extracted?.numero_nf || "").toString();
         emitente = (extracted?.emitente || "").toString();
+        valor_boleto = Number(extracted?.valor_boleto) || 0;
         valor_total = Number(extracted?.valor_total) || 0;
         data_emissao = (extracted?.data_emissao || "").toString();
       } catch {
@@ -86,6 +90,7 @@ Retorne APENAS o JSON.`,
         arquivo_url: arquivoUrl,
         numero_nf,
         emitente,
+        valor_boleto,
         valor_total,
         data_emissao,
         unidade_negocio: doc.unidade_negocio || "",

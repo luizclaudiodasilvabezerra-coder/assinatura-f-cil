@@ -23,6 +23,11 @@
       "type": "string",
       "title": "Emitente da NF"
     },
+    "valor_boleto": {
+      "type": "number",
+      "title": "Valor do boleto",
+      "default": 0
+    },
     "valor_total": {
       "type": "number",
       "title": "Valor total da NF",

@@ -8,10 +8,37 @@ import { useAuth } from "@/lib/AuthContext";
 import { podeVerRelatorios } from "@/lib/permissoes";
 import { Image as UIImage } from "@/components/ui/image";
 import RelatorioFilters from "@/components/RelatorioFilters";
+import ExportColumnsDialog from "@/components/ExportColumnsDialog";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
+
+const COLUNAS_EXPORT = [
+  { key: "titulo", label: "Envelope", render: (r) => r.titulo || "—" },
+  { key: "status", label: "Status", render: (r) => statusLabel(r.status) },
+  { key: "categoria", label: "Categoria", render: (r) => r.categoria === "abastecimento" ? "Abastecimento" : r.categoria === "notas_boletos" ? "Notas e Boletos" : "—" },
+  { key: "signatario_nome", label: "Gestor", render: (r) => r.signatario_nome || "—" },
+  { key: "unidade_negocio", label: "Unidade", render: (r) => r.unidade_negocio || "—" },
+  { key: "operacao", label: "Operação", render: (r) => r.operacao || "—" },
+  { key: "diretoria", label: "Diretoria", render: (r) => r.diretoria || "—" },
+  { key: "destinatario_nome", label: "Destinatário", render: (r) => r.destinatario_nome || "—" },
+  { key: "_arquivo_nome", label: "Arquivo", render: (r) => r._arquivo_nome || "—" },
+  { key: "_numero_nf", label: "Nº NF", render: (r) => r._numero_nf || "—" },
+  { key: "_observacao", label: "Observação", render: (r) => r._observacao || "—" },
+  { key: "_emitente", label: "Emitente NF", render: (r) => r._emitente || "—" },
+  { key: "_valor_boleto", label: "Valor boleto", render: (r) => r._valor_boleto ? r._valor_boleto.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : "—" },
+  { key: "_valor_total", label: "Valor total", render: (r) => r._valor_total ? r._valor_total.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : "—" },
+  { key: "_data_emissao", label: "Data emissão NF", render: (r) => fmtData(r._data_emissao) },
+  { key: "_data_assinatura", label: "Data assinatura", render: (r) => fmtDataHora(r._data_assinatura) },
+  { key: "data_limite", label: "Data limite", render: (r) => fmtData(r.data_limite) },
+  { key: "created_date", label: "Data do envelope", render: (r) => fmtDataHora(r.created_date) },
+];
+
+const COLUNAS_PADRAO = {
+  _numero_nf: true, _data_emissao: true, _observacao: true, _valor_boleto: true,
+  _valor_total: true, _emitente: true, created_date: true, _data_assinatura: true,
+};
 
 const LOGO_URL = "https://media.base44.com/images/public/6aa074a5ce060f1b2caeee8f/86ee25d0d_image.png";
 
@@ -43,10 +70,14 @@ const statusTone = (s) =>
 export default function Relatorios() {
   const { user } = useAuth();
   const tableRef = React.useRef(null);
+  const exportTableRef = React.useRef(null);
   const [registros, setRegistros] = useState([]);
   const [loading, setLoading] = useState(false);
   const [buscou, setBuscou] = useState(false);
   const [varreduraLoading, setVarreduraLoading] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
+  const [exporting, setExporting] = useState(null);
+  const [colunasSel, setColunasSel] = useState(COLUNAS_PADRAO);
   const [filtros, setFiltros] = useState({
     dataDe: "", dataAte: "", status: [], unidade: [], gestor: [], diretoria: [], categoria: [], numeroNf: "",
   });
@@ -100,6 +131,7 @@ export default function Relatorios() {
           _observacao: a.observacao || "",
           _numero_nf: rel.numero_nf || "",
           _emitente: rel.emitente || "",
+          _valor_boleto: Number(rel.valor_boleto) || 0,
           _valor_total: Number(rel.valor_total) || 0,
           _data_emissao: rel.data_emissao || "",
           _data_assinatura: a.data_assinatura || "",
@@ -161,39 +193,33 @@ export default function Relatorios() {
     dataDe: "", dataAte: "", status: [], unidade: [], gestor: [], diretoria: [], categoria: [], numeroNf: "",
   });
 
+  const colunasAtivas = COLUNAS_EXPORT.filter((c) => colunasSel[c.key]);
+
   const exportarCsv = () => {
-    const headers = ["Envelope", "Status", "Categoria", "Gestor", "Unidade", "Operação", "Diretoria", "Destinatário", "Arquivo", "Nº NF", "Observação", "Emitente", "Valor Total", "Data Emissão", "Data Assinatura", "Data Limite", "Criado em"];
-    const rows = filtrados.map((r) => [
-      `"${(r.titulo || "").replace(/"/g, '""')}"`,
-      statusLabel(r.status),
-      r.categoria === "abastecimento" ? "Abastecimento" : r.categoria === "notas_boletos" ? "Notas e Boletos" : "",
-      `"${(r.signatario_nome || "").replace(/"/g, '""')}"`,
-      r.unidade_negocio || "",
-      `"${(r.operacao || "").replace(/"/g, '""')}"`,
-      r.diretoria || "",
-      `"${(r.destinatario_nome || "").replace(/"/g, '""')}"`,
-      `"${(r._arquivo_nome || "").replace(/"/g, '""')}"`,
-      `"${(r._numero_nf || "").replace(/"/g, '""')}"`,
-      `"${(r._observacao || "").replace(/"/g, '""')}"`,
-      `"${(r._emitente || "").replace(/"/g, '""')}"`,
-      (r._valor_total || 0).toFixed(2).replace(".", ","),
-      r._data_emissao || "",
-      r._data_assinatura || "",
-      r.data_limite || "",
-      r.created_date || "",
-    ]);
-    const csv = [headers.join(";"), ...rows.map((r) => r.join(";"))].join("\n");
-    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url; a.download = `relatorio_nfs_${format(new Date(), "dd-MM-yyyy")}.csv`;
-    a.click(); URL.revokeObjectURL(url);
+    setExporting("csv");
+    try {
+      const headers = colunasAtivas.map((c) => c.label);
+      const rows = filtrados.map((r) =>
+        colunasAtivas.map((c) => {
+          const val = c.render(r);
+          const str = (val ?? "").toString();
+          return `"${str.replace(/"/g, '""')}"`;
+        })
+      );
+      const csv = [headers.join(";"), ...rows.map((r) => r.join(";"))].join("\n");
+      const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = `relatorio_nfs_${format(new Date(), "dd-MM-yyyy")}.csv`;
+      a.click(); URL.revokeObjectURL(url);
+    } finally { setExporting(null); setExportOpen(false); }
   };
 
   const exportarPdf = async () => {
-    const el = tableRef.current;
-    if (!el) return;
+    setExporting("pdf");
     try {
+      const el = exportTableRef.current;
+      if (!el) return;
       const canvas = await html2canvas(el, { scale: 2, backgroundColor: "#ffffff" });
       const imgData = canvas.toDataURL("image/png");
       const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
@@ -212,7 +238,7 @@ export default function Relatorios() {
         heightLeft -= pageHeight;
       }
       pdf.save(`relatorio_nfs_${format(new Date(), "dd-MM-yyyy")}.pdf`);
-    } catch {}
+    } catch { } finally { setExporting(null); setExportOpen(false); }
   };
 
   if (!podeVerRelatorios(user)) {
@@ -244,11 +270,8 @@ export default function Relatorios() {
             <Button onClick={varredura} disabled={varreduraLoading || filtrados.length === 0} variant="outline" className="gap-2">
               {varreduraLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileSearch className="w-4 h-4" />} Varredura
             </Button>
-            <Button onClick={exportarPdf} disabled={filtrados.length === 0} variant="outline" className="gap-2">
-              <FileDown className="w-4 h-4" /> PDF
-            </Button>
-            <Button onClick={exportarCsv} disabled={filtrados.length === 0} className="gap-2">
-              <Download className="w-4 h-4" /> CSV
+            <Button onClick={() => setExportOpen(true)} disabled={filtrados.length === 0} variant="outline" className="gap-2">
+              <FileDown className="w-4 h-4" /> Exportar
             </Button>
           </div>
         </header>
@@ -370,6 +393,40 @@ export default function Relatorios() {
           </div>
         )}
       </div>
+
+      <div style={{ position: "absolute", left: "-99999px", top: 0 }}>
+        <div ref={exportTableRef} className="bg-white p-4">
+          <table className="text-sm border-collapse">
+            <thead>
+              <tr>
+                {colunasAtivas.map((c) => (
+                  <th key={c.key} className="border border-gray-300 px-3 py-2 text-left bg-gray-100 whitespace-nowrap">{c.label}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {filtrados.map((r, i) => (
+                <tr key={i}>
+                  {colunasAtivas.map((c) => (
+                    <td key={c.key} className="border border-gray-300 px-3 py-2 whitespace-nowrap">{c.render(r)}</td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <ExportColumnsDialog
+        open={exportOpen}
+        onOpenChange={setExportOpen}
+        colunas={COLUNAS_EXPORT}
+        selected={colunasSel}
+        onChange={setColunasSel}
+        onExportPdf={exportarPdf}
+        onExportCsv={exportarCsv}
+        exporting={exporting}
+      />
     </div>
   );
 }
