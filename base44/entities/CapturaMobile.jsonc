@@ -1,0 +1,92 @@
+{
+  "name": "CapturaMobile",
+  "type": "object",
+  "properties": {
+    "token": {
+      "type": "string",
+      "title": "Token \u00fanico da sess\u00e3o"
+    },
+    "status": {
+      "type": "string",
+      "title": "Status da sess\u00e3o",
+      "enum": [
+        "aguardando",
+        "capturando",
+        "concluido",
+        "cancelado"
+      ],
+      "default": "aguardando"
+    },
+    "categoria": {
+      "type": "string",
+      "title": "Categoria do envelope",
+      "enum": [
+        "notas_boletos",
+        "abastecimento"
+      ],
+      "default": "notas_boletos"
+    },
+    "titulo": {
+      "type": "string",
+      "title": "T\u00edtulo do envelope"
+    },
+    "descricao": {
+      "type": "string",
+      "title": "Descri\u00e7\u00e3o"
+    },
+    "destinatario_nome": {
+      "type": "string",
+      "title": "Destinat\u00e1rio"
+    },
+    "destinatario_email": {
+      "type": "string",
+      "title": "E-mail do destinat\u00e1rio",
+      "format": "email"
+    },
+    "signatario_nome": {
+      "type": "string",
+      "title": "Signat\u00e1rio"
+    },
+    "signatario_email": {
+      "type": "string",
+      "title": "E-mail do signat\u00e1rio",
+      "format": "email"
+    },
+    "signatario_cadastro_id": {
+      "type": "string",
+      "title": "Cadastro do signat\u00e1rio"
+    },
+    "diretoria": {
+      "type": "string",
+      "title": "Diretoria de destino"
+    },
+    "unidade_negocio": {
+      "type": "string",
+      "title": "Unidade de neg\u00f3cio"
+    },
+    "data_limite": {
+      "type": "string",
+      "title": "Data limite",
+      "format": "date"
+    },
+    "arquivos": {
+      "type": "array",
+      "title": "Arquivos capturados",
+      "items": {
+        "type": "string",
+        "format": "uri"
+      }
+    },
+    "documento_criado_id": {
+      "type": "string",
+      "title": "Documento criado ao concluir"
+    },
+    "criado_por": {
+      "type": "string",
+      "title": "Criado por (e-mail)"
+    }
+  },
+  "required": [
+    "token"
+  ]
+}
