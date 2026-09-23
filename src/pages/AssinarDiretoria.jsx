@@ -19,6 +19,7 @@ import { identificarDiretoria, diretoriaDoMembro, SENHA_MASTER_RECUSA } from "@/
 import { useAuth } from "@/lib/AuthContext";
 import { getPermissoes, nomeDoUsuario, nomeExibicao, diretoriaDoUsuario } from "@/lib/permissoes";
 import { loteDoArquivo, carimbarEUploadar } from "@/lib/carimbarLote";
+import LoteFolders from "@/components/LoteFolders";
 
 const isImage = (url) => url && /\.(png|jpe?g|webp|gif)$/i.test(url);
 const fileName = (url) => (url ? decodeURIComponent(url.split("/").pop() || "arquivo") : "Documento");
@@ -464,18 +465,14 @@ export default function AssinarDiretoria() {
           )}
         </div>
 
-        <div className="flex flex-wrap gap-2 mb-6">
-          {arquivos.map((s, i) => {
-            const signed = !!signedMap[i];
-            const isCurrent = i === currentIndex;
-            return (
-              <button key={s.id || i} type="button" onClick={() => setCurrentIndex(i)} className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg border text-sm transition-colors ${isCurrent ? "border-foreground/30 bg-foreground/5" : "border-border/60 hover:bg-muted/40"}`}>
-                <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] ${signed ? "bg-emerald-500 text-white" : "bg-muted text-muted-foreground"}`}>{signed ? <CheckCircle2 className="w-3.5 h-3.5" /> : i + 1}</span>
-                <span className="max-w-[160px] truncate">{fileName(s.arquivo_url)}</span>
-              </button>
-            );
-          })}
-        </div>
+        <LoteFolders
+          lotes={doc.lotes}
+          arquivos={arquivos}
+          signedMap={signedMap}
+          currentIndex={currentIndex}
+          onSelect={setCurrentIndex}
+          getUrl={(s) => s?.arquivo_original_url || s?.arquivo_url || ""}
+        />
 
         <div className="grid lg:grid-cols-12 gap-4">
           <div className="space-y-3 lg:col-span-8">
