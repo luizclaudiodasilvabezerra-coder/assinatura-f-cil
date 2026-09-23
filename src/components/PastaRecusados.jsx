@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Ban, FileText, ChevronDown, ChevronRight, FilePlus2, Loader2, User, Trash2, ShieldCheck, Lock } from "lucide-react";
+import { Ban, FileText, ChevronDown, ChevronRight, FilePlus2, Loader2, User, Trash2, ShieldCheck, Lock, Eye, Download } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -143,6 +143,12 @@ export default function PastaRecusados({ recusados = [], documentos = [], linkPa
                           <FileText className="w-3.5 h-3.5 text-amber-700 shrink-0" /> {fileName(r.arquivo_url)}
                         </span>
                         <div className="flex items-center gap-3 shrink-0">
+                          <a href={r.arquivo_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs text-blue-600 hover:underline">
+                            <Eye className="w-3.5 h-3.5" /> Visualizar
+                          </a>
+                          <a href={r.arquivo_url} download={fileName(r.arquivo_url)} className="inline-flex items-center gap-1 text-xs text-slate-600 hover:underline">
+                            <Download className="w-3.5 h-3.5" /> Baixar
+                          </a>
                           <button type="button" onClick={() => pedirSenha("inserir", r)} disabled={gerando === r.id || excluindo === r.id} className="inline-flex items-center gap-1 text-xs text-emerald-700 hover:underline disabled:opacity-50">
                             {gerando === r.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FilePlus2 className="w-3.5 h-3.5" />} Inserir em novo envelope
                           </button>
