@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { Ban, FileText, ChevronDown, ChevronRight, FilePlus2, Loader2, User, Trash2, ShieldCheck, Lock } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -112,7 +112,6 @@ export default function PastaRecusados({ recusados = [], documentos = [], linkPa
     <div className="space-y-3">
       {grupos.map(([docId, recs]) => {
         const d = docById[docId];
-        const link = d ? linkPara(d) : "#";
         const open = abertos[docId] ?? true;
         const gestor = recs.find((r) => r.gestor)?.gestor || d?.signatario_nome || "";
         return (
@@ -127,9 +126,6 @@ export default function PastaRecusados({ recusados = [], documentos = [], linkPa
                     <p className="text-xs text-muted-foreground">{recs.length} NF recusada{recs.length > 1 ? "s" : ""}</p>
                   </div>
                 </button>
-                <div className="flex items-center gap-2 shrink-0">
-                  {d && <Button asChild variant="outline" size="sm"><Link to={link}>Abrir envelope</Link></Button>}
-                </div>
               </div>
 
               {gestor && (
