@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Plus, Minus, Loader2, FileText } from "lucide-react";
+import { Plus, Minus, Loader2 } from "lucide-react";
 import * as pdfjsLib from "pdfjs-dist";
 import PdfjsWorker from "pdfjs-dist/build/pdf.worker.min.mjs?worker";
 
@@ -28,7 +28,14 @@ export default function DocumentPositioner({ fileUrl, blocks, onMove }) {
     setPdfError(false);
     (async () => {
       try {
-        task = pdfjsLib.getDocument({ url: fileUrl, withCredentials: false, cMapPacked: true });
+        task = pdfjsLib.getDocument({
+          url: fileUrl,
+          withCredentials: false,
+          cMapUrl: "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/cmaps/",
+          cMapPacked: true,
+          standardFontDataUrl: "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/standard_fonts/",
+          disableAutoFetch: true,
+        });
         const pdf = await task.promise;
         if (cancelled) { await pdf.destroy(); return; }
         const page = await pdf.getPage(1);
@@ -48,6 +55,7 @@ export default function DocumentPositioner({ fileUrl, blocks, onMove }) {
         if (!cancelled) { setPdfSize({ w: viewport.width, h: viewport.height }); setPdfLoading(false); }
         await pdf.destroy();
       } catch (err) {
+        console.error("[DocumentPositioner] Falha ao renderizar PDF:", err);
         if (!cancelled) { setPdfLoading(false); setPdfError(true); }
       }
     })();
@@ -92,13 +100,12 @@ export default function DocumentPositioner({ fileUrl, blocks, onMove }) {
     if (isPdf(fileUrl)) {
       if (pdfError) {
         return (
-          <div className="w-full flex flex-col items-center justify-center gap-3 py-12 text-sm text-muted-foreground">
-            <FileText className="w-8 h-8 text-muted-foreground/60" />
-            <span>Pré-visualização indisponível. Abra o arquivo em nova aba.</span>
-            <a href={fileUrl} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline inline-flex items-center gap-1">
-              <FileText className="w-3.5 h-3.5" /> Abrir PDF
-            </a>
-          </div>
+          <iframe
+            src={`${fileUrl}#toolbar=0&navpanes=0&view=FitH`}
+            title="Pré-visualização do PDF"
+            className="w-full block bg-white"
+            style={{ minHeight: "70vh", border: "none" }}
+          />
         );
       }
       return (
