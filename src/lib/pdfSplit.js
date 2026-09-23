@@ -1,8 +1,8 @@
 import * as pdfjsLib from "pdfjs-dist";
-import PdfjsWorker from "pdfjs-dist/build/pdf.worker.min.mjs?worker";
+import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 import { jsPDF } from "jspdf";
 
-pdfjsLib.GlobalWorkerOptions.workerPort = new PdfjsWorker();
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 
 /**
  * Recebe um File e retorna um array de File(s).
