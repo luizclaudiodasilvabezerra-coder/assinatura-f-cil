@@ -20,6 +20,7 @@ import AssinarDiretoria from '@/pages/AssinarDiretoria';
 import Capa from '@/pages/Capa';
 import EnvelopesAssinados from '@/pages/EnvelopesAssinados';
 import Relatorios from '@/pages/Relatorios';
+import CapturaMobile from '@/pages/CapturaMobile';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -48,6 +49,7 @@ const AuthenticatedApp = () => {
   return (
     <Routes>
       <Route path="/capa" element={<Capa />} />
+      <Route path="/captura/:token" element={<CapturaMobile />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />

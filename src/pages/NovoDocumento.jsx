@@ -6,10 +6,12 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, Loader2, Upload, X, FileText } from "lucide-react";
+import { ArrowLeft, Loader2, Upload, X, FileText, Smartphone } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/lib/AuthContext";
 import { podeCriarEnvelope, categoriaEnvelopeDoUsuario } from "@/lib/permissoes";
+import CapturaMobileDialog from "@/components/CapturaMobileDialog";
+import { splitPdfIfNeeded } from "@/lib/pdfSplit";
 
 export default function NovoDocumento() {
   const navigate = useNavigate();
@@ -19,6 +21,7 @@ export default function NovoDocumento() {
   const [uploading, setUploading] = useState(false);
   const [arquivos, setArquivos] = useState([]);
   const [cadastros, setCadastros] = useState([]);
+  const [capturaMobileOpen, setCapturaMobileOpen] = useState(false);
   const fileInputRef = useRef(null);
   const [form, setForm] = useState({
     titulo: "",
@@ -82,11 +85,17 @@ export default function NovoDocumento() {
     if (!files.length) return;
     setUploading(true);
     try {
+      // Divide PDFs multipáginas em arquivos individuais antes do upload
+      const allFiles = [];
+      for (const file of files) {
+        const split = await splitPdfIfNeeded(file);
+        allFiles.push(...split);
+      }
       const uploaded = await Promise.all(
-        files.map((file) => base44.integrations.Core.UploadFile({ file }))
+        allFiles.map((file) => base44.integrations.Core.UploadFile({ file }))
       );
       setArquivos((prev) => [...prev, ...uploaded.map((u) => u.file_url)]);
-      toast({ title: `${files.length} arquivo(s) enviado(s)` });
+      toast({ title: `${uploaded.length} arquivo(s) enviado(s)` });
     } catch {
       toast({ title: "Falha no envio", variant: "destructive" });
     } finally {
@@ -208,6 +217,14 @@ export default function NovoDocumento() {
                   {uploading ? "Enviando…" : "Clique para enviar um ou mais arquivos"}
                 </button>
                 <input ref={fileInputRef} type="file" className="hidden" multiple onChange={handleFiles} />
+                <button
+                  type="button"
+                  onClick={() => setCapturaMobileOpen(true)}
+                  className="flex items-center justify-center gap-2 cursor-pointer rounded-xl border-2 border-dashed border-brand/40 py-4 text-sm text-brand hover:bg-brand/5 transition-colors w-full mt-2"
+                >
+                  <Smartphone className="w-4 h-4" />
+                  Capturar via celular (câmera)
+                </button>
                 {arquivos.length > 0 && (
                   <div className="space-y-2 mt-2">
                     {arquivos.map((url) => (
@@ -232,6 +249,13 @@ export default function NovoDocumento() {
           </CardContent>
         </Card>
       </div>
+      <CapturaMobileDialog
+        open={capturaMobileOpen}
+        onClose={() => setCapturaMobileOpen(false)}
+        formData={form}
+        arquivosIniciais={arquivos}
+        onConcluido={() => navigate("/")}
+      />
     </div>
   );
 }
