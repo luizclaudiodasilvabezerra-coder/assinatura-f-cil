@@ -22,6 +22,27 @@
         "format": "uri"
       }
     },
+    "lotes": {
+      "type": "array",
+      "title": "Lotes do envelope",
+      "items": {
+        "type": "object",
+        "properties": {
+          "nome": {
+            "type": "string",
+            "title": "Nome do lote"
+          },
+          "arquivos": {
+            "type": "array",
+            "title": "Arquivos do lote",
+            "items": {
+              "type": "string",
+              "format": "uri"
+            }
+          }
+        }
+      }
+    },
     "status": {
       "type": "string",
       "title": "Status",
