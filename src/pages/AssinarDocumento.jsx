@@ -7,7 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, Loader2, FileText, CheckCircle2, Calendar, User, Upload, PenLine, Plus, Minus, ChevronRight, Pen, AlertTriangle, Download, Send, Lock, ShieldCheck, Ban } from "lucide-react";
+import { ArrowLeft, Loader2, FileText, CheckCircle2, Calendar, User, Upload, PenLine, Plus, Minus, ChevronRight, Pen, AlertTriangle, Download, Send, Lock, ShieldCheck, Ban, Layers } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import SignaturePad from "@/components/SignaturePad";
@@ -17,6 +17,7 @@ import { dataURLToFile, formatDate } from "@/lib/signatureUtils";
 import { base64ToBlob, baixarEnvelopePdf, baixarArquivoPdf } from "@/lib/pdfDownload";
 import { validarSenhaGestor, gestorTemSenha, SENHA_MASTER_RECUSA } from "@/lib/acessos";
 import { useAuth } from "@/lib/AuthContext";
+import { loteDoArquivo, carimbarEUploadar } from "@/lib/carimbarLote";
 
 const isImage = (url) => url && /\.(png|jpe?g|webp|gif)$/i.test(url);
 const fileName = (url) => (url ? decodeURIComponent(url.split("/").pop() || "arquivo") : "Documento");
@@ -103,6 +104,7 @@ export default function AssinarDocumento() {
   const arquivos = useMemo(() => (doc?.arquivos && doc.arquivos.length ? doc.arquivos : [""]), [doc]);
   const cadastrosPessoas = useMemo(() => cadastros.filter((c) => ["signatario", "destinatario", "ambos"].includes(c.tipo)), [cadastros]);
   const currentFile = arquivos[currentIndex];
+  const loteAtual = useMemo(() => loteDoArquivo(doc?.lotes, currentFile), [doc, currentFile]);
   const currentSigned = signedMap[currentIndex];
   const allSigned = arquivos.length > 0 && arquivos.every((_, i) => signedMap[i]);
   const gestaoDone = allSigned;
@@ -230,6 +232,76 @@ export default function AssinarDocumento() {
       }
     } catch { toast({ title: "Erro ao registrar assinatura", variant: "destructive" }); }
     finally { setSaving(false); }
+  };
+
+  const assinarLote = async () => {
+    if (!assinanteNome.trim()) { toast({ title: "Selecione ou informe o nome do assinante", variant: "destructive" }); return; }
+    if (!observacao.trim()) { setCritica(true); toast({ title: "Existe arquivo sem observação", description: "A observação é obrigatória para assinar.", variant: "destructive" }); return; }
+    const lote = loteDoArquivo(doc.lotes, currentFile);
+    if (!lote) { toast({ title: "Este arquivo não pertence a um lote", variant: "destructive" }); return; }
+
+    let imagem_url = "";
+    if (modo === "desenhada") {
+      if (padRef.current?.isEmpty()) { toast({ title: "Desenhe a assinatura", variant: "destructive" }); return; }
+      setSaving(true);
+      try {
+        const file = dataURLToFile(padRef.current.getDataURL(), `assinatura_${assinanteNome}.png`);
+        const up = await base44.integrations.Core.UploadFile({ file });
+        imagem_url = up.file_url;
+      } catch { setSaving(false); toast({ title: "Erro ao salvar assinatura", variant: "destructive" }); return; }
+    } else {
+      if (!imagemUpload) { toast({ title: "Envie uma imagem de assinatura", variant: "destructive" }); return; }
+      imagem_url = imagemUpload;
+      setSaving(true);
+    }
+
+    const indicesDoLote = lote.arquivos.map((url) => arquivos.indexOf(url)).filter((i) => i >= 0);
+    const pendentes = indicesDoLote.filter((i) => !signedMap[i]);
+    if (pendentes.length === 0) { setSaving(false); toast({ title: "Todas as páginas deste lote já estão assinadas" }); return; }
+
+    const newMap = { ...signedMap };
+    const novosRegistros = [];
+    let ok = 0, falhou = 0;
+    for (const idx of pendentes) {
+      const fileUrl = arquivos[idx];
+      let arquivo_url = fileUrl || undefined;
+      try {
+        arquivo_url = await carimbarEUploadar({
+          fileUrl, imagemUrl: imagem_url, pos,
+          nome: assinanteNome, observacao,
+          operacao: operacao || doc.operacao || "", unidade: unidade || doc.unidade_negocio || "", indent,
+        });
+      } catch { falhou++; continue; }
+      try {
+        const rec = await base44.entities.Assinatura.create({
+          documento_id: id, documento_titulo: doc.titulo, arquivo_url,
+          arquivo_original_url: fileUrl || undefined,
+          assinante_nome: assinanteNome, assinante_email: assinanteEmail,
+          assinante_cadastro_id: cadastroId || undefined, imagem_url, tipo: modo,
+          etapa: "signatario", observacao, indent, pos_x: pos.x, pos_y: pos.y,
+          unidade_negocio: unidade || doc.unidade_negocio || "", operacao: operacao || doc.operacao || "",
+          status: "assinado", data_assinatura: new Date().toISOString(),
+        });
+        newMap[idx] = rec;
+        novosRegistros.push(rec);
+        ok++;
+      } catch { falhou++; }
+    }
+    setSignedMap(newMap);
+    if (novosRegistros.length) setExistentes((e) => [...novosRegistros, ...e]);
+    setObservacao(""); setIndent(0); setImagemUpload(""); setCadastroId(""); setAssinanteNome(""); setAssinanteEmail(""); setPos({ x: 3, y: 90 }); setCritica(false);
+
+    const allDone = arquivos.every((_, i) => newMap[i]);
+    if (allDone && doc.status === "pendente_gestao") {
+      await base44.entities.Documento.update(id, { status: "assinado_gestao" });
+      setDoc((d) => ({ ...d, status: "assinado_gestao" }));
+      toast({ title: `Lote carimbado: ${ok} arquivo(s)`, description: "Todos os arquivos assinados pela gestão." });
+    } else {
+      const next = arquivos.findIndex((_, i) => !newMap[i]);
+      if (next >= 0) setCurrentIndex(next);
+      toast({ title: `Lote carimbado: ${ok} arquivo(s) assinado(s)${falhou ? `, ${falhou} falha(s)` : ""}` });
+    }
+    setSaving(false);
   };
 
   const avancar = () => { const next = findNextUnsigned(currentIndex); if (next !== -1) setCurrentIndex(next); };
@@ -527,6 +599,11 @@ export default function AssinarDocumento() {
                       <Textarea id="observacao" ref={obsRef} value={observacao} onChange={(e) => { setObservacao(e.target.value); if (e.target.value.trim()) setCritica(false); }} rows={2} style={{ paddingLeft: 8 + indent * 14 }} placeholder="Observação que aparece sob a assinatura" />
                     </div>
                     <Button type="button" disabled={saving} onClick={assinarArquivo} className="w-full gap-2">{saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Pen className="w-4 h-4" />} Assinar este arquivo e avançar</Button>
+                    {loteAtual && loteAtual.arquivos.length > 1 && (
+                      <Button type="button" variant="secondary" disabled={saving} onClick={assinarLote} className="w-full gap-2">
+                        {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Layers className="w-4 h-4" />} Carimbar todo o lote ({loteAtual.arquivos.length} arquivos)
+                      </Button>
+                    )}
                     <Button type="button" variant="outline" onClick={() => setShowRecusa(true)} className="w-full gap-2 border-amber-400 text-amber-700 hover:bg-amber-50">
                       <Ban className="w-4 h-4" /> Recusar esta NF
                     </Button>

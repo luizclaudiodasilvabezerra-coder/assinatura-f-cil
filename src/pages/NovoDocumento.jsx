@@ -350,6 +350,12 @@ export default function NovoDocumento() {
                 )}
 
                 {lotes.length > 0 && (
+                  <div className="rounded-xl border border-dashed border-border bg-muted/20 p-3 text-center">
+                    <p className="text-xs text-muted-foreground">Deseja criar mais um lote ou finalizar? Envie novos arquivos acima para o próximo lote, ou clique em <span className="font-medium text-foreground">Criar envelope</span> para finalizar.</p>
+                  </div>
+                )}
+
+                {lotes.length > 0 && (
                   <div className="space-y-3">
                     {lotes.map((lote, li) => (
                       loteAtivo === li ? null : (
