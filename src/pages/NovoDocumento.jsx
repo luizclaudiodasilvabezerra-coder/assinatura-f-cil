@@ -6,7 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, Loader2, Upload, X, FileText, Smartphone } from "lucide-react";
+import { ArrowLeft, Loader2, Upload, X, FileText, Smartphone, Layers, FolderOpen, Plus } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/lib/AuthContext";
 import { podeCriarEnvelope, categoriaEnvelopeDoUsuario } from "@/lib/permissoes";
@@ -20,6 +20,7 @@ export default function NovoDocumento() {
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [arquivos, setArquivos] = useState([]);
+  const [lotes, setLotes] = useState([]);
   const [cadastros, setCadastros] = useState([]);
   const [capturaMobileOpen, setCapturaMobileOpen] = useState(false);
   const fileInputRef = useRef(null);
@@ -105,6 +106,22 @@ export default function NovoDocumento() {
   };
 
   const removeArquivo = (url) => setArquivos((prev) => prev.filter((u) => u !== url));
+
+  const criarLote = () => {
+    if (arquivos.length === 0) return;
+    setLotes((prev) => [...prev, { nome: `Lote ${prev.length + 1}`, arquivos: [...arquivos] }]);
+    setArquivos([]);
+    toast({ title: "Lote criado", description: `Lote ${lotes.length + 1} com ${arquivos.length} arquivo(s)` });
+  };
+
+  const removerLote = (index) => {
+    setLotes((prev) => prev.filter((_, i) => i !== index).map((l, i) => ({ ...l, nome: `Lote ${i + 1}` })));
+  };
+
+  const removerArquivoDeLote = (loteIndex, url) => {
+    setLotes((prev) => prev.map((l, i) => i === loteIndex ? { ...l, arquivos: l.arquivos.filter((u) => u !== url) } : l));
+  };
+
   const fileName = (url) => (url ? decodeURIComponent(url.split("/").pop() || "arquivo").slice(0, 40) : "arquivo");
 
   const submit = async (e) => {
@@ -112,12 +129,19 @@ export default function NovoDocumento() {
     if (!form.titulo.trim()) return;
     setSaving(true);
     try {
+      const allArquivos = [...lotes.flatMap((l) => l.arquivos), ...arquivos];
+      if (allArquivos.length === 0) {
+        toast({ title: "Anexe ao menos um arquivo", variant: "destructive" });
+        setSaving(false);
+        return;
+      }
       const all = await base44.entities.Documento.list("-created_date", 1000);
       const numero = `ENV-${String((all.length || 0) + 1).padStart(4, "0")}`;
       const created = await base44.entities.Documento.create({
         ...form,
         numero,
-        arquivos,
+        arquivos: allArquivos,
+        lotes: lotes.length > 0 ? lotes : undefined,
         status: "pendente_gestao",
         pasta: "pendente",
         categoria: form.categoria,
@@ -225,8 +249,12 @@ export default function NovoDocumento() {
                   <Smartphone className="w-4 h-4" />
                   Capturar via celular (câmera)
                 </button>
+
                 {arquivos.length > 0 && (
-                  <div className="space-y-2 mt-2">
+                  <div className="mt-3 space-y-2">
+                    <p className="text-xs text-muted-foreground">
+                      {lotes.length > 0 ? `Arquivos do novo lote (Lote ${lotes.length + 1})` : "Arquivos prontos para o envelope"}
+                    </p>
                     {arquivos.map((url) => (
                       <div key={url} className="flex items-center gap-2 rounded-lg border border-border/60 px-3 py-2 text-sm">
                         <FileText className="w-4 h-4 text-muted-foreground shrink-0" />
@@ -236,11 +264,49 @@ export default function NovoDocumento() {
                         </button>
                       </div>
                     ))}
+                    <Button type="button" variant="outline" size="sm" onClick={criarLote} className="gap-2 w-full">
+                      <Layers className="w-4 h-4" /> Criar lote
+                    </Button>
+                  </div>
+                )}
+
+                {lotes.length > 0 && (
+                  <div className="mt-3 space-y-3">
+                    {lotes.map((lote, li) => (
+                      <div key={li} className="rounded-xl border border-brand/30 bg-brand/5 p-3">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="inline-flex items-center gap-1.5 text-sm font-medium text-brand">
+                            <FolderOpen className="w-4 h-4" /> {lote.nome} · {lote.arquivos.length} arquivo(s)
+                          </span>
+                          <button type="button" onClick={() => removerLote(li)} className="text-muted-foreground hover:text-destructive text-xs">
+                            Remover lote
+                          </button>
+                        </div>
+                        <div className="space-y-1.5">
+                          {lote.arquivos.map((url) => (
+                            <div key={url} className="flex items-center gap-2 rounded-lg bg-white/70 px-2.5 py-1.5 text-sm">
+                              <FileText className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                              <span className="truncate flex-1">{fileName(url)}</span>
+                              <button type="button" onClick={() => removerArquivoDeLote(li, url)} className="text-muted-foreground hover:text-destructive">
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {lotes.length > 0 && arquivos.length === 0 && (
+                  <div className="mt-3 rounded-xl border border-dashed border-border bg-muted/20 p-4 text-center">
+                    <p className="text-sm text-muted-foreground mb-1">Deseja criar mais um lote ou finalizar?</p>
+                    <p className="text-xs text-muted-foreground">Envie novos arquivos acima para o próximo lote, ou clique em <span className="font-medium text-foreground">Criar envelope</span> para finalizar.</p>
                   </div>
                 )}
               </div>
-              <div className="flex justify-end pt-2">
-                <Button type="submit" disabled={saving} className="gap-2">
+              <div className="flex flex-col sm:flex-row justify-end gap-2 pt-2">
+                <Button type="submit" disabled={saving || (lotes.length === 0 && arquivos.length === 0)} className="gap-2">
                   {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
                   Criar envelope
                 </Button>
