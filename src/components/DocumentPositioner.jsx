@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Plus, Minus, Loader2, FileText } from "lucide-react";
 import * as pdfjsLib from "pdfjs-dist";
-import workerUrl from "pdfjs-dist/build/pdf.worker.min.js?url";
+import workerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl;
 
