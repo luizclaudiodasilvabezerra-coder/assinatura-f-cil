@@ -23,7 +23,10 @@ export default function NovoDocumento() {
   const [loteAtivo, setLoteAtivo] = useState(null);
   const [cadastros, setCadastros] = useState([]);
   const [capturaMobileOpen, setCapturaMobileOpen] = useState(false);
+  const [arquivosIndividuais, setArquivosIndividuais] = useState([]);
+  const [uploadingIndividual, setUploadingIndividual] = useState(false);
   const fileInputRef = useRef(null);
+  const individualInputRef = useRef(null);
   const [form, setForm] = useState({
     titulo: "",
     descricao: "",
@@ -127,6 +130,34 @@ export default function NovoDocumento() {
     setLotes((prev) => prev.map((l, i) => i === loteIndex ? { ...l, arquivos: l.arquivos.filter((u) => u !== url) } : l));
   };
 
+  const handleIndividualFiles = async (e) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+    setUploadingIndividual(true);
+    try {
+      const allFiles = [];
+      for (const file of files) {
+        const split = await splitPdfIfNeeded(file);
+        allFiles.push(...split);
+      }
+      const uploaded = await Promise.all(
+        allFiles.map((file) => base44.integrations.Core.UploadFile({ file }))
+      );
+      const urls = uploaded.map((u) => u.file_url);
+      setArquivosIndividuais((prev) => [...prev, ...urls]);
+      toast({ title: `${uploaded.length} arquivo(s) enviado(s)` });
+    } catch {
+      toast({ title: "Falha no envio", variant: "destructive" });
+    } finally {
+      setUploadingIndividual(false);
+      e.target.value = "";
+    }
+  };
+
+  const removerArquivoIndividual = (url) => {
+    setArquivosIndividuais((prev) => prev.filter((u) => u !== url));
+  };
+
   const fileName = (url) => (url ? decodeURIComponent(url.split("/").pop() || "arquivo").slice(0, 40) : "arquivo");
 
   const submit = async (e) => {
@@ -134,9 +165,9 @@ export default function NovoDocumento() {
     if (!form.titulo.trim()) return;
     setSaving(true);
     try {
-      const allArquivos = lotes.flatMap((l) => l.arquivos);
+      const allArquivos = [...arquivosIndividuais, ...lotes.flatMap((l) => l.arquivos)];
       if (allArquivos.length === 0) {
-        toast({ title: "Crie um lote e anexe ao menos um arquivo", variant: "destructive" });
+        toast({ title: "Anexe ao menos um arquivo", variant: "destructive" });
         setSaving(false);
         return;
       }
@@ -239,33 +270,69 @@ export default function NovoDocumento() {
                 <Label htmlFor="data_limite">Data limite</Label>
                 <Input id="data_limite" type="date" value={form.data_limite} onChange={update("data_limite")} />
               </div>
-              <div className="space-y-2">
-                <Label>Anexos por lote</Label>
-                <Button type="button" variant="outline" onClick={criarLote} className="gap-2 w-full">
-                  <Layers className="w-4 h-4" /> Criar lote
-                </Button>
+              <div className="space-y-3">
+                <Label>Anexos</Label>
+                <div className="grid sm:grid-cols-3 gap-3">
+                  <button type="button" onClick={criarLote} className="flex flex-col items-center gap-1.5 rounded-xl border-2 border-dashed border-brand/40 bg-brand/5 p-4 text-center hover:bg-brand/10 transition-colors">
+                    <Layers className="w-5 h-5 text-brand" />
+                    <span className="text-sm font-semibold text-brand">Criar lote</span>
+                    <span className="text-xs text-muted-foreground">Agrupe arquivos em um lote</span>
+                  </button>
+                  <button type="button" onClick={() => setCapturaMobileOpen(true)} className="flex flex-col items-center gap-1.5 rounded-xl border-2 border-dashed border-brand/40 bg-brand/5 p-4 text-center hover:bg-brand/10 transition-colors">
+                    <Smartphone className="w-5 h-5 text-brand" />
+                    <span className="text-sm font-semibold text-brand">Captura via celular</span>
+                    <span className="text-xs text-muted-foreground">Use a câmera do celular</span>
+                  </button>
+                  <button type="button" onClick={() => individualInputRef.current?.click()} className="flex flex-col items-center gap-1.5 rounded-xl border-2 border-dashed border-brand/40 bg-brand/5 p-4 text-center hover:bg-brand/10 transition-colors">
+                    <Upload className="w-5 h-5 text-brand" />
+                    <span className="text-sm font-semibold text-brand">Upload individual</span>
+                    <span className="text-xs text-muted-foreground">Anexe arquivos avulsos</span>
+                  </button>
+                </div>
+                <input ref={individualInputRef} type="file" className="hidden" multiple onChange={handleIndividualFiles} />
+
+                {uploadingIndividual && (
+                  <div className="flex items-center justify-center gap-2 rounded-lg bg-muted/30 py-2 text-sm text-muted-foreground">
+                    <Loader2 className="w-4 h-4 animate-spin" /> Enviando arquivos…
+                  </div>
+                )}
+
+                {arquivosIndividuais.length > 0 && (
+                  <div className="rounded-xl border border-border/60 bg-muted/20 p-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="inline-flex items-center gap-1.5 text-sm font-medium">
+                        <Upload className="w-4 h-4 text-muted-foreground" /> Arquivos individuais · {arquivosIndividuais.length}
+                      </span>
+                    </div>
+                    <div className="space-y-1.5">
+                      {arquivosIndividuais.map((url) => (
+                        <div key={url} className="flex items-center gap-2 rounded-lg bg-white/70 px-2.5 py-1.5 text-sm">
+                          <FileText className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                          <span className="truncate flex-1">{fileName(url)}</span>
+                          <button type="button" onClick={() => removerArquivoIndividual(url)} className="text-muted-foreground hover:text-destructive">
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {loteAtivo !== null && lotes[loteAtivo] && (
-                  <div className="mt-3 rounded-xl border-2 border-brand/40 bg-brand/5 p-4">
+                  <div className="rounded-xl border-2 border-brand/40 bg-brand/5 p-4">
                     <div className="flex items-center justify-between mb-3">
                       <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-brand">
                         <FolderOpen className="w-4 h-4" /> {lotes[loteAtivo].nome} · {lotes[loteAtivo].arquivos.length} arquivo(s)
                       </span>
-                      <span className="text-xs text-muted-foreground">Lote ativo para upload</span>
+                      <button type="button" onClick={() => setLoteAtivo(null)} className="text-xs text-muted-foreground hover:text-foreground">
+                        Fechar lote
+                      </button>
                     </div>
                     <button type="button" onClick={() => fileInputRef.current?.click()} className="flex items-center justify-center gap-2 cursor-pointer rounded-xl border-2 border-dashed border-brand/50 py-5 text-sm text-brand hover:bg-brand/10 transition-colors w-full">
                       {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
                       {uploading ? "Enviando…" : "Enviar arquivos para este lote"}
                     </button>
                     <input ref={fileInputRef} type="file" className="hidden" multiple onChange={handleFiles} />
-                    <button
-                      type="button"
-                      onClick={() => setCapturaMobileOpen(true)}
-                      className="flex items-center justify-center gap-2 cursor-pointer rounded-xl border-2 border-dashed border-brand/40 py-3 text-sm text-brand hover:bg-brand/5 transition-colors w-full mt-2"
-                    >
-                      <Smartphone className="w-4 h-4" />
-                      Capturar via celular (câmera)
-                    </button>
                     {lotes[loteAtivo].arquivos.length > 0 && (
                       <div className="mt-3 space-y-1.5">
                         {lotes[loteAtivo].arquivos.map((url) => (
@@ -283,14 +350,14 @@ export default function NovoDocumento() {
                 )}
 
                 {lotes.length > 0 && (
-                  <div className="mt-3 space-y-3">
+                  <div className="space-y-3">
                     {lotes.map((lote, li) => (
                       loteAtivo === li ? null : (
                         <div key={li} className="rounded-xl border border-border/60 bg-muted/20 p-3">
                           <div className="flex items-center justify-between mb-2">
-                            <span className="inline-flex items-center gap-1.5 text-sm font-medium">
+                            <button type="button" onClick={() => setLoteAtivo(li)} className="inline-flex items-center gap-1.5 text-sm font-medium hover:text-brand">
                               <FolderOpen className="w-4 h-4 text-muted-foreground" /> {lote.nome} · {lote.arquivos.length} arquivo(s)
-                            </span>
+                            </button>
                             <button type="button" onClick={() => removerLote(li)} className="text-muted-foreground hover:text-destructive text-xs">
                               Remover lote
                             </button>
@@ -308,22 +375,16 @@ export default function NovoDocumento() {
                               ))}
                             </div>
                           ) : (
-                            <p className="text-xs text-muted-foreground italic">Lote vazio</p>
+                            <p className="text-xs text-muted-foreground italic">Lote vazio — clique para abrir e enviar arquivos</p>
                           )}
                         </div>
                       )
                     ))}
                   </div>
                 )}
-
-                {lotes.length > 0 && (
-                  <div className="mt-3 rounded-xl border border-dashed border-border bg-muted/20 p-3 text-center">
-                    <p className="text-xs text-muted-foreground">Clique em <span className="font-medium text-foreground">Criar lote</span> para adicionar mais um lote, ou em <span className="font-medium text-foreground">Criar envelope</span> para finalizar.</p>
-                  </div>
-                )}
               </div>
               <div className="flex flex-col sm:flex-row justify-end gap-2 pt-2">
-                <Button type="submit" disabled={saving || lotes.length === 0 || lotes.flatMap((l) => l.arquivos).length === 0} className="gap-2">
+                <Button type="submit" disabled={saving || (arquivosIndividuais.length === 0 && lotes.flatMap((l) => l.arquivos).length === 0)} className="gap-2">
                   {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
                   Criar envelope
                 </Button>
@@ -336,7 +397,7 @@ export default function NovoDocumento() {
         open={capturaMobileOpen}
         onClose={() => setCapturaMobileOpen(false)}
         formData={form}
-        arquivosIniciais={loteAtivo !== null && lotes[loteAtivo] ? lotes[loteAtivo].arquivos : []}
+        arquivosIniciais={arquivosIndividuais}
         onConcluido={() => navigate("/")}
       />
     </div>
