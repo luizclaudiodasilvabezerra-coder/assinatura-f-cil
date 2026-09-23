@@ -1,8 +1,9 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Plus, Minus, Loader2 } from "lucide-react";
+import { Plus, Minus, Loader2, FileText } from "lucide-react";
 import * as pdfjsLib from "pdfjs-dist";
+import workerUrl from "pdfjs-dist/build/pdf.worker.min.js?url";
 
-pdfjsLib.GlobalWorkerOptions.workerSrc = new URL("pdfjs-dist/build/pdf.worker.min.js", import.meta.url).href;
+pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl;
 
 const isImage = (url) => url && /\.(png|jpe?g|webp|gif)$/i.test(url);
 const isPdf = (url) => url && /\.pdf$/i.test(url);
@@ -15,16 +16,19 @@ export default function DocumentPositioner({ fileUrl, blocks, onMove }) {
   const [zoom, setZoom] = useState(1);
   const [pdfSize, setPdfSize] = useState(null);
   const [pdfLoading, setPdfLoading] = useState(false);
+  const [pdfError, setPdfError] = useState(false);
   const offset = useRef({ x: 0, y: 0 });
 
   // Renderiza a primeira página do PDF num canvas (alinhamento perfeito com a página real)
   useEffect(() => {
-    if (!isPdf(fileUrl)) { setPdfSize(null); return; }
+    if (!isPdf(fileUrl)) { setPdfSize(null); setPdfError(false); return; }
     let cancelled = false;
+    let task = null;
     setPdfLoading(true);
+    setPdfError(false);
     (async () => {
       try {
-        const task = pdfjsLib.getDocument(fileUrl);
+        task = pdfjsLib.getDocument({ url: fileUrl, withCredentials: false, cMapPacked: true });
         const pdf = await task.promise;
         if (cancelled) { await pdf.destroy(); return; }
         const page = await pdf.getPage(1);
@@ -38,14 +42,19 @@ export default function DocumentPositioner({ fileUrl, blocks, onMove }) {
         canvas.width = viewport.width;
         canvas.height = viewport.height;
         const ctx = canvas.getContext("2d");
+        // Limpa o canvas antes de renderizar (evita artefatos de arquivo anterior)
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
         await page.render({ canvasContext: ctx, viewport }).promise;
         if (!cancelled) { setPdfSize({ w: viewport.width, h: viewport.height }); setPdfLoading(false); }
         await pdf.destroy();
-      } catch {
-        if (!cancelled) setPdfLoading(false);
+      } catch (err) {
+        if (!cancelled) { setPdfLoading(false); setPdfError(true); }
       }
     })();
-    return () => { cancelled = true; };
+    return () => { 
+      cancelled = true; 
+      if (task) { try { task.destroy(); } catch {} }
+    };
   }, [fileUrl, zoom]);
 
   const startDrag = (e, block) => {
@@ -81,6 +90,17 @@ export default function DocumentPositioner({ fileUrl, blocks, onMove }) {
       return <img src={fileUrl} alt="documento" className="w-full block" draggable={false} />;
     }
     if (isPdf(fileUrl)) {
+      if (pdfError) {
+        return (
+          <div className="w-full flex flex-col items-center justify-center gap-3 py-12 text-sm text-muted-foreground">
+            <FileText className="w-8 h-8 text-muted-foreground/60" />
+            <span>Pré-visualização indisponível. Abra o arquivo em nova aba.</span>
+            <a href={fileUrl} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline inline-flex items-center gap-1">
+              <FileText className="w-3.5 h-3.5" /> Abrir PDF
+            </a>
+          </div>
+        );
+      }
       return (
         <div className="relative">
           {pdfLoading && (
