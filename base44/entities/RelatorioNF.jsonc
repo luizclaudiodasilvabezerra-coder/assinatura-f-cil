@@ -15,6 +15,10 @@
       "title": "Arquivo assinado",
       "format": "uri"
     },
+    "numero_nf": {
+      "type": "string",
+      "title": "N\u00famero da NF"
+    },
     "emitente": {
       "type": "string",
       "title": "Emitente da NF"

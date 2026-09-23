@@ -48,7 +48,7 @@ export default function Relatorios() {
   const [buscou, setBuscou] = useState(false);
   const [varreduraLoading, setVarreduraLoading] = useState(false);
   const [filtros, setFiltros] = useState({
-    dataDe: "", dataAte: "", status: "", unidade: "", gestor: "", diretoria: "",
+    dataDe: "", dataAte: "", status: [], unidade: [], gestor: [], diretoria: [], categoria: [], numeroNf: "",
   });
 
   const buscar = async () => {
@@ -98,6 +98,7 @@ export default function Relatorios() {
           _arquivo_url: url,
           _arquivo_nome: nomeArquivo(url),
           _observacao: a.observacao || "",
+          _numero_nf: rel.numero_nf || "",
           _emitente: rel.emitente || "",
           _valor_total: Number(rel.valor_total) || 0,
           _data_emissao: rel.data_emissao || "",
@@ -141,29 +142,38 @@ export default function Relatorios() {
         const d = new Date(r.created_date);
         if (d > new Date(filtros.dataAte + "T23:59:59")) return false;
       }
-      if (filtros.status && r.status !== filtros.status) return false;
-      if (filtros.unidade && r.unidade_negocio !== filtros.unidade) return false;
-      if (filtros.gestor && r.signatario_nome !== filtros.gestor) return false;
-      if (filtros.diretoria && r.diretoria !== filtros.diretoria) return false;
+      if (filtros.status?.length && !filtros.status.includes(r.status)) return false;
+      if (filtros.categoria?.length && !filtros.categoria.includes(r.categoria)) return false;
+      if (filtros.unidade?.length && !filtros.unidade.includes(r.unidade_negocio)) return false;
+      if (filtros.gestor?.length && !filtros.gestor.includes(r.signatario_nome)) return false;
+      if (filtros.diretoria?.length && !filtros.diretoria.includes(r.diretoria)) return false;
+      if (filtros.numeroNf) {
+        const busca = filtros.numeroNf.toLowerCase().trim();
+        const nf = (r._numero_nf || "").toLowerCase();
+        const nome = (r._arquivo_nome || "").toLowerCase();
+        if (!nf.includes(busca) && !nome.includes(busca)) return false;
+      }
       return true;
     });
   }, [registros, filtros]);
 
   const limpar = () => setFiltros({
-    dataDe: "", dataAte: "", status: "", unidade: "", gestor: "", diretoria: "",
+    dataDe: "", dataAte: "", status: [], unidade: [], gestor: [], diretoria: [], categoria: [], numeroNf: "",
   });
 
   const exportarCsv = () => {
-    const headers = ["Envelope", "Status", "Gestor", "Unidade", "Operação", "Diretoria", "Destinatário", "Arquivo", "Observação", "Emitente", "Valor Total", "Data Emissão", "Data Assinatura", "Data Limite", "Criado em"];
+    const headers = ["Envelope", "Status", "Categoria", "Gestor", "Unidade", "Operação", "Diretoria", "Destinatário", "Arquivo", "Nº NF", "Observação", "Emitente", "Valor Total", "Data Emissão", "Data Assinatura", "Data Limite", "Criado em"];
     const rows = filtrados.map((r) => [
       `"${(r.titulo || "").replace(/"/g, '""')}"`,
       statusLabel(r.status),
+      r.categoria === "abastecimento" ? "Abastecimento" : r.categoria === "notas_boletos" ? "Notas e Boletos" : "",
       `"${(r.signatario_nome || "").replace(/"/g, '""')}"`,
       r.unidade_negocio || "",
       `"${(r.operacao || "").replace(/"/g, '""')}"`,
       r.diretoria || "",
       `"${(r.destinatario_nome || "").replace(/"/g, '""')}"`,
       `"${(r._arquivo_nome || "").replace(/"/g, '""')}"`,
+      `"${(r._numero_nf || "").replace(/"/g, '""')}"`,
       `"${(r._observacao || "").replace(/"/g, '""')}"`,
       `"${(r._emitente || "").replace(/"/g, '""')}"`,
       (r._valor_total || 0).toFixed(2).replace(".", ","),
@@ -303,12 +313,14 @@ export default function Relatorios() {
                       <tr className="text-left text-xs text-muted-foreground">
                         <th className="px-4 py-3 font-medium">Envelope</th>
                         <th className="px-4 py-3 font-medium">Status</th>
+                        <th className="px-4 py-3 font-medium">Categoria</th>
                         <th className="px-4 py-3 font-medium">Gestor</th>
                         <th className="px-4 py-3 font-medium">Unidade</th>
                         <th className="px-4 py-3 font-medium">Operação</th>
                         <th className="px-4 py-3 font-medium">Diretoria</th>
                         <th className="px-4 py-3 font-medium">Destinatário</th>
                         <th className="px-4 py-3 font-medium">Arquivo</th>
+                        <th className="px-4 py-3 font-medium">Nº NF</th>
                         <th className="px-4 py-3 font-medium">Observação</th>
                         <th className="px-4 py-3 font-medium">Emitente</th>
                         <th className="px-4 py-3 font-medium">Valor total</th>
@@ -327,12 +339,14 @@ export default function Relatorios() {
                               {statusLabel(r.status)}
                             </span>
                           </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-xs">{r.categoria === "abastecimento" ? "Abastecimento" : r.categoria === "notas_boletos" ? "Notas e Boletos" : "—"}</td>
                           <td className="px-4 py-3">{r.signatario_nome || "—"}</td>
                           <td className="px-4 py-3">{r.unidade_negocio || "—"}</td>
                           <td className="px-4 py-3">{r.operacao || "—"}</td>
                           <td className="px-4 py-3">{r.diretoria || "—"}</td>
                           <td className="px-4 py-3">{r.destinatario_nome || "—"}</td>
                           <td className="px-4 py-3 max-w-[200px] truncate" title={r._arquivo_nome}>{r._arquivo_nome || "—"}</td>
+                          <td className="px-4 py-3 whitespace-nowrap">{r._numero_nf || "—"}</td>
                           <td className="px-4 py-3 max-w-[220px] truncate" title={r._observacao}>{r._observacao || "—"}</td>
                           <td className="px-4 py-3 max-w-[140px] truncate" title={r._emitente}>{r._emitente || "—"}</td>
                           <td className="px-4 py-3 whitespace-nowrap">{r._valor_total ? r._valor_total.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : "—"}</td>

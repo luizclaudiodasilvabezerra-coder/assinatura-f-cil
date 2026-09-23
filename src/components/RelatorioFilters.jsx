@@ -2,8 +2,19 @@ import React from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Filter, X, Search, Loader2 } from "lucide-react";
+import MultiSelect from "@/components/ui/multi-select";
+
+const STATUS_OPCOES = [
+  { value: "pendente_diretoria", label: "Pendente diretoria" },
+  { value: "assinado_gestao", label: "Assinado gestao" },
+  { value: "assinado_diretoria", label: "Assinado diretoria" },
+];
+
+const CATEGORIA_OPCOES = [
+  { value: "notas_boletos", label: "Notas e Boletos" },
+  { value: "abastecimento", label: "Abastecimento" },
+];
 
 export default function RelatorioFilters({ filtros, setFiltros, opcoes, onLimpar, onBuscar, loading }) {
   const upd = (k, v) => setFiltros((f) => ({ ...f, [k]: v }));
@@ -29,46 +40,58 @@ export default function RelatorioFilters({ filtros, setFiltros, opcoes, onLimpar
           <Input type="date" value={filtros.dataAte} onChange={(e) => upd("dataAte", e.target.value)} />
         </div>
         <div className="space-y-1.5">
+          <Label className="text-xs text-muted-foreground">Categoria</Label>
+          <MultiSelect
+            options={CATEGORIA_OPCOES}
+            value={filtros.categoria || []}
+            onChange={(v) => upd("categoria", v)}
+            placeholder="Todas"
+          />
+        </div>
+        <div className="space-y-1.5">
           <Label className="text-xs text-muted-foreground">Status</Label>
-          <Select value={filtros.status || "all"} onValueChange={(v) => upd("status", v === "all" ? "" : v)}>
-            <SelectTrigger><SelectValue placeholder="Todos" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos</SelectItem>
-              <SelectItem value="pendente_diretoria">Pendente diretoria</SelectItem>
-              <SelectItem value="assinado_gestao">Assinado gestao</SelectItem>
-              <SelectItem value="assinado_diretoria">Assinado diretoria</SelectItem>
-            </SelectContent>
-          </Select>
+          <MultiSelect
+            options={STATUS_OPCOES}
+            value={filtros.status || []}
+            onChange={(v) => upd("status", v)}
+            placeholder="Todos"
+          />
         </div>
         <div className="space-y-1.5">
           <Label className="text-xs text-muted-foreground">Unidade de negócio</Label>
-          <Select value={filtros.unidade || "all"} onValueChange={(v) => upd("unidade", v === "all" ? "" : v)}>
-            <SelectTrigger><SelectValue placeholder="Todas" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todas</SelectItem>
-              {opcoes.unidades.map((u) => <SelectItem key={u} value={u}>{u}</SelectItem>)}
-            </SelectContent>
-          </Select>
+          <MultiSelect
+            options={opcoes.unidades.map((u) => ({ value: u, label: u }))}
+            value={filtros.unidade || []}
+            onChange={(v) => upd("unidade", v)}
+            placeholder="Todas"
+          />
         </div>
         <div className="space-y-1.5">
           <Label className="text-xs text-muted-foreground">Gestor</Label>
-          <Select value={filtros.gestor || "all"} onValueChange={(v) => upd("gestor", v === "all" ? "" : v)}>
-            <SelectTrigger><SelectValue placeholder="Todos" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos</SelectItem>
-              {opcoes.gestores.map((g) => <SelectItem key={g} value={g}>{g}</SelectItem>)}
-            </SelectContent>
-          </Select>
+          <MultiSelect
+            options={opcoes.gestores.map((g) => ({ value: g, label: g }))}
+            value={filtros.gestor || []}
+            onChange={(v) => upd("gestor", v)}
+            placeholder="Todos"
+          />
         </div>
         <div className="space-y-1.5">
           <Label className="text-xs text-muted-foreground">Diretoria</Label>
-          <Select value={filtros.diretoria || "all"} onValueChange={(v) => upd("diretoria", v === "all" ? "" : v)}>
-            <SelectTrigger><SelectValue placeholder="Todas" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todas</SelectItem>
-              {opcoes.diretorias.map((d) => <SelectItem key={d} value={d}>{d}</SelectItem>)}
-            </SelectContent>
-          </Select>
+          <MultiSelect
+            options={opcoes.diretorias.map((d) => ({ value: d, label: d }))}
+            value={filtros.diretoria || []}
+            onChange={(v) => upd("diretoria", v)}
+            placeholder="Todas"
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-xs text-muted-foreground">Número da NF</Label>
+          <Input
+            type="text"
+            value={filtros.numeroNf || ""}
+            onChange={(e) => upd("numeroNf", e.target.value)}
+            placeholder="Buscar por número"
+          />
         </div>
       </div>
 
