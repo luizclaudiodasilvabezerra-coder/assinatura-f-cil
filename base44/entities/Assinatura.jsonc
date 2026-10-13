@@ -52,7 +52,8 @@
       "title": "Etapa",
       "enum": [
         "signatario",
-        "master"
+        "master",
+        "gestao_origem"
       ],
       "default": "signatario"
     },

@@ -184,15 +184,16 @@ export default function NovoDocumento() {
         categoria: form.categoria,
       });
 
-      // Regra de auto-assinatura: signatários com redirecionamento têm todas as páginas
-      // carimbadas automaticamente com a assinatura cadastrada do responsável e o envelope
-      // é enviado à diretoria (seguindo a hierarquia anterior).
+      // Hierarquia de assinatura: signatários-fonte (Anderson/Ana/Matheus) têm todas as
+      // páginas carimbadas automaticamente com a PRÓPRIA assinatura cadastrada. O envelope
+      // é então reatribuído a Joselio Serur e MANTIDO em pendente_gestao, aguardando a
+      // assinatura manual de Joselio (que então avança o envelope para a diretoria).
       if (deveAutoAssinar(form.signatario_nome)) {
-        toast({ title: "Carimbando assinaturas automaticamente…", description: "Todas as páginas serão assinadas e o envelope enviado à diretoria." });
+        toast({ title: "Carimbando assinatura de gestão…", description: "Após o carimbo, o envelope ficará disponível para Joselio Serur assinar." });
         try {
           const res = await base44.functions.invoke("assinarAutomaticoGestao", { documentoId: created.id });
           if (res?.data?.ok) {
-            toast({ title: "Envelope criado e assinado", description: `${res.data.stamped} arquivo(s) carimbado(s) e enviado à diretoria.` });
+            toast({ title: "Envelope criado", description: `${res.data.stamped} arquivo(s) carimbado(s) com a assinatura de ${form.signatario_nome}. Aguardando assinatura de Joselio Serur.` });
           } else {
             toast({ title: "Envelope criado", description: `${numero} — assine manualmente na pasta pendente.`, variant: "destructive" });
           }
@@ -256,7 +257,7 @@ export default function NovoDocumento() {
                 <Input type="email" value={form.signatario_email} onChange={update("signatario_email")} placeholder="E-mail do signatário" className="mt-2" />
                 {form.signatario_nome && deveAutoAssinar(form.signatario_nome) && (
                   <div className="mt-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                    Este envelope será assinado automaticamente (todas as páginas) com a assinatura cadastrada de <strong>Joselio Serur</strong> e enviado à diretoria.
+                    Este envelope será carimbado automaticamente com a assinatura cadastrada de <strong>{form.signatario_nome}</strong> e disponibilizado para <strong>Joselio Serur</strong> assinar manualmente. Após a assinatura de Joselio, o envelope seguirá para a diretoria.
                   </div>
                 )}
                 </div>

@@ -1,4 +1,8 @@
-// Regras de redirecionamento de assinatura (compartilhado entre funções backend)
+// Regras de hierarquia de assinatura (compartilhado entre funções backend).
+// Signatários-fonte (Anderson/Ana/Matheus) têm suas assinaturas automaticamente carimbadas
+// no momento da criação do envelope. O envelope é então reatribuído ao destino (Joselio
+// Serur), que assina MANUALMENTE sobre o PDF já carimbado, avançando em seguida para a
+// diretoria.
 export const REDIRECIONAMENTO_SIGNATARIOS = {
   "ANA BARCELLOS": "JOSELIO SERUR",
   "ANDERSON DUQUE": "JOSELIO SERUR",
@@ -7,20 +11,21 @@ export const REDIRECIONAMENTO_SIGNATARIOS = {
 
 export const normNome = (s) => (s || "").trim().toUpperCase();
 
-// Retorna o nome do signatário que deve efetivamente assinar, ou null se não há redirecionamento
+// Retorna o nome do destino (ex.: Joselio Serur) quando o signatário é FONTE do redirecionamento.
 export const signatarioRedirecionado = (nome) => {
   return REDIRECIONAMENTO_SIGNATARIOS[normNome(nome)] || null;
 };
 
-// Verifica se o signatário É o destino de algum redirecionamento (ex: próprio Joselio Serur)
+// Verifica se o signatário É o destino de algum redirecionamento (ex.: próprio Joselio Serur)
 export const isRedirectTarget = (nome) => {
   const n = normNome(nome);
   return Object.values(REDIRECIONAMENTO_SIGNATARIOS).includes(n) ? n : null;
 };
 
-// Retorna o nome do signatário efetivo para auto-assinatura, ou null se não aplica.
-// Cobrem dois cenários: signatário é FONTE do redirecionamento (Ana/Anderson/Matheus → Joselio)
-// ou signatário JÁ É o destino (próprio Joselio, selecionado direto ou via redirect legado).
+// Retorna o nome do signatário-fonte cuja assinatura deve ser carimbada automaticamente,
+// ou null quando não há auto-assinatura. Apenas FONTE dispara auto-carimbo; o destino
+// (Joselio Serur) assina manualmente após o redirecionamento.
 export const resolverAutoAssinatura = (nome) => {
-  return signatarioRedirecionado(nome) || isRedirectTarget(nome);
+  if (signatarioRedirecionado(nome)) return normNome(nome);
+  return null;
 };

@@ -65,7 +65,7 @@ export default function AssinarDiretoria() {
         setDoc(d);
         setCadastros(cad);
         setSigs(s);
-        const gestao = s.filter((x) => x.etapa !== "master" && x.arquivo_url);
+        const gestao = s.filter((x) => x.etapa === "signatario" && x.arquivo_url);
         const masters = s.filter((x) => x.etapa === "master");
         const map = {};
         gestao.forEach((g, i) => {
@@ -110,7 +110,7 @@ export default function AssinarDiretoria() {
     }
   }, [nome, cadastros]);
 
-  const gestaoSigs = useMemo(() => sigs.filter((s) => s.etapa !== "master" && s.arquivo_url), [sigs]);
+  const gestaoSigs = useMemo(() => sigs.filter((s) => s.etapa === "signatario" && s.arquivo_url), [sigs]);
   const diretoriaCadastros = useMemo(() => {
     const todos = cadastros.filter((c) => c.tipo === "diretoria");
     if (diretorIdentificado) {

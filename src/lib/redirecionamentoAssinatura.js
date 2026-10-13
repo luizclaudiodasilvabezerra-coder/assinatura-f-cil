@@ -1,6 +1,8 @@
-// Regras de redirecionamento de assinatura
-// Signatários cuja assinatura deve ser delegada a outro responsável no momento da criação do envelope.
-// Ao criar o envelope, o signatário real é substituído pelo responsável de destino.
+// Regras de hierarquia de assinatura.
+// Signatários-fonte (Anderson/Ana/Matheus) têm suas assinaturas automaticamente
+// carimbadas no momento da criação. O envelope é reatribuído ao destino
+// (Joselio Serur), que assina MANUALMENTE sobre o PDF já carimbado, avançando em
+// seguida para a diretoria.
 const REDIRECIONAMENTO = {
   "ANA BARCELLOS": "JOSELIO SERUR",
   "ANDERSON DUQUE": "JOSELIO SERUR",
@@ -9,25 +11,26 @@ const REDIRECIONAMENTO = {
 
 const norm = (s) => (s || "").trim().toUpperCase();
 
-// Retorna o nome do signatário que deve efetivamente assinar, ou null se não há redirecionamento
+// Retorna o nome do destino (ex.: Joselio Serur) quando o signatário é FONTE do redirecionamento.
 export const signatarioRedirecionado = (nome) => {
   const key = norm(nome);
   return REDIRECIONAMENTO[key] || null;
 };
 
-// Verifica se o signatário É o destino de redirecionamento (ex: próprio Joselio Serur)
+// Verifica se o signatário É o destino de redirecionamento (ex.: próprio Joselio Serur)
 export const isRedirectTarget = (nome) => {
   const n = norm(nome);
   return Object.values(REDIRECIONAMENTO).includes(n) ? n : null;
 };
 
-// Verifica se o envelope deve ser auto-assinado: signatário é fonte OU destino do redirecionamento
+// Apenas signatários-FONTE disparam auto-carimbo (Anderson/Ana/Matheus).
+// O destino (Joselio Serur) assina manualmente após o redirecionamento.
 export const deveAutoAssinar = (nome) => {
-  return !!(signatarioRedirecionado(nome) || isRedirectTarget(nome));
+  return !!signatarioRedirecionado(nome);
 };
 
-// Dado um signatário selecionado e a lista de cadastros, retorna os dados
-// do signatário efetivo (redirecionado) ou null quando não aplica.
+// Dado um signatário-fonte e a lista de cadastros, retorna os dados do destino
+// (Joselio Serur) para reatribuição do envelope.
 export const resolverSignatarioEfetivo = (nome, cadastros) => {
   const destino = signatarioRedirecionado(nome);
   if (!destino) return null;

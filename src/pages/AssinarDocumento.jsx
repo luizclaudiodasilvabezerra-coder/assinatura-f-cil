@@ -26,7 +26,9 @@ const fileName = (url) => (url ? decodeURIComponent(url.split("/").pop() || "arq
 const buildSignedMap = (arqs, sigs) => {
   const map = {};
   sigs.forEach((s) => {
-    if (s.etapa === "master") return;
+    // Ignora assinaturas master (diretoria) e gestao_origem (auto-carimbo do signatário-fonte);
+    // apenas a assinatura manual do signatário-destino (etapa "signatario") marca o arquivo como assinado.
+    if (s.etapa === "master" || s.etapa === "gestao_origem") return;
     const url = s.arquivo_original_url || s.arquivo_url || "";
     const idx = arqs.indexOf(url);
     if (idx >= 0) map[idx] = s;
@@ -88,7 +90,7 @@ export default function AssinarDocumento() {
         const arqs = d.arquivos && d.arquivos.length ? d.arquivos : [""];
         const map = {};
         sigs.forEach((s) => {
-          if (s.etapa === "master") return;
+          if (s.etapa === "master" || s.etapa === "gestao_origem") return;
           const url = s.arquivo_original_url || s.arquivo_url || "";
           const idx = arqs.indexOf(url);
           if (idx >= 0) map[idx] = s;

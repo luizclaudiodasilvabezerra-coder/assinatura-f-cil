@@ -1,10 +1,12 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.52';
 import { PDFDocument, StandardFonts, rgb } from 'npm:pdf-lib@1.17.1';
-import { resolverAutoAssinatura, signatarioRedirecionado, normNome } from '../../shared/redirecionamento.ts';
+import { signatarioRedirecionado, normNome } from '../../shared/redirecionamento.ts';
 
-// Auto-assina TODAS as páginas de um envelope cujo signatário possui regra de redirecionamento.
-// Carimba cada PDF com a assinatura cadastrada do responsável de destino, registra as assinaturas
-// de gestão e envia o envelope para a diretoria (seguindo a hierarquia definida).
+// Hierarquia de assinatura: signatários-fonte (Anderson/Ana/Matheus) têm todas as páginas
+// carimbadas automaticamente com a PRÓPRIA assinatura cadastrada. O envelope é então
+// reatribuído ao destino (Joselio Serur) e MANTIDO em pendente_gestao, aguardando a
+// assinatura manual de Joselio. Após a assinatura manual (fluxo normal do AssinarDocumento),
+// o envelope avança para a diretoria.
 export default async function(req) {
   try {
     const base44 = createClientFromRequest(req);
@@ -16,18 +18,22 @@ export default async function(req) {
     if (!doc) return Response.json({ error: 'Documento não encontrado' }, { status: 404 });
     if (doc.status !== 'pendente_gestao') return Response.json({ ok: false, reason: 'already_processed' });
 
-    const destinoNome = resolverAutoAssinatura(doc.signatario_nome);
+    // Apenas signatários-fonte disparam o auto-carimbo (ex.: Matheus Santos).
+    // O destino (Joselio Serur) assina manualmente após o redirecionamento.
+    const destinoNome = signatarioRedirecionado(doc.signatario_nome);
     if (!destinoNome) return Response.json({ ok: false, reason: 'not_applicable' });
-    const houveRedirecionamento = !!signatarioRedirecionado(doc.signatario_nome);
 
     const cadastros = await base44.asServiceRole.entities.Cadastro.filter(
       { tipo: { $in: ["signatario", "destinatario", "ambos"] } },
       { limit: 200 }
     );
-    const responsavel = cadastros.items.find((c) => normNome(c.nome) === normNome(destinoNome));
+    // Responsável = o próprio signatário-fonte (ex.: Matheus Santos). É a assinatura DELE que será carimbada.
+    const responsavel = cadastros.items.find((c) => normNome(c.nome) === normNome(doc.signatario_nome));
     if (!responsavel || !responsavel.imagem_assinatura) {
       return Response.json({ ok: false, reason: 'no_signature' }, { status: 400 });
     }
+    // Cadastro do destino (Joselio Serur) para reatribuir o signatário do envelope
+    const destinoCadastro = cadastros.items.find((c) => normNome(c.nome) === normNome(destinoNome));
 
     const imagemUrl = responsavel.imagem_assinatura;
     const arquivos = doc.arquivos || [];
@@ -40,12 +46,14 @@ export default async function(req) {
 
     let stamped = 0, falhou = 0;
     const erros = [];
+    const novosArquivos = [];
+    const urlMap = {}; // original -> carimbado (para atualizar lotes)
     for (const fileUrl of arquivos) {
       let novoUrl = fileUrl;
       if (/\.pdf$/i.test(fileUrl)) {
         try {
           const pdfResp = await fetch(fileUrl, { signal: AbortSignal.timeout(30000) });
-          if (!pdfResp.ok) { falhou++; continue; }
+          if (!pdfResp.ok) { falhou++; erros.push({ arquivo: fileUrl.slice(-40), erro: 'fetch_failed' }); novosArquivos.push(fileUrl); continue; }
           const pdfBytes = await pdfResp.arrayBuffer();
           const pdfDoc = await PDFDocument.load(pdfBytes, { ignoreEncryption: true });
           const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
@@ -85,10 +93,13 @@ export default async function(req) {
           const up = await base44.asServiceRole.integrations.Core.UploadPublicFile({ file: pdfFile });
           novoUrl = up.file_url;
           stamped++;
-        } catch (e) { falhou++; erros.push({ arquivo: fileUrl.slice(-40), erro: e.message, bytesLen: typeof stampedBytes !== 'undefined' ? stampedBytes.length : -1 }); continue; }
+        } catch (e) { falhou++; erros.push({ arquivo: fileUrl.slice(-40), erro: e.message }); novosArquivos.push(fileUrl); continue; }
       } else {
         stamped++;
       }
+
+      novosArquivos.push(novoUrl);
+      if (novoUrl !== fileUrl) urlMap[fileUrl] = novoUrl;
 
       try {
         await base44.asServiceRole.entities.Assinatura.create({
@@ -101,8 +112,8 @@ export default async function(req) {
           assinante_cadastro_id: responsavel.id,
           imagem_url: imagemUrl,
           tipo: "uploadada",
-          etapa: "signatario",
-          observacao: "",
+          etapa: "gestao_origem",
+          observacao: "Assinatura automática da gestão de origem (redirecionamento)",
           indent: 0,
           pos_x: posX,
           pos_y: posY,
@@ -114,16 +125,24 @@ export default async function(req) {
       } catch { falhou++; }
     }
 
+    // Atualiza lotes para refletir as novas URLs carimbadas (preserva agrupamento)
+    const novosLotes = (doc.lotes || []).map((lote) => ({
+      ...lote,
+      arquivos: (lote.arquivos || []).map((url) => urlMap[url] || url),
+    }));
+
+    // Reatribui o signatário ao destino (Joselio Serur) e MANTÉM status pendente_gestao,
+    // aguardando a assinatura manual. Substitui doc.arquivos pelas versões carimbadas.
     await base44.asServiceRole.entities.Documento.update(documentoId, {
-      ...(houveRedirecionamento ? {
-        signatario_nome: responsavel.nome,
-        signatario_email: responsavel.email || "",
-        signatario_cadastro_id: responsavel.id,
-      } : {}),
-      status: "pendente_diretoria",
+      arquivos: novosArquivos,
+      lotes: novosLotes,
+      signatario_nome: destinoCadastro ? destinoCadastro.nome : destinoNome,
+      signatario_email: destinoCadastro?.email || "",
+      signatario_cadastro_id: destinoCadastro?.id || "",
+      status: "pendente_gestao",
     });
 
-    return Response.json({ ok: true, stamped, falhou, total: arquivos.length, erros });
+    return Response.json({ ok: true, stamped, falhou, total: arquivos.length, erros, redirecionadoPara: destinoNome });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });
   }
