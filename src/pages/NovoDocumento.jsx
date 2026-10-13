@@ -10,6 +10,7 @@ import { ArrowLeft, Loader2, Upload, X, FileText, Smartphone, Layers, FolderOpen
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/lib/AuthContext";
 import { podeCriarEnvelope, categoriaEnvelopeDoUsuario } from "@/lib/permissoes";
+import { resolverSignatarioEfetivo, signatarioRedirecionado } from "@/lib/redirecionamentoAssinatura";
 import CapturaMobileDialog from "@/components/CapturaMobileDialog";
 import { splitPdfIfNeeded } from "@/lib/pdfSplit";
 
@@ -173,8 +174,22 @@ export default function NovoDocumento() {
       }
       const all = await base44.entities.Documento.list("-created_date", 1000);
       const numero = `ENV-${String((all.length || 0) + 1).padStart(4, "0")}`;
+
+      // Aplica regra de redirecionamento de assinatura, se aplicável
+      let dadosEnvelopa = { ...form };
+      const redir = resolverSignatarioEfetivo(form.signatario_nome, cadastros);
+      if (redir) {
+        dadosEnvelopa = {
+          ...dadosEnvelopa,
+          signatario_nome: redir.nome,
+          signatario_email: redir.email,
+          signatario_cadastro_id: redir.cadastro_id,
+        };
+        toast({ title: "Assinatura redirecionada", description: `Envelope direcionado para ${redir.nome} assinar.` });
+      }
+
       const created = await base44.entities.Documento.create({
-        ...form,
+        ...dadosEnvelopa,
         numero,
         arquivos: allArquivos,
         lotes: lotes.length > 0 ? lotes : undefined,
@@ -234,6 +249,11 @@ export default function NovoDocumento() {
                 </select>
                 <Input value={form.signatario_nome} onChange={update("signatario_nome")} placeholder="Ou digite o nome do signatário" className="mt-2" />
                 <Input type="email" value={form.signatario_email} onChange={update("signatario_email")} placeholder="E-mail do signatário" className="mt-2" />
+                {form.signatario_nome && signatarioRedirecionado(form.signatario_nome) && (
+                  <div className="mt-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                    Conforme regra de redirecionamento, a assinatura deste envelope será direcionada para <strong>Joselio Serur</strong>.
+                  </div>
+                )}
                 </div>
 
               <div className="space-y-2">
