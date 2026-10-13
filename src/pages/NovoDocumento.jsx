@@ -10,7 +10,7 @@ import { ArrowLeft, Loader2, Upload, X, FileText, Smartphone, Layers, FolderOpen
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/lib/AuthContext";
 import { podeCriarEnvelope, categoriaEnvelopeDoUsuario } from "@/lib/permissoes";
-import { signatarioRedirecionado } from "@/lib/redirecionamentoAssinatura";
+import { deveAutoAssinar } from "@/lib/redirecionamentoAssinatura";
 import CapturaMobileDialog from "@/components/CapturaMobileDialog";
 import { splitPdfIfNeeded } from "@/lib/pdfSplit";
 
@@ -187,7 +187,7 @@ export default function NovoDocumento() {
       // Regra de auto-assinatura: signatários com redirecionamento têm todas as páginas
       // carimbadas automaticamente com a assinatura cadastrada do responsável e o envelope
       // é enviado à diretoria (seguindo a hierarquia anterior).
-      if (signatarioRedirecionado(form.signatario_nome)) {
+      if (deveAutoAssinar(form.signatario_nome)) {
         toast({ title: "Carimbando assinaturas automaticamente…", description: "Todas as páginas serão assinadas e o envelope enviado à diretoria." });
         try {
           const res = await base44.functions.invoke("assinarAutomaticoGestao", { documentoId: created.id });
@@ -254,7 +254,7 @@ export default function NovoDocumento() {
                 </select>
                 <Input value={form.signatario_nome} onChange={update("signatario_nome")} placeholder="Ou digite o nome do signatário" className="mt-2" />
                 <Input type="email" value={form.signatario_email} onChange={update("signatario_email")} placeholder="E-mail do signatário" className="mt-2" />
-                {form.signatario_nome && signatarioRedirecionado(form.signatario_nome) && (
+                {form.signatario_nome && deveAutoAssinar(form.signatario_nome) && (
                   <div className="mt-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800">
                     Este envelope será assinado automaticamente (todas as páginas) com a assinatura cadastrada de <strong>Joselio Serur</strong> e enviado à diretoria.
                   </div>

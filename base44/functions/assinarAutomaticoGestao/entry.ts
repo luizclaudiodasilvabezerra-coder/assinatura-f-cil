@@ -1,7 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.52';
 import { PDFDocument, StandardFonts, rgb } from 'npm:pdf-lib@1.17.1';
 import { bytesToBase64 } from '../../shared/pdfUtils.ts';
-import { signatarioRedirecionado, normNome } from '../../shared/redirecionamento.ts';
+import { resolverAutoAssinatura, signatarioRedirecionado, normNome } from '../../shared/redirecionamento.ts';
 
 // Auto-assina TODAS as páginas de um envelope cujo signatário possui regra de redirecionamento.
 // Carimba cada PDF com a assinatura cadastrada do responsável de destino, registra as assinaturas
@@ -17,14 +17,15 @@ export default async function(req) {
     if (!doc) return Response.json({ error: 'Documento não encontrado' }, { status: 404 });
     if (doc.status !== 'pendente_gestao') return Response.json({ ok: false, reason: 'already_processed' });
 
-    const destinoNome = signatarioRedirecionado(doc.signatario_nome);
+    const destinoNome = resolverAutoAssinatura(doc.signatario_nome);
     if (!destinoNome) return Response.json({ ok: false, reason: 'not_applicable' });
+    const houveRedirecionamento = !!signatarioRedirecionado(doc.signatario_nome);
 
     const cadastros = await base44.asServiceRole.entities.Cadastro.filter(
       { tipo: { $in: ["signatario", "destinatario", "ambos"] } },
       { limit: 200 }
     );
-    const responsavel = cadastros.find((c) => normNome(c.nome) === normNome(destinoNome));
+    const responsavel = cadastros.items.find((c) => normNome(c.nome) === normNome(destinoNome));
     if (!responsavel || !responsavel.imagem_assinatura) {
       return Response.json({ ok: false, reason: 'no_signature' }, { status: 400 });
     }
@@ -39,6 +40,7 @@ export default async function(req) {
     const unidade = doc.unidade_negocio || "";
 
     let stamped = 0, falhou = 0;
+    const erros = [];
     for (const fileUrl of arquivos) {
       let novoUrl = fileUrl;
       if (/\.pdf$/i.test(fileUrl)) {
@@ -88,7 +90,7 @@ export default async function(req) {
           const up = await base44.asServiceRole.integrations.Core.UploadPublicFile({ file: blob });
           novoUrl = up.file_url;
           stamped++;
-        } catch { falhou++; continue; }
+        } catch (e) { falhou++; erros.push({ arquivo: fileUrl.slice(-40), erro: e.message }); continue; }
       } else {
         stamped++;
       }
@@ -118,13 +120,15 @@ export default async function(req) {
     }
 
     await base44.asServiceRole.entities.Documento.update(documentoId, {
-      signatario_nome: responsavel.nome,
-      signatario_email: responsavel.email || "",
-      signatario_cadastro_id: responsavel.id,
+      ...(houveRedirecionamento ? {
+        signatario_nome: responsavel.nome,
+        signatario_email: responsavel.email || "",
+        signatario_cadastro_id: responsavel.id,
+      } : {}),
       status: "pendente_diretoria",
     });
 
-    return Response.json({ ok: true, stamped, falhou, total: arquivos.length });
+    return Response.json({ ok: true, stamped, falhou, total: arquivos.length, erros });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });
   }

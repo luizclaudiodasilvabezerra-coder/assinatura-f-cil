@@ -15,6 +15,17 @@ export const signatarioRedirecionado = (nome) => {
   return REDIRECIONAMENTO[key] || null;
 };
 
+// Verifica se o signatário É o destino de redirecionamento (ex: próprio Joselio Serur)
+export const isRedirectTarget = (nome) => {
+  const n = norm(nome);
+  return Object.values(REDIRECIONAMENTO).includes(n) ? n : null;
+};
+
+// Verifica se o envelope deve ser auto-assinado: signatário é fonte OU destino do redirecionamento
+export const deveAutoAssinar = (nome) => {
+  return !!(signatarioRedirecionado(nome) || isRedirectTarget(nome));
+};
+
 // Dado um signatário selecionado e a lista de cadastros, retorna os dados
 // do signatário efetivo (redirecionado) ou null quando não aplica.
 export const resolverSignatarioEfetivo = (nome, cadastros) => {
