@@ -10,7 +10,7 @@ import { ArrowLeft, Loader2, Upload, X, FileText, Smartphone, Layers, FolderOpen
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/lib/AuthContext";
 import { podeCriarEnvelope, categoriaEnvelopeDoUsuario } from "@/lib/permissoes";
-import { resolverSignatarioEfetivo, signatarioRedirecionado } from "@/lib/redirecionamentoAssinatura";
+import { signatarioRedirecionado } from "@/lib/redirecionamentoAssinatura";
 import CapturaMobileDialog from "@/components/CapturaMobileDialog";
 import { splitPdfIfNeeded } from "@/lib/pdfSplit";
 
@@ -174,22 +174,8 @@ export default function NovoDocumento() {
       }
       const all = await base44.entities.Documento.list("-created_date", 1000);
       const numero = `ENV-${String((all.length || 0) + 1).padStart(4, "0")}`;
-
-      // Aplica regra de redirecionamento de assinatura, se aplicável
-      let dadosEnvelopa = { ...form };
-      const redir = resolverSignatarioEfetivo(form.signatario_nome, cadastros);
-      if (redir) {
-        dadosEnvelopa = {
-          ...dadosEnvelopa,
-          signatario_nome: redir.nome,
-          signatario_email: redir.email,
-          signatario_cadastro_id: redir.cadastro_id,
-        };
-        toast({ title: "Assinatura redirecionada", description: `Envelope direcionado para ${redir.nome} assinar.` });
-      }
-
       const created = await base44.entities.Documento.create({
-        ...dadosEnvelopa,
+        ...form,
         numero,
         arquivos: allArquivos,
         lotes: lotes.length > 0 ? lotes : undefined,
@@ -197,7 +183,26 @@ export default function NovoDocumento() {
         pasta: "pendente",
         categoria: form.categoria,
       });
-      toast({ title: "Envelope criado", description: numero });
+
+      // Regra de auto-assinatura: signatários com redirecionamento têm todas as páginas
+      // carimbadas automaticamente com a assinatura cadastrada do responsável e o envelope
+      // é enviado à diretoria (seguindo a hierarquia anterior).
+      if (signatarioRedirecionado(form.signatario_nome)) {
+        toast({ title: "Carimbando assinaturas automaticamente…", description: "Todas as páginas serão assinadas e o envelope enviado à diretoria." });
+        try {
+          const res = await base44.functions.invoke("assinarAutomaticoGestao", { documentoId: created.id });
+          if (res?.data?.ok) {
+            toast({ title: "Envelope criado e assinado", description: `${res.data.stamped} arquivo(s) carimbado(s) e enviado à diretoria.` });
+          } else {
+            toast({ title: "Envelope criado", description: `${numero} — assine manualmente na pasta pendente.`, variant: "destructive" });
+          }
+        } catch {
+          toast({ title: "Envelope criado", description: `${numero} — não foi possível carimbar automaticamente. Assine manualmente.`, variant: "destructive" });
+        }
+      } else {
+        toast({ title: "Envelope criado", description: numero });
+      }
+
       if (created && created.destinatario_email) {
         base44.functions.invoke("enviarAlertaDestinatario", { documentoId: created.id }).catch(() => {});
       }
@@ -251,7 +256,7 @@ export default function NovoDocumento() {
                 <Input type="email" value={form.signatario_email} onChange={update("signatario_email")} placeholder="E-mail do signatário" className="mt-2" />
                 {form.signatario_nome && signatarioRedirecionado(form.signatario_nome) && (
                   <div className="mt-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                    Conforme regra de redirecionamento, a assinatura deste envelope será direcionada para <strong>Joselio Serur</strong>.
+                    Este envelope será assinado automaticamente (todas as páginas) com a assinatura cadastrada de <strong>Joselio Serur</strong> e enviado à diretoria.
                   </div>
                 )}
                 </div>
