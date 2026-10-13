@@ -1,6 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.52';
 import { PDFDocument, StandardFonts, rgb } from 'npm:pdf-lib@1.17.1';
-import { bytesToBase64 } from '../../shared/pdfUtils.ts';
 import { resolverAutoAssinatura, signatarioRedirecionado, normNome } from '../../shared/redirecionamento.ts';
 
 // Auto-assina TODAS as páginas de um envelope cujo signatário possui regra de redirecionamento.
@@ -82,15 +81,11 @@ export default async function(req) {
           }
 
           const stampedBytes = await pdfDoc.save();
-          const base64 = bytesToBase64(new Uint8Array(stampedBytes));
-          const raw = atob(base64);
-          const buffer = new Uint8Array(raw.length);
-          for (let i = 0; i < raw.length; i++) buffer[i] = raw.charCodeAt(i);
-          const blob = new Blob([buffer], { type: "application/pdf" });
-          const up = await base44.asServiceRole.integrations.Core.UploadPublicFile({ file: blob });
+          const pdfFile = new File([stampedBytes], "assinado.pdf", { type: "application/pdf" });
+          const up = await base44.asServiceRole.integrations.Core.UploadPublicFile({ file: pdfFile });
           novoUrl = up.file_url;
           stamped++;
-        } catch (e) { falhou++; erros.push({ arquivo: fileUrl.slice(-40), erro: e.message }); continue; }
+        } catch (e) { falhou++; erros.push({ arquivo: fileUrl.slice(-40), erro: e.message, bytesLen: typeof stampedBytes !== 'undefined' ? stampedBytes.length : -1 }); continue; }
       } else {
         stamped++;
       }
