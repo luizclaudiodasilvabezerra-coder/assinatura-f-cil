@@ -6,11 +6,11 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, Loader2, Upload, X, FileText, Smartphone, Layers, FolderOpen, Plus } from "lucide-react";
+import { ArrowLeft, Loader2, Upload, X, FileText, Smartphone, Layers, FolderOpen } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/lib/AuthContext";
-import { podeCriarEnvelope, categoriaEnvelopeDoUsuario } from "@/lib/permissoes";
-import { deveAutoAssinar } from "@/lib/redirecionamentoAssinatura";
+import { podeCriarEnvelope, categoriaEnvelopeDoUsuario, nomeDoUsuario } from "@/lib/permissoes";
+import { signatarioRedirecionado } from "@/lib/redirecionamentoAssinatura";
 import CapturaMobileDialog from "@/components/CapturaMobileDialog";
 import { splitPdfIfNeeded } from "@/lib/pdfSplit";
 
@@ -42,9 +42,17 @@ export default function NovoDocumento() {
     data_limite: "",
   });
 
+  const nomeOrigem = nomeDoUsuario(user);
+  const criadorOrigem = !!signatarioRedirecionado(nomeOrigem);
   useEffect(() => {
-    base44.entities.Cadastro.list("-created_date", 200).then(setCadastros).catch(() => {});
-  }, []);
+    base44.entities.Cadastro.list("-created_date", 200).then((cad) => {
+      setCadastros(cad);
+      if (signatarioRedirecionado(nomeDoUsuario(user))) {
+        const pessoa = cad.find((c) => (c.nome || "").trim().toUpperCase() === nomeDoUsuario(user));
+        if (pessoa) setForm((f) => ({ ...f, signatario_nome: pessoa.nome.trim(), signatario_email: pessoa.email || "", signatario_cadastro_id: pessoa.id }));
+      }
+    });
+  }, [user]);
 
   if (!podeCriarEnvelope(user)) {
     return (
@@ -77,9 +85,9 @@ export default function NovoDocumento() {
       ...f,
       destinatario_nome: c ? c.nome : "",
       destinatario_email: c && c.email ? c.email : "",
-      signatario_cadastro_id: c ? c.id : f.signatario_cadastro_id,
-      signatario_nome: c ? c.nome : f.signatario_nome,
-      signatario_email: c && c.email ? c.email : f.signatario_email,
+      signatario_cadastro_id: !criadorOrigem && c ? c.id : f.signatario_cadastro_id,
+      signatario_nome: !criadorOrigem && c ? c.nome : f.signatario_nome,
+      signatario_email: !criadorOrigem && c?.email ? c.email : f.signatario_email,
     }));
   };
 
@@ -181,28 +189,11 @@ export default function NovoDocumento() {
         lotes: lotes.length > 0 ? lotes : undefined,
         status: "pendente_gestao",
         pasta: "pendente",
+        fluxo_hierarquico: !!signatarioRedirecionado(form.signatario_nome),
         categoria: form.categoria,
       });
 
-      // Hierarquia de assinatura: signatários-fonte (Anderson/Ana/Matheus) têm todas as
-      // páginas carimbadas automaticamente com a PRÓPRIA assinatura cadastrada. O envelope
-      // é então reatribuído a Joselio Serur e MANTIDO em pendente_gestao, aguardando a
-      // assinatura manual de Joselio (que então avança o envelope para a diretoria).
-      if (deveAutoAssinar(form.signatario_nome)) {
-        toast({ title: "Carimbando assinatura de gestão…", description: "Após o carimbo, o envelope ficará disponível para Joselio Serur assinar." });
-        try {
-          const res = await base44.functions.invoke("assinarAutomaticoGestao", { documentoId: created.id });
-          if (res?.data?.ok) {
-            toast({ title: "Envelope criado", description: `${res.data.stamped} arquivo(s) carimbado(s) com a assinatura de ${form.signatario_nome}. Aguardando assinatura de Joselio Serur.` });
-          } else {
-            toast({ title: "Envelope criado", description: `${numero} — assine manualmente na pasta pendente.`, variant: "destructive" });
-          }
-        } catch {
-          toast({ title: "Envelope criado", description: `${numero} — não foi possível carimbar automaticamente. Assine manualmente.`, variant: "destructive" });
-        }
-      } else {
-        toast({ title: "Envelope criado", description: numero });
-      }
+      toast({ title: "Envelope criado", description: signatarioRedirecionado(form.signatario_nome) ? "Assine e coloque observação nas páginas antes de enviar a Joselio Serur." : numero });
 
       if (created && created.destinatario_email) {
         base44.functions.invoke("enviarAlertaDestinatario", { documentoId: created.id }).catch(() => {});
@@ -247,17 +238,17 @@ export default function NovoDocumento() {
 
               <div className="space-y-2">
                 <Label htmlFor="signatario">Signatário (pasta pendente será gerada para ele)</Label>
-                <select id="signatario" value={form.signatario_cadastro_id} onChange={onSignatarioChange} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+                <select id="signatario" value={form.signatario_cadastro_id} onChange={onSignatarioChange} disabled={criadorOrigem} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
                   <option value="">— Selecionar do cadastro —</option>
                   {cadastros.filter((c) => ["signatario", "destinatario", "ambos"].includes(c.tipo)).map((c) => (
                     <option key={c.id} value={c.id}>{c.nome}</option>
                   ))}
                 </select>
-                <Input value={form.signatario_nome} onChange={update("signatario_nome")} placeholder="Ou digite o nome do signatário" className="mt-2" />
-                <Input type="email" value={form.signatario_email} onChange={update("signatario_email")} placeholder="E-mail do signatário" className="mt-2" />
-                {form.signatario_nome && deveAutoAssinar(form.signatario_nome) && (
+                <Input value={form.signatario_nome} readOnly={criadorOrigem} onChange={update("signatario_nome")} placeholder="Ou digite o nome do signatário" className="mt-2" />
+                <Input type="email" value={form.signatario_email} readOnly={criadorOrigem} onChange={update("signatario_email")} placeholder="E-mail do signatário" className="mt-2" />
+                {signatarioRedirecionado(form.signatario_nome) && (
                   <div className="mt-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                    Este envelope será carimbado automaticamente com a assinatura cadastrada de <strong>{form.signatario_nome}</strong> e disponibilizado para <strong>Joselio Serur</strong> assinar manualmente. Após a assinatura de Joselio, o envelope seguirá para a diretoria.
+                    <strong>{form.signatario_nome}</strong> deverá assinar e informar observação em todas as páginas. Depois, envie a <strong>Joselio Serur</strong>, que assinará e marcará <strong>Autorizado</strong> antes do envio à diretoria.
                   </div>
                 )}
                 </div>

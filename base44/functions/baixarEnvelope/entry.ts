@@ -1,6 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 import { PDFDocument } from 'npm:pdf-lib@1.17.1';
 import { bytesToBase64 } from '../../shared/pdfUtils.ts';
+import { assinaturaDaPagina, buscarAssinaturasAtivas, etapaGestao } from '../../shared/fluxoEnvelope.ts';
 
 export default async function(req) {
   try {
@@ -12,9 +13,10 @@ export default async function(req) {
     const { documentoId } = body || {};
     if (!documentoId) return Response.json({ error: 'documentoId obrigatorio' }, { status: 400 });
 
-    const sigs = await base44.asServiceRole.entities.Assinatura.filter({ documento_id: documentoId }, '-created_date', 200);
-    const signatario = sigs.filter((s) => s.etapa !== 'master' && s.arquivo_url);
-    if (!signatario.length) return Response.json({ error: 'Nenhum arquivo assinado encontrado' }, { status: 404 });
+    const envelope = await base44.entities.Documento.get(documentoId);
+    const sigs = await buscarAssinaturasAtivas(base44, envelope);
+    const signatario = (envelope.arquivos || []).map((url) => assinaturaDaPagina(sigs, url, 'master') || assinaturaDaPagina(sigs, url, etapaGestao(envelope)) || { arquivo_url: url });
+    if (!signatario.length) return Response.json({ error: 'Nenhum arquivo ativo encontrado' }, { status: 404 });
 
     const merged = await PDFDocument.create();
     for (const s of signatario) {

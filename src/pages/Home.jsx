@@ -20,6 +20,7 @@ import GestorBanner from "@/components/GestorBanner";
 import PastaRecusados from "@/components/PastaRecusados";
 import ColunasCategorias from "@/components/ColunasCategorias";
 import { stageStyles, stageLabel } from "@/lib/stageStyles";
+import { encaminharEnvelope, etapaGestao } from "@/lib/fluxoAssinatura";
 
 const LOGO_URL = "https://media.base44.com/images/public/6aa074a5ce060f1b2caeee8f/86ee25d0d_image.png";
 
@@ -46,6 +47,7 @@ export default function Home() {
   const { user } = useAuth();
   const [documentos, setDocumentos] = useState([]);
   const [assinaturas, setAssinaturas] = useState([]);
+  const [progresso, setProgresso] = useState({});
   const [arquivosRecusados, setArquivosRecusados] = useState([]);
   const [cadastros, setCadastros] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -69,6 +71,13 @@ export default function Home() {
         base44.entities.ArquivoRecusado.list("-created_date", 500),
         base44.entities.Cadastro.list("-created_date", 200),
       ]);
+      const ativos = docs.filter((d) => d.arquivos?.length && !["arquivado", "assinado_diretoria"].includes(d.status));
+      const resultado = ativos.length ? await base44.entities.Assinatura.aggregate({
+        query: { status: "assinado", observacao: { $ne: "Assinatura automática da gestão de origem (redirecionamento)" },
+          $or: ativos.map((d) => ({ documento_id: d.id, etapa: etapaGestao(d), arquivo_original_url: { $in: d.arquivos } })) },
+        groupBy: "documento_id", countDistinct: "arquivo_original_url", limit: 1000,
+      }) : { rows: [] };
+      setProgresso(Object.fromEntries(resultado.rows.map((r) => [r.documento_id, r.count_distinct_arquivo_original_url])));
       setDocumentos(docs);
       setAssinaturas(sigs);
       setArquivosRecusados(recus);
@@ -91,7 +100,7 @@ export default function Home() {
     const c = { all: 0, pendente_gestao: 0, assinado_gestao: 0, pendente_diretoria: 0, recusados: 0 };
     const arqs = { all: 0, pendente_gestao: 0, assinado_gestao: 0, pendente_diretoria: 0, recusados: 0 };
     documentosVisiveis.forEach((d) => {
-      if (d.status === "assinado_diretoria") return;
+      if (["assinado_diretoria", "arquivado"].includes(d.status) || !d.arquivos?.length) return;
       const n = d.arquivos?.length || 0;
       arqs.all += n; c.all++;
       if (c[d.status] !== undefined) { c[d.status]++; arqs[d.status] += n; }
@@ -120,7 +129,7 @@ export default function Home() {
     return Array.from(set);
   }, [documentosVisiveis]);
 
-  const signedCountFor = (docId) => assinaturas.filter((a) => a.documento_id === docId && a.etapa !== "master").length;
+  const signedCountFor = (docId) => progresso[docId] || 0;
   const hasPendente = (d) => signedCountFor(d.id) < (d.arquivos?.length || 0);
 
   const indicadores = useMemo(() => {
@@ -162,7 +171,7 @@ export default function Home() {
 
   const docsFiltrados = documentosVisiveis.filter((d) => {
     if (stage === "recusados") return recusadoDocIds.has(d.id);
-    if (d.status === "assinado_diretoria") return false;
+    if (d.status === "assinado_diretoria" || d.status === "arquivado" || !d.arquivos?.length) return false;
     if (stage !== "all" && d.status !== stage) return false;
     if (filtroUnidade && d.unidade_negocio !== filtroUnidade) return false;
     if (filtroData && d.data_limite !== filtroData) return false;
@@ -180,9 +189,9 @@ export default function Home() {
   const enviarDiretoria = async (d) => {
     setEnviandoId(d.id);
     try {
-      await base44.entities.Documento.update(d.id, { status: "pendente_diretoria" });
+      await encaminharEnvelope(d.id);
       await load();
-    } catch {} finally { setEnviandoId(null); }
+    } catch (e) { toast({ title: "Não foi possível enviar", description: e.message, variant: "destructive" }); } finally { setEnviandoId(null); }
   };
 
   const linkPara = (d) => {

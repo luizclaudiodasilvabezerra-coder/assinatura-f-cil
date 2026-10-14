@@ -5,6 +5,7 @@ import { Paperclip, Loader2, Send, Download, Trash2, AlertTriangle, ShieldCheck,
 import { formatDate } from "@/lib/signatureUtils";
 import ShareIcons from "@/components/ShareIcons";
 import { stageStyles, stageLabel } from "@/lib/stageStyles";
+import { signatarioRedirecionado } from "@/lib/redirecionamentoAssinatura";
 
 export default function EnvelopeCard({
   d,
@@ -48,8 +49,8 @@ export default function EnvelopeCard({
         </Link>
         <div className="flex items-center gap-2 shrink-0">
           {d.status === "assinado_gestao" && (
-            <button type="button" onClick={() => onEnviarDiretoria(d)} disabled={enviandoId === d.id} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-purple-600 text-white text-xs font-medium hover:bg-purple-700 disabled:opacity-50" title="Enviar para assinatura da diretoria">
-              {enviandoId === d.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />} Enviar à diretoria
+            <button type="button" onClick={() => onEnviarDiretoria(d)} disabled={enviandoId === d.id} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-purple-600 text-white text-xs font-medium hover:bg-purple-700 disabled:opacity-50" title={signatarioRedirecionado(d.signatario_nome) ? "Enviar para Joselio Serur" : "Enviar para assinatura da diretoria"}>
+              {enviandoId === d.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />} {signatarioRedirecionado(d.signatario_nome) ? "Enviar a Joselio" : "Enviar à diretoria"}
             </button>
           )}
           {d.status === "pendente_diretoria" && (

@@ -84,7 +84,7 @@ export default function LogAssinaturas() {
                     </div>
                     <div className="text-right shrink-0">
                       <span className="inline-block text-xs px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700 font-medium mb-1">{a.status}</span>
-                      <span className="inline-block text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 font-medium mb-1 ml-1">{a.etapa === "master" ? "Diretoria" : "Gestão"}</span>
+                      <span className="inline-block text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 font-medium mb-1 ml-1">{a.etapa === "master" ? "Diretoria" : a.etapa === "gestao_origem" ? "Signatário de origem" : "Gestão"}</span>
                       <p className="text-xs text-muted-foreground">{formatDateTime(a.data_assinatura || a.created_date)}</p>
                     </div>
                   </CardContent>

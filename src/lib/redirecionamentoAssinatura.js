@@ -1,8 +1,5 @@
-// Regras de hierarquia de assinatura.
-// Signatários-fonte (Anderson/Ana/Matheus) têm suas assinaturas automaticamente
-// carimbadas no momento da criação. O envelope é reatribuído ao destino
-// (Joselio Serur), que assina MANUALMENTE sobre o PDF já carimbado, avançando em
-// seguida para a diretoria.
+// Hierarquia manual: origem assina com observação, Joselio autoriza e assina,
+// e somente depois o envelope segue para a diretoria.
 const REDIRECIONAMENTO = {
   "ANA BARCELLOS": "JOSELIO SERUR",
   "ANDERSON DUQUE": "JOSELIO SERUR",
@@ -23,11 +20,8 @@ export const isRedirectTarget = (nome) => {
   return Object.values(REDIRECIONAMENTO).includes(n) ? n : null;
 };
 
-// Apenas signatários-FONTE disparam auto-carimbo (Anderson/Ana/Matheus).
-// O destino (Joselio Serur) assina manualmente após o redirecionamento.
-export const deveAutoAssinar = (nome) => {
-  return !!signatarioRedirecionado(nome);
-};
+// Auto-carimbo desativado: todas as etapas exigem assinatura manual.
+export const deveAutoAssinar = () => false;
 
 // Dado um signatário-fonte e a lista de cadastros, retorna os dados do destino
 // (Joselio Serur) para reatribuição do envelope.

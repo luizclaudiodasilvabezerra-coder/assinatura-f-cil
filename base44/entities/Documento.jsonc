@@ -95,6 +95,23 @@
       "type": "string",
       "title": "Cadastro do signat\u00e1rio"
     },
+    "fluxo_hierarquico": {
+      "type": "boolean",
+      "title": "Assinatura de origem, gestor e diretoria"
+    },
+    "signatario_origem_nome": {
+      "type": "string",
+      "title": "Signat\u00e1rio de origem"
+    },
+    "signatario_origem_email": {
+      "type": "string",
+      "format": "email",
+      "title": "E-mail do signat\u00e1rio de origem"
+    },
+    "signatario_origem_cadastro_id": {
+      "type": "string",
+      "title": "Cadastro do signat\u00e1rio de origem"
+    },
     "diretoria": {
       "type": "string",
       "title": "Diretoria de destino"

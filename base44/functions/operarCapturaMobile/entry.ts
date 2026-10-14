@@ -83,8 +83,7 @@ export default async function(req) {
       if (doc.destinatario_email) {
         waitUntil(base44.asServiceRole.functions.invoke("enviarAlertaDestinatario", { documentoId: doc.id }).catch(() => {}));
       }
-      // Auto-assina envelopes cujo signatário possui regra de redirecionamento (carimba todas as páginas e envia à diretoria)
-      waitUntil(base44.asServiceRole.functions.invoke("assinarAutomaticoGestao", { documentoId: doc.id }).catch(() => {}));
+      // O signatário de origem assina manualmente antes do envio ao gestor.
       return Response.json({ documento: doc, numero });
     }
 

@@ -7,6 +7,10 @@ const EMAIL_PARA_NOME = {
   "gilmar@logmam.com.br": "GILMAR PEREIRA",
   "faturas@logmam.com.br": "TAMIRES",
   "nf@logmam.com.br": "RAYANE",
+  "ana@logmam.com.br": "ANA BARCELLOS",
+  "anderson.duque@logmam.com.br": "ANDERSON DUQUE",
+  "matheus.santos@logmam.com.br": "MATHEUS SANTOS",
+  "joselio@logmam.com.br": "JOSELIO SERUR",
 };
 
 // Permissões por e-mail
@@ -17,6 +21,10 @@ const PERMISSOES = {
   "nf@logmam.com.br": { tipo: "operacional", podeCriarEnvelope: true, podeExcluirEnvelope: true, podeVerPainel: true, concluidos: ["financeiro"] },
   "financeiro@logmam.com.br": { tipo: "operacional", concluidos: ["fiscal", "financeiro"] },
   "gilmar@logmam.com.br": { tipo: "gestor" },
+  "ana@logmam.com.br": { tipo: "gestor", podeCriarEnvelope: true },
+  "anderson.duque@logmam.com.br": { tipo: "gestor", podeCriarEnvelope: true },
+  "matheus.santos@logmam.com.br": { tipo: "gestor", podeCriarEnvelope: true },
+  "joselio@logmam.com.br": { tipo: "gestor" },
   "jerusa.dias@logmam.com.br": { tipo: "operacional", concluidos: ["financeiro", "fiscal"] },
   "faturas@logmam.com.br": { tipo: "operacional", podeCriarEnvelope: true, podeExcluirEnvelope: true, podeVerPainel: true, concluidos: ["abastecimento"], criaCategoria: "abastecimento" },
 };
@@ -98,7 +106,7 @@ export const stagesPermitidos = (user) => {
   if (!p) return [];
   if (p.tipo === "admin") return ["all", "pendente_gestao", "assinado_gestao", "pendente_diretoria", "recusados"];
   if (p.tipo === "diretoria") return ["pendente_diretoria"];
-  if (p.tipo === "gestor") return ["pendente_gestao"];
+  if (p.tipo === "gestor") return ["pendente_gestao", "assinado_gestao"];
   if (p.tipo === "operacional") return p.podeVerPainel ? ["all", "pendente_gestao", "assinado_gestao", "pendente_diretoria", "recusados"] : [];
   return [];
 };

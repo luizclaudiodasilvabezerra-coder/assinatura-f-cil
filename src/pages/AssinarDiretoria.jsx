@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ArrowLeft, Loader2, FileText, CheckCircle2, Calendar, Upload, PenLine, Plus, Minus, ChevronRight, AlertTriangle, Download, ShieldCheck, Lock, Layers } from "lucide-react";
+import { ArrowLeft, Loader2, FileText, CheckCircle2, Calendar, Upload, PenLine, Plus, Minus, ChevronRight, AlertTriangle, Download, ShieldCheck, Lock, Layers, Ban } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import SignaturePad from "@/components/SignaturePad";
 import DocumentPositioner from "@/components/DocumentPositioner";
@@ -20,12 +20,18 @@ import { useAuth } from "@/lib/AuthContext";
 import { getPermissoes, nomeDoUsuario, nomeExibicao, diretoriaDoUsuario } from "@/lib/permissoes";
 import { loteDoArquivo, carimbarEUploadar } from "@/lib/carimbarLote";
 import LoteFolders from "@/components/LoteFolders";
+import { assinaturasGestaoAtivas } from "@/lib/fluxoAssinatura";
+import RecusaNFDialog from "@/components/RecusaNFDialog";
+import { Image } from "@/components/ui/image";
+import carregarAssinaturasEnvelope from "@/lib/assinaturasEnvelope";
 
 const isImage = (url) => url && /\.(png|jpe?g|webp|gif)$/i.test(url);
 const fileName = (url) => (url ? decodeURIComponent(url.split("/").pop() || "arquivo") : "Documento");
 
 export default function AssinarDiretoria() {
   const { id } = useParams();
+  const navigate = useNavigate();
+  const [showRecusa, setShowRecusa] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
   const padRef = useRef(null);
@@ -57,15 +63,15 @@ export default function AssinarDiretoria() {
   useEffect(() => {
     (async () => {
       try {
-        const [d, cad, s] = await Promise.all([
+        const [d, cad] = await Promise.all([
           base44.entities.Documento.get(id),
           base44.entities.Cadastro.list("-created_date", 200),
-          base44.entities.Assinatura.filter({ documento_id: id }, "-created_date", 100),
         ]);
+        const s = await carregarAssinaturasEnvelope(id, ["signatario", "master"]);
         setDoc(d);
         setCadastros(cad);
         setSigs(s);
-        const gestao = s.filter((x) => x.etapa === "signatario" && x.arquivo_url);
+        const gestao = assinaturasGestaoAtivas(d, s);
         const masters = s.filter((x) => x.etapa === "master");
         const map = {};
         gestao.forEach((g, i) => {
@@ -110,7 +116,7 @@ export default function AssinarDiretoria() {
     }
   }, [nome, cadastros]);
 
-  const gestaoSigs = useMemo(() => sigs.filter((s) => s.etapa === "signatario" && s.arquivo_url), [sigs]);
+  const gestaoSigs = useMemo(() => assinaturasGestaoAtivas(doc, sigs), [doc, sigs]);
   const diretoriaCadastros = useMemo(() => {
     const todos = cadastros.filter((c) => c.tipo === "diretoria");
     if (diretorIdentificado) {
@@ -208,6 +214,7 @@ export default function AssinarDiretoria() {
     if (pendentes.length === 0) { setSaving(false); toast({ title: "Todas as páginas deste lote já estão assinadas" }); return; }
 
     const newMap = { ...signedMap };
+    const novosRegistros = [];
     let ok = 0, falhou = 0;
     for (const idx of pendentes) {
       const sig = gestaoSigs[idx];
@@ -225,15 +232,20 @@ export default function AssinarDiretoria() {
           documento_id: id, documento_titulo: doc.titulo, arquivo_url: stampedUrl,
           arquivo_original_url: sig.arquivo_original_url || fileUrl,
           assinante_nome: nome, assinante_cadastro_id: cadastroId || undefined, imagem_url, tipo: modo,
-          etapa: "master", observacao, indent, pos_x: pos.x, pos_y: pos.y,
+          etapa: "master", autorizado, observacao, indent, pos_x: pos.x, pos_y: pos.y,
           unidade_negocio: doc.unidade_negocio || "", operacao: doc.operacao || "",
           status: "assinado", data_assinatura: new Date().toISOString(),
         });
         newMap[idx] = rec;
+        novosRegistros.push(rec);
         ok++;
       } catch { falhou++; }
     }
     setSignedMap(newMap);
+    setSigs((prev) => [...novosRegistros, ...prev.map((s) => {
+      const master = novosRegistros.find((m) => m.arquivo_original_url === s.arquivo_original_url);
+      return master && s.etapa === "signatario" ? { ...s, arquivo_url: master.arquivo_url } : s;
+    })]);
     setObservacao(""); setIndent(0); setAutorizado(false); setCritica(false);
     if (diretorIdentificado) {
       setNome(diretorIdentificado);
@@ -313,12 +325,13 @@ export default function AssinarDiretoria() {
         documento_id: id, documento_titulo: doc.titulo, arquivo_url: stampedUrl,
         arquivo_original_url: currentSig.arquivo_original_url || currentFile,
         assinante_nome: nome, assinante_cadastro_id: cadastroId || undefined, imagem_url, tipo: modo,
-        etapa: "master", observacao, indent, pos_x: pos.x, pos_y: pos.y,
+        etapa: "master", autorizado, observacao, indent, pos_x: pos.x, pos_y: pos.y,
         unidade_negocio: doc.unidade_negocio || "", operacao: doc.operacao || "",
         status: "assinado", data_assinatura: new Date().toISOString(),
       });
       const newMap = { ...signedMap, [currentIndex]: rec };
       setSignedMap(newMap);
+      setSigs((prev) => [rec, ...prev.map((s) => s.id === currentSig.id ? { ...s, arquivo_url: stampedUrl } : s)]);
       setObservacao(""); setIndent(0); setAutorizado(false); setCritica(false);
       if (diretorIdentificado) {
         setNome(diretorIdentificado);
@@ -347,6 +360,21 @@ export default function AssinarDiretoria() {
       }
     } catch { toast({ title: "Erro ao registrar assinatura", variant: "destructive" }); }
     finally { setSaving(false); }
+  };
+
+  const aposRecusa = (atualizado) => {
+    setDoc(atualizado);
+    const restantes = assinaturasGestaoAtivas(atualizado, sigs);
+    const map = {};
+    restantes.forEach((g, i) => {
+      const master = sigs.find((s) => s.etapa === "master" && s.arquivo_original_url === g.arquivo_original_url);
+      if (master) map[i] = master;
+    });
+    setSignedMap(map);
+    const next = restantes.findIndex((_, i) => !map[i]);
+    setCurrentIndex(next >= 0 ? next : 0);
+    if (!atualizado.arquivos.length) navigate("/");
+    if (atualizado.status === "assinado_diretoria") base44.functions.invoke("extrairDadosNF", { documento_id: id }).catch(() => {});
   };
 
   const validarSenha = (e) => {
@@ -404,6 +432,10 @@ export default function AssinarDiretoria() {
 
   if (doc.recusado) {
     return <EnvelopeRecusado doc={doc} assinaturas={sigs} />;
+  }
+
+  if (!["pendente_diretoria", "assinado_diretoria"].includes(doc.status)) {
+    return <div className="min-h-screen flex flex-col items-center justify-center gap-4 px-6"><p className="text-muted-foreground">Conclua as assinaturas anteriores e envie o envelope à diretoria antes de assinar.</p><Button asChild variant="outline"><Link to="/">Voltar ao painel</Link></Button></div>;
   }
 
   if (allSigned) {
@@ -482,7 +514,7 @@ export default function AssinarDiretoria() {
             ) : (
               <>
                 {currentFile && isImage(currentFile) ? (
-                  <img src={currentFile} alt="documento" className="w-full rounded-lg border border-border" />
+                  <Image src={currentFile} alt="documento" className="w-full rounded-lg border border-border" />
                 ) : (
                   <iframe src={currentFile} title="documento" className="w-full h-[600px] rounded-lg border border-border" />
                 )}
@@ -501,7 +533,7 @@ export default function AssinarDiretoria() {
                 <CardContent className="p-5 space-y-4">
                   <div className="flex items-center gap-2 text-emerald-700"><CheckCircle2 className="w-5 h-5" /><span className="font-medium">Arquivo assinado pela diretoria</span></div>
                   <div className="flex items-center gap-4">
-                    {currentSigned.imagem_url && (<img src={currentSigned.imagem_url} alt="assinatura" className="h-14 w-28 object-contain bg-white rounded border border-border" />)}
+                    {currentSigned.imagem_url && (<Image src={currentSigned.imagem_url} alt="assinatura" className="h-14 w-28 object-contain bg-white rounded border border-border" />)}
                     <div className="min-w-0">
                       <p className="font-medium truncate">{currentSigned.assinante_nome}</p>
                       {currentSigned.observacao && <p className="text-sm text-muted-foreground" style={{ paddingLeft: (currentSigned.indent || 0) * 14 }}>{currentSigned.observacao}</p>}
@@ -539,7 +571,7 @@ export default function AssinarDiretoria() {
                         <div className="space-y-2">
                           {imagemUpload ? (
                             <div className="flex items-center gap-3">
-                              <img src={imagemUpload} alt="assinatura" className="h-16 w-32 object-contain bg-white rounded border border-border" />
+                              <Image src={imagemUpload} alt="assinatura" className="h-16 w-32 object-contain bg-white rounded border border-border" />
                               <button type="button" onClick={() => setImagemUpload("")} className="text-xs text-destructive hover:underline">Remover</button>
                             </div>
                           ) : (
@@ -576,13 +608,17 @@ export default function AssinarDiretoria() {
                         {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Layers className="w-4 h-4" />} Carimbar todo o lote ({loteAtual.arquivos.length} arquivos)
                       </Button>
                     )}
-                  </CardContent>
-                </Card>
-              </>
-            )}
+                    <Button type="button" variant="outline" onClick={() => setShowRecusa(true)} disabled={saving} className="w-full gap-2">
+                      <Ban className="w-4 h-4" /> Recusar esta NF
+                    </Button>
+                    </CardContent>
+                    </Card>
+                    </>
+                    )}
           </div>
         </div>
       </div>
-    </div>
-  );
-}
+      <RecusaNFDialog open={showRecusa} onClose={() => setShowRecusa(false)} doc={doc} arquivoUrl={currentSig?.arquivo_original_url || currentFile} onRecusou={aposRecusa} />
+      </div>
+      );
+      }

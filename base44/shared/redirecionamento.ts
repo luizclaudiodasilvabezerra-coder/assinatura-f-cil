@@ -1,8 +1,5 @@
-// Regras de hierarquia de assinatura (compartilhado entre funções backend).
-// Signatários-fonte (Anderson/Ana/Matheus) têm suas assinaturas automaticamente carimbadas
-// no momento da criação do envelope. O envelope é então reatribuído ao destino (Joselio
-// Serur), que assina MANUALMENTE sobre o PDF já carimbado, avançando em seguida para a
-// diretoria.
+// Hierarquia manual: origem assina com observação, Joselio autoriza e assina,
+// e somente depois o envelope segue para a diretoria.
 export const REDIRECIONAMENTO_SIGNATARIOS = {
   "ANA BARCELLOS": "JOSELIO SERUR",
   "ANDERSON DUQUE": "JOSELIO SERUR",
@@ -22,10 +19,5 @@ export const isRedirectTarget = (nome) => {
   return Object.values(REDIRECIONAMENTO_SIGNATARIOS).includes(n) ? n : null;
 };
 
-// Retorna o nome do signatário-fonte cuja assinatura deve ser carimbada automaticamente,
-// ou null quando não há auto-assinatura. Apenas FONTE dispara auto-carimbo; o destino
-// (Joselio Serur) assina manualmente após o redirecionamento.
-export const resolverAutoAssinatura = (nome) => {
-  if (signatarioRedirecionado(nome)) return normNome(nome);
-  return null;
-};
+// Mantido por compatibilidade; a assinatura automática está desativada.
+export const resolverAutoAssinatura = () => null;
