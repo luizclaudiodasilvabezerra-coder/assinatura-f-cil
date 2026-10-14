@@ -29,6 +29,7 @@ export default function NovoDocumento() {
   const [pendDuplicidade, setPendDuplicidade] = useState(null);
   const [verificando, setVerificando] = useState(false);
   const [criandoDocumento, setCriandoDocumento] = useState(false);
+  const [hashMap, setHashMap] = useState({});
   const [arquivosIndividuais, setArquivosIndividuais] = useState([]);
   const [uploadingIndividual, setUploadingIndividual] = useState(false);
   const fileInputRef = useRef(null);
@@ -112,7 +113,13 @@ export default function NovoDocumento() {
       const uploaded = await Promise.all(
         allFiles.map((file) => base44.integrations.Core.UploadFile({ file }))
       );
+      const hashes = await Promise.all(allFiles.map((file) => hashFile(file)));
       const urls = uploaded.map((u) => u.file_url);
+      setHashMap((prev) => {
+        const next = { ...prev };
+        uploaded.forEach((u, i) => { next[u.file_url] = hashes[i]; });
+        return next;
+      });
       if (loteAtivo !== null) {
         setLotes((prev) => prev.map((l, i) => i === loteAtivo ? { ...l, arquivos: [...l.arquivos, ...urls] } : l));
       }
@@ -157,7 +164,13 @@ export default function NovoDocumento() {
       const uploaded = await Promise.all(
         allFiles.map((file) => base44.integrations.Core.UploadFile({ file }))
       );
+      const hashes = await Promise.all(allFiles.map((file) => hashFile(file)));
       const urls = uploaded.map((u) => u.file_url);
+      setHashMap((prev) => {
+        const next = { ...prev };
+        uploaded.forEach((u, i) => { next[u.file_url] = hashes[i]; });
+        return next;
+      });
       setArquivosIndividuais((prev) => [...prev, ...urls]);
       toast({ title: `${uploaded.length} arquivo(s) enviado(s)` });
     } catch {
@@ -174,16 +187,34 @@ export default function NovoDocumento() {
 
   const fileName = (url) => (url ? decodeURIComponent(url.split("/").pop() || "arquivo").slice(0, 40) : "arquivo");
 
+  const hashFile = async (file) => {
+    try {
+      const buf = await file.arrayBuffer();
+      const digest = await crypto.subtle.digest("SHA-256", buf);
+      return Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, "0")).join("");
+    } catch { return ""; }
+  };
+
   const criarDocumento = async (allArquivos, arquivosNf) => {
     const all = await base44.entities.Documento.list("-created_date", 1000);
-    const numero = `ENV-${String((all.length || 0) + 1).padStart(4, "0")}`;
+    // Número do envelope: maior número existente + 1, garantindo unicidade (não depende da contagem).
+    const usados = new Set(all.map((d) => d.numero).filter(Boolean));
+    const maxNum = all.reduce((m, d) => {
+      const mt = (d.numero || "").match(/ENV-(\d+)/);
+      return Math.max(m, mt ? parseInt(mt[1], 10) : 0);
+    }, 0);
+    let seq = maxNum + 1;
+    let numero = `ENV-${String(seq).padStart(4, "0")}`;
+    while (usados.has(numero)) { seq += 1; numero = `ENV-${String(seq).padStart(4, "0")}`; }
     const numerosNf = (arquivosNf || []).map((a) => a.numero_nf).filter(Boolean);
+    const arquivosHash = (arquivosNf || []).map((a) => a.hash).filter(Boolean);
     const created = await base44.entities.Documento.create({
       ...form,
       numero,
       arquivos: allArquivos,
       arquivos_nf: arquivosNf && arquivosNf.length ? arquivosNf : undefined,
       numeros_nf: numerosNf.length ? numerosNf : undefined,
+      arquivos_hash: arquivosHash.length ? arquivosHash : undefined,
       lotes: lotes.length > 0 ? lotes : undefined,
       status: "pendente_gestao",
       pasta: "pendente",
@@ -228,7 +259,9 @@ export default function NovoDocumento() {
       let resultados = [];
       let duplicidades = [];
       try {
-        const verif = await base44.functions.invoke("verificarDuplicidadeNF", { arquivos: allArquivos });
+        const verif = await base44.functions.invoke("verificarDuplicidadeNF", {
+          arquivos: allArquivos.map((url) => ({ url, hash: hashMap[url] || "" }))
+        });
         resultados = (verif && verif.resultados) || [];
         duplicidades = (verif && verif.duplicidades) || [];
       } catch {

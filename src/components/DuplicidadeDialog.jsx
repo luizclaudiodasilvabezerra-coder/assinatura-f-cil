@@ -22,10 +22,10 @@ export default function DuplicidadeDialog({ open, duplicidades = [], onConfirm, 
           {duplicidades.map((d, i) => (
             <div key={i} className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm">
               <div className="font-medium text-amber-900">
-                NF {d.numero_nf} · {fileName(d.arquivo_novo)}
+                {d.numero_nf ? `NF ${d.numero_nf} · ` : ""}{fileName(d.arquivo_novo)}
               </div>
               <div className="text-amber-800 mt-1">
-                Já existe no envelope <strong>{d.existente_documento_titulo || "—"}</strong>
+                {d.criterio ? `${d.criterio} — ` : ""}já existe no envelope <strong>{d.existente_documento_titulo || "—"}</strong>
                 {d.existente_numero ? ` (${d.existente_numero})` : ""}
                 {d.existente_status ? ` · ${d.existente_status.replace(/_/g, " ")}` : ""}
               </div>

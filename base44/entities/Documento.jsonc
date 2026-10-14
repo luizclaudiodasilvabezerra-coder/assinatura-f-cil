@@ -33,6 +33,10 @@
             "format": "uri",
             "title": "Arquivo"
           },
+          "hash": {
+            "type": "string",
+            "title": "Hash do conte\u00fado (SHA-256)"
+          },
           "numero_nf": {
             "type": "string",
             "title": "N\u00famero da NF/boleto"
@@ -47,6 +51,13 @@
     "numeros_nf": {
       "type": "array",
       "title": "N\u00fameros de NF/boleto (\u00edndice de duplicidade)",
+      "items": {
+        "type": "string"
+      }
+    },
+    "arquivos_hash": {
+      "type": "array",
+      "title": "Hashes de conte\u00fado (\u00edndice de duplicidade)",
       "items": {
         "type": "string"
       }
