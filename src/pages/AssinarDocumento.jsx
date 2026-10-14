@@ -25,6 +25,7 @@ import AutorizacaoAssinatura from "@/components/AutorizacaoAssinatura";
 import RecusaNFDialog from "@/components/RecusaNFDialog";
 import { Image } from "@/components/ui/image";
 import carregarAssinaturasEnvelope from "@/lib/assinaturasEnvelope";
+import { detectarPosicaoAssinatura } from "@/lib/posicionamentoAssinatura";
 
 const isImage = (url) => url && /\.(png|jpe?g|webp|gif)$/i.test(url);
 const fileName = (url) => (url ? decodeURIComponent(url.split("/").pop() || "arquivo") : "Documento");
@@ -63,6 +64,8 @@ export default function AssinarDocumento() {
   const [indent, setIndent] = useState(0);
   const [imagemUpload, setImagemUpload] = useState("");
   const [pos, setPos] = useState({ x: 3, y: 90 });
+  const detCtxRef = useRef({});
+  const autoPosDoneRef = useRef(false);
   const [unidade, setUnidade] = useState("");
   const [operacao, setOperacao] = useState("");
 
@@ -109,6 +112,17 @@ export default function AssinarDocumento() {
   const currentSigned = signedMap[currentIndex];
   const allSigned = arquivos.length > 0 && arquivos.every((_, i) => signedMap[i]);
   const gestaoDone = allSigned;
+
+  // Posicionamento automático: espaço em branco no rodapé (espelho das assinaturas existentes).
+  // Se não encontrar, mantém o padrão e o usuário arrasta manualmente.
+  detCtxRef.current = { currentFile, existentes, lado: "esquerda" };
+  const handleCanvasReady = (canvas) => {
+    if (autoPosDoneRef.current || !currentFile) return;
+    autoPosDoneRef.current = true;
+    const mesmos = (existentes || []).filter((a) => (a.arquivo_original_url || a.arquivo_url) === currentFile);
+    const res = detectarPosicaoAssinatura(canvas, { assinaturasMesmoArquivo: mesmos, ladoPreferido: "esquerda" });
+    if (res) setPos(res);
+  };
 
   const onCadastroChange = (e) => {
     const c = cadastros.find((x) => x.id === e.target.value);
@@ -488,7 +502,7 @@ export default function AssinarDocumento() {
         <div className="grid lg:grid-cols-12 gap-4">
           <div className="space-y-3 lg:col-span-8">
             <p className="text-sm font-medium">{currentSigned ? "Arquivo já assinado" : `Assinando: ${fileName(currentFile)}`}</p>
-            <DocumentPositioner fileUrl={currentFile} blocks={positionerBlocks} onMove={(bid, x, y) => setPos({ x, y })} />
+            <DocumentPositioner fileUrl={currentFile} blocks={positionerBlocks} onMove={(bid, x, y) => setPos({ x, y })} onCanvasReady={handleCanvasReady} />
             {!currentSigned && (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <CheckCircle2 className="w-4 h-4 text-emerald-600" />

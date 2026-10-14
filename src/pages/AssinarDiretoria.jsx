@@ -24,6 +24,7 @@ import { assinaturasGestaoAtivas } from "@/lib/fluxoAssinatura";
 import RecusaNFDialog from "@/components/RecusaNFDialog";
 import { Image } from "@/components/ui/image";
 import carregarAssinaturasEnvelope from "@/lib/assinaturasEnvelope";
+import { detectarPosicaoAssinatura } from "@/lib/posicionamentoAssinatura";
 
 const isImage = (url) => url && /\.(png|jpe?g|webp|gif)$/i.test(url);
 const fileName = (url) => (url ? decodeURIComponent(url.split("/").pop() || "arquivo") : "Documento");
@@ -59,6 +60,8 @@ export default function AssinarDiretoria() {
   const [indent, setIndent] = useState(0);
   const [imagemUpload, setImagemUpload] = useState("");
   const [pos, setPos] = useState({ x: 3, y: 90 });
+  const detCtxRef = useRef({});
+  const autoPosDoneRef = useRef(false);
 
   useEffect(() => {
     (async () => {
@@ -132,6 +135,17 @@ export default function AssinarDiretoria() {
   const currentSigned = signedMap[currentIndex];
   const allSigned = arquivos.length > 0 && arquivos.every((_, i) => signedMap[i]);
   const loteAtual = useMemo(() => loteDoArquivo(doc?.lotes, currentSig?.arquivo_original_url || currentFile), [doc, currentSig, currentFile]);
+
+  // Posicionamento automático: espaço em branco no rodapé, espelhando a assinatura da gestão já presente.
+  // Se não encontrar, mantém o padrão e o usuário arrasta manualmente.
+  detCtxRef.current = { currentFile, existentes: sigs, lado: "direita" };
+  const handleCanvasReady = (canvas) => {
+    if (autoPosDoneRef.current || !currentFile) return;
+    autoPosDoneRef.current = true;
+    const mesmos = (sigs || []).filter((a) => (a.arquivo_original_url || a.arquivo_url) === currentFile);
+    const res = detectarPosicaoAssinatura(canvas, { assinaturasMesmoArquivo: mesmos, ladoPreferido: "direita" });
+    if (res) setPos(res);
+  };
 
   const onCadastroChange = (e) => {
     const c = diretoriaCadastros.find((x) => x.id === e.target.value);
@@ -514,7 +528,7 @@ export default function AssinarDiretoria() {
               <DocumentPositioner fileUrl={currentFile} blocks={positionerBlocks} onMove={() => {}} />
             ) : (
               <>
-                <DocumentPositioner fileUrl={currentFile} blocks={pendingBlock} onMove={(bid, x, y) => setPos({ x, y })} />
+                <DocumentPositioner fileUrl={currentFile} blocks={pendingBlock} onMove={(bid, x, y) => setPos({ x, y })} onCanvasReady={handleCanvasReady} />
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <CheckCircle2 className="w-4 h-4 text-emerald-600" />
                   Não concorda com a posição? Arraste o bloco de assinatura para ajustá-la na página.
