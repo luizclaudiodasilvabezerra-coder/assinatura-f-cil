@@ -489,6 +489,12 @@ export default function AssinarDocumento() {
           <div className="space-y-3 lg:col-span-8">
             <p className="text-sm font-medium">{currentSigned ? "Arquivo já assinado" : `Assinando: ${fileName(currentFile)}`}</p>
             <DocumentPositioner fileUrl={currentFile} blocks={positionerBlocks} onMove={(bid, x, y) => setPos({ x, y })} />
+            {!currentSigned && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                Não concorda com a posição? Arraste o bloco de assinatura para ajustá-la na página.
+              </div>
+            )}
             {currentFile && !isImage(currentFile) && (<a href={currentFile} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-sm text-blue-600 hover:underline"><FileText className="w-4 h-4" /> Abrir arquivo em nova aba</a>)}
           </div>
 
