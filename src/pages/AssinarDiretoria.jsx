@@ -222,7 +222,7 @@ export default function AssinarDiretoria() {
       let stampedUrl = fileUrl;
       try {
         stampedUrl = await carimbarEUploadar({
-          fileUrl, imagemUrl: imagem_url, pos, autoPosition: true, lado: "direita", prefixo: "diretoria",
+          fileUrl, imagemUrl: imagem_url, pos, lado: "direita", prefixo: "diretoria",
           nome, observacao, operacao: doc.operacao || "", unidade: doc.unidade_negocio || "", indent,
         });
       } catch { falhou++; continue; }
@@ -296,7 +296,7 @@ export default function AssinarDiretoria() {
       let stampRes;
       try {
         stampRes = await base44.functions.invoke("carimbarPdf", {
-          fileUrl: currentFile, imagemUrl: imagem_url, autoPosition: true,
+          fileUrl: currentFile, imagemUrl: imagem_url,
           posX: pos.x, posY: pos.y, lado: "direita",
           nome, data: new Date().toLocaleString("pt-BR"),
           observacao, operacao: doc.operacao || "", unidade: doc.unidade_negocio || "", indent,
@@ -474,6 +474,7 @@ export default function AssinarDiretoria() {
   }
 
   const positionerBlocks = currentSigned ? [{ id: currentSigned.id, nome: currentSigned.assinante_nome, imagem_url: currentSigned.imagem_url, observacao: currentSigned.observacao, indent: currentSigned.indent || 0, pos_x: currentSigned.pos_x ?? 3, pos_y: currentSigned.pos_y ?? 90, draggable: false }] : [];
+  const pendingBlock = !currentSigned && nome ? [{ id: "pending", nome, imagem_url: imagemUpload || "", observacao, indent, pos_x: pos.x, pos_y: pos.y, draggable: true }] : [];
 
   return (
     <div className="min-h-screen bg-background">
@@ -513,14 +514,10 @@ export default function AssinarDiretoria() {
               <DocumentPositioner fileUrl={currentFile} blocks={positionerBlocks} onMove={() => {}} />
             ) : (
               <>
-                {currentFile && isImage(currentFile) ? (
-                  <Image src={currentFile} alt="documento" className="w-full rounded-lg border border-border" />
-                ) : (
-                  <iframe src={currentFile} title="documento" className="w-full h-[600px] rounded-lg border border-border" />
-                )}
+                <DocumentPositioner fileUrl={currentFile} blocks={pendingBlock} onMove={(bid, x, y) => setPos({ x, y })} />
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                  A assinatura será posicionada automaticamente em uma área em branco do documento.
+                  Não concorda com a posição? Arraste o bloco de assinatura para ajustá-la na página.
                 </div>
               </>
             )}
