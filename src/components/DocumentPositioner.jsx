@@ -8,7 +8,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 const isImage = (url) => url && /\.(png|jpe?g|webp|gif)$/i.test(url);
 const isPdf = (url) => url && /\.pdf$/i.test(url);
 
-export default function DocumentPositioner({ fileUrl, blocks, onMove }) {
+export default function DocumentPositioner({ fileUrl, blocks, onMove, onCanvasReady }) {
   const outerRef = useRef(null);
   const containerRef = useRef(null);
   const canvasRef = useRef(null);
@@ -52,7 +52,7 @@ export default function DocumentPositioner({ fileUrl, blocks, onMove }) {
         // Limpa o canvas antes de renderizar (evita artefatos de arquivo anterior)
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         await page.render({ canvasContext: ctx, viewport }).promise;
-        if (!cancelled) { setPdfSize({ w: viewport.width, h: viewport.height }); setPdfLoading(false); }
+        if (!cancelled) { setPdfSize({ w: viewport.width, h: viewport.height }); setPdfLoading(false); if (onCanvasReady && canvas) onCanvasReady(canvas); }
         await pdf.destroy();
       } catch (err) {
         console.error("[DocumentPositioner] Falha ao renderizar PDF:", err);
