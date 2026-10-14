@@ -12,6 +12,7 @@ import { useAuth } from "@/lib/AuthContext";
 import { podeCriarEnvelope, categoriaEnvelopeDoUsuario, nomeDoUsuario } from "@/lib/permissoes";
 import { signatarioRedirecionado } from "@/lib/redirecionamentoAssinatura";
 import CapturaMobileDialog from "@/components/CapturaMobileDialog";
+import DuplicidadeDialog from "@/components/DuplicidadeDialog";
 import { splitPdfIfNeeded } from "@/lib/pdfSplit";
 
 export default function NovoDocumento() {
@@ -24,6 +25,10 @@ export default function NovoDocumento() {
   const [loteAtivo, setLoteAtivo] = useState(null);
   const [cadastros, setCadastros] = useState([]);
   const [capturaMobileOpen, setCapturaMobileOpen] = useState(false);
+  const [showDuplicidade, setShowDuplicidade] = useState(false);
+  const [pendDuplicidade, setPendDuplicidade] = useState(null);
+  const [verificando, setVerificando] = useState(false);
+  const [criandoDocumento, setCriandoDocumento] = useState(false);
   const [arquivosIndividuais, setArquivosIndividuais] = useState([]);
   const [uploadingIndividual, setUploadingIndividual] = useState(false);
   const fileInputRef = useRef(null);
@@ -169,40 +174,79 @@ export default function NovoDocumento() {
 
   const fileName = (url) => (url ? decodeURIComponent(url.split("/").pop() || "arquivo").slice(0, 40) : "arquivo");
 
+  const criarDocumento = async (allArquivos, arquivosNf) => {
+    const all = await base44.entities.Documento.list("-created_date", 1000);
+    const numero = `ENV-${String((all.length || 0) + 1).padStart(4, "0")}`;
+    const numerosNf = (arquivosNf || []).map((a) => a.numero_nf).filter(Boolean);
+    const created = await base44.entities.Documento.create({
+      ...form,
+      numero,
+      arquivos: allArquivos,
+      arquivos_nf: arquivosNf && arquivosNf.length ? arquivosNf : undefined,
+      numeros_nf: numerosNf.length ? numerosNf : undefined,
+      lotes: lotes.length > 0 ? lotes : undefined,
+      status: "pendente_gestao",
+      pasta: "pendente",
+      fluxo_hierarquico: !!signatarioRedirecionado(form.signatario_nome),
+      categoria: form.categoria,
+    });
+
+    toast({ title: "Envelope criado", description: signatarioRedirecionado(form.signatario_nome) ? "Assine e coloque observação nas páginas antes de enviar a Joselio Serur." : numero });
+
+    if (created && created.destinatario_email) {
+      base44.functions.invoke("enviarAlertaDestinatario", { documentoId: created.id }).catch(() => {});
+    }
+    navigate("/");
+  };
+
+  const confirmarDuplicidade = async () => {
+    if (!pendDuplicidade) return;
+    setCriandoDocumento(true);
+    try {
+      await criarDocumento(pendDuplicidade.allArquivos, pendDuplicidade.resultados);
+    } catch {
+      toast({ title: "Erro ao criar envelope", variant: "destructive" });
+    } finally {
+      setCriandoDocumento(false);
+      setShowDuplicidade(false);
+    }
+  };
+
   const submit = async (e) => {
     e.preventDefault();
     if (!form.titulo.trim()) return;
     setSaving(true);
+    setVerificando(true);
     try {
       const allArquivos = [...arquivosIndividuais, ...lotes.flatMap((l) => l.arquivos)];
       if (allArquivos.length === 0) {
         toast({ title: "Anexe ao menos um arquivo", variant: "destructive" });
-        setSaving(false);
         return;
       }
-      const all = await base44.entities.Documento.list("-created_date", 1000);
-      const numero = `ENV-${String((all.length || 0) + 1).padStart(4, "0")}`;
-      const created = await base44.entities.Documento.create({
-        ...form,
-        numero,
-        arquivos: allArquivos,
-        lotes: lotes.length > 0 ? lotes : undefined,
-        status: "pendente_gestao",
-        pasta: "pendente",
-        fluxo_hierarquico: !!signatarioRedirecionado(form.signatario_nome),
-        categoria: form.categoria,
-      });
 
-      toast({ title: "Envelope criado", description: signatarioRedirecionado(form.signatario_nome) ? "Assine e coloque observação nas páginas antes de enviar a Joselio Serur." : numero });
-
-      if (created && created.destinatario_email) {
-        base44.functions.invoke("enviarAlertaDestinatario", { documentoId: created.id }).catch(() => {});
+      // Varredura de duplicidade em envelopes assinados e pendentes.
+      let resultados = [];
+      let duplicidades = [];
+      try {
+        const verif = await base44.functions.invoke("verificarDuplicidadeNF", { arquivos: allArquivos });
+        resultados = (verif && verif.resultados) || [];
+        duplicidades = (verif && verif.duplicidades) || [];
+      } catch {
+        // Se a verificação falhar, segue sem bloquear a criação.
       }
-      navigate("/");
+
+      if (duplicidades.length > 0) {
+        setPendDuplicidade({ resultados, duplicidades, allArquivos });
+        setShowDuplicidade(true);
+        return;
+      }
+
+      await criarDocumento(allArquivos, resultados);
     } catch {
       toast({ title: "Erro ao criar envelope", variant: "destructive" });
     } finally {
       setSaving(false);
+      setVerificando(false);
     }
   };
 
@@ -409,7 +453,7 @@ export default function NovoDocumento() {
               <div className="flex flex-col sm:flex-row justify-end gap-2 pt-2">
                 <Button type="submit" disabled={saving || (arquivosIndividuais.length === 0 && lotes.flatMap((l) => l.arquivos).length === 0)} className="gap-2">
                   {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-                  Criar envelope
+                  {verificando ? "Verificando duplicidade…" : "Criar envelope"}
                 </Button>
               </div>
             </form>
@@ -422,6 +466,13 @@ export default function NovoDocumento() {
         formData={form}
         arquivosIniciais={arquivosIndividuais}
         onConcluido={() => navigate("/")}
+      />
+      <DuplicidadeDialog
+        open={showDuplicidade}
+        duplicidades={pendDuplicidade?.duplicidades || []}
+        criando={criandoDocumento}
+        onCancel={() => { setShowDuplicidade(false); setPendDuplicidade(null); }}
+        onConfirm={confirmarDuplicidade}
       />
     </div>
   );

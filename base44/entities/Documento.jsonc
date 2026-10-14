@@ -22,6 +22,35 @@
         "format": "uri"
       }
     },
+    "arquivos_nf": {
+      "type": "array",
+      "title": "Dados extra\u00eddos por arquivo (NF/boleto)",
+      "items": {
+        "type": "object",
+        "properties": {
+          "arquivo": {
+            "type": "string",
+            "format": "uri",
+            "title": "Arquivo"
+          },
+          "numero_nf": {
+            "type": "string",
+            "title": "N\u00famero da NF/boleto"
+          },
+          "emitente": {
+            "type": "string",
+            "title": "Emitente"
+          }
+        }
+      }
+    },
+    "numeros_nf": {
+      "type": "array",
+      "title": "N\u00fameros de NF/boleto (\u00edndice de duplicidade)",
+      "items": {
+        "type": "string"
+      }
+    },
     "lotes": {
       "type": "array",
       "title": "Lotes do envelope",
