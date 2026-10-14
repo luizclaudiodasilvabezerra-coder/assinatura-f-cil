@@ -37,7 +37,7 @@ export const exigirAssinaturas = (doc, sigs, parcial) => {
   if (!completos.length || !completos.some(Boolean) || ((!parcial || hierarquico) && completos.some((s) => !s || !s.observacao?.trim()))) {
     throw new Error('Assine e informe a observação em todas as páginas antes de encaminhar.');
   }
-  if (isRedirectTarget(doc.signatario_nome) && completos.some((s) => !s?.autorizado || s.observacao !== 'Autorizado')) {
+  if (isRedirectTarget(doc.signatario_nome) && completos.some((s) => !s?.autorizado || !(s.observacao || '').startsWith('Autorizado'))) {
     throw new Error('Joselio deve marcar Autorizado e assinar todas as páginas antes do envio à diretoria.');
   }
   return completos;

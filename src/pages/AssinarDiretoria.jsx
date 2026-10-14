@@ -589,7 +589,7 @@ export default function AssinarDiretoria() {
                     <div className="space-y-2">
                       <Label htmlFor="obs">Caixa de observações *</Label>
                       <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
-                        <Checkbox checked={autorizado} onCheckedChange={(v) => { setAutorizado(!!v); if (v) { setObservacao("Autorizado"); setIndent(0); setCritica(false); } else { setObservacao(""); } }} />
+                        <Checkbox checked={autorizado} onCheckedChange={(v) => { setAutorizado(!!v); if (v) { setObservacao(`Autorizado ${new Date().toLocaleDateString("pt-BR")}`); setIndent(0); setCritica(false); } else { setObservacao(""); } }} />
                         Autorizado
                       </label>
                       <div className="flex items-center justify-between">

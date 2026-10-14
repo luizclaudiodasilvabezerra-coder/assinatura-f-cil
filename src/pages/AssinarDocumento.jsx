@@ -577,7 +577,7 @@ export default function AssinarDocumento() {
                           <Button type="button" variant="outline" size="icon" className="h-7 w-7" onClick={() => setIndent((v) => Math.min(6, v + 1))} disabled={autorizado}><Plus className="w-3.5 h-3.5" /></Button>
                         </div>
                       </div>
-                      {autorizacaoGestor && <AutorizacaoAssinatura checked={autorizado} onChange={(value) => { setAutorizado(value); setObservacao(value ? "Autorizado" : ""); setIndent(0); setCritica(false); }} />}
+                      {autorizacaoGestor && <AutorizacaoAssinatura checked={autorizado} onChange={(value) => { setAutorizado(value); setObservacao(value ? `Autorizado ${new Date().toLocaleDateString("pt-BR")}` : ""); setIndent(0); setCritica(false); }} />}
                       <Textarea id="observacao" ref={obsRef} value={observacao} disabled={autorizado} onChange={(e) => { setObservacao(e.target.value); if (e.target.value.trim()) setCritica(false); }} rows={2} style={{ paddingLeft: 8 + indent * 14 }} placeholder="Observação que aparece sob a assinatura" />
                     </div>
                     <Button type="button" disabled={saving} onClick={assinarArquivo} className="w-full gap-2">{saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Pen className="w-4 h-4" />} Assinar este arquivo e avançar</Button>
