@@ -104,20 +104,23 @@ export default function NovoDocumento() {
     if (!files.length) return;
     setUploading(true);
     try {
-      // Divide PDFs multipáginas em arquivos individuais antes do upload
+      // Divide PDFs multipáginas em arquivos individuais antes do upload.
+      // O hash é calculado sobre o arquivo ORIGINAL (estável entre envios), e não
+      // sobre as páginas divididas (cujo conteúdo muda a cada rasterização).
       const allFiles = [];
+      const origHashes = [];
       for (const file of files) {
+        const origHash = await hashFile(file);
         const split = await splitPdfIfNeeded(file);
-        allFiles.push(...split);
+        split.forEach((s) => { allFiles.push(s); origHashes.push(origHash); });
       }
       const uploaded = await Promise.all(
         allFiles.map((file) => base44.integrations.Core.UploadFile({ file }))
       );
-      const hashes = await Promise.all(allFiles.map((file) => hashFile(file)));
       const urls = uploaded.map((u) => u.file_url);
       setHashMap((prev) => {
         const next = { ...prev };
-        uploaded.forEach((u, i) => { next[u.file_url] = hashes[i]; });
+        uploaded.forEach((u, i) => { next[u.file_url] = origHashes[i]; });
         return next;
       });
       if (loteAtivo !== null) {
@@ -157,18 +160,19 @@ export default function NovoDocumento() {
     setUploadingIndividual(true);
     try {
       const allFiles = [];
+      const origHashes = [];
       for (const file of files) {
+        const origHash = await hashFile(file);
         const split = await splitPdfIfNeeded(file);
-        allFiles.push(...split);
+        split.forEach((s) => { allFiles.push(s); origHashes.push(origHash); });
       }
       const uploaded = await Promise.all(
         allFiles.map((file) => base44.integrations.Core.UploadFile({ file }))
       );
-      const hashes = await Promise.all(allFiles.map((file) => hashFile(file)));
       const urls = uploaded.map((u) => u.file_url);
       setHashMap((prev) => {
         const next = { ...prev };
-        uploaded.forEach((u, i) => { next[u.file_url] = hashes[i]; });
+        uploaded.forEach((u, i) => { next[u.file_url] = origHashes[i]; });
         return next;
       });
       setArquivosIndividuais((prev) => [...prev, ...urls]);
