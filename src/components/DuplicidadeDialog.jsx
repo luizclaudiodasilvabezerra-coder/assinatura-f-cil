@@ -7,14 +7,14 @@ const fileName = (url) => (url ? decodeURIComponent(url.split("/").pop() || "arq
 
 export default function DuplicidadeDialog({ open, duplicidades = [], onConfirm, onCancel, criando }) {
   return (
-    <Dialog open={open} onOpenChange={(o) => !o && onCancel()}>
+    <Dialog open={open} onOpenChange={(o) => !o && !criando && onCancel()}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <AlertTriangle className="w-5 h-5 text-amber-500" /> Duplicidade detectada
           </DialogTitle>
           <DialogDescription>
-            Foram encontradas NFs/boletos já anexados em outros envelopes (assinados ou pendentes). Revise a crítica antes de prosseguir.
+            Arquivos constam no envelope {Array.from(new Set(duplicidades.map((d) => d.existente_numero || d.existente_documento_titulo))).join(", ")}. Seguir com a criação?
           </DialogDescription>
         </DialogHeader>
 
@@ -34,10 +34,10 @@ export default function DuplicidadeDialog({ open, duplicidades = [], onConfirm, 
         </div>
 
         <DialogFooter className="gap-2">
-          <Button variant="outline" onClick={onCancel} disabled={criando}>Cancelar</Button>
+          <Button variant="outline" onClick={onCancel} disabled={criando}>Não</Button>
           <Button onClick={onConfirm} disabled={criando} className="gap-2">
             {criando ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-            Criar mesmo assim
+            {criando ? "Criando…" : "Sim"}
           </Button>
         </DialogFooter>
       </DialogContent>

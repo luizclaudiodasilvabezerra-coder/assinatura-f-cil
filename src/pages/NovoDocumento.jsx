@@ -14,6 +14,7 @@ import { signatarioRedirecionado } from "@/lib/redirecionamentoAssinatura";
 import CapturaMobileDialog from "@/components/CapturaMobileDialog";
 import DuplicidadeDialog from "@/components/DuplicidadeDialog";
 import { splitPdfIfNeeded } from "@/lib/pdfSplit";
+import { verificarArquivosEnvelope } from "@/lib/verificarArquivosEnvelope";
 
 export default function NovoDocumento() {
   const navigate = useNavigate();
@@ -34,6 +35,7 @@ export default function NovoDocumento() {
   const [uploadingIndividual, setUploadingIndividual] = useState(false);
   const fileInputRef = useRef(null);
   const individualInputRef = useRef(null);
+  const submitEmAndamento = useRef(false);
   const [form, setForm] = useState({
     titulo: "",
     descricao: "",
@@ -192,11 +194,9 @@ export default function NovoDocumento() {
   const fileName = (url) => (url ? decodeURIComponent(url.split("/").pop() || "arquivo").slice(0, 40) : "arquivo");
 
   const hashFile = async (file) => {
-    try {
-      const buf = await file.arrayBuffer();
-      const digest = await crypto.subtle.digest("SHA-256", buf);
-      return Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, "0")).join("");
-    } catch { return ""; }
+    const buf = await file.arrayBuffer();
+    const digest = await crypto.subtle.digest("SHA-256", buf);
+    return Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, "0")).join("");
   };
 
   const criarDocumento = async (allArquivos, arquivosNf) => {
@@ -235,21 +235,25 @@ export default function NovoDocumento() {
   };
 
   const confirmarDuplicidade = async () => {
-    if (!pendDuplicidade) return;
+    if (!pendDuplicidade || submitEmAndamento.current) return;
+    submitEmAndamento.current = true;
     setCriandoDocumento(true);
     try {
       await criarDocumento(pendDuplicidade.allArquivos, pendDuplicidade.resultados);
+      setShowDuplicidade(false);
+      setPendDuplicidade(null);
     } catch {
       toast({ title: "Erro ao criar envelope", variant: "destructive" });
     } finally {
+      submitEmAndamento.current = false;
       setCriandoDocumento(false);
-      setShowDuplicidade(false);
     }
   };
 
   const submit = async (e) => {
     e.preventDefault();
-    if (!form.titulo.trim()) return;
+    if (!form.titulo.trim() || submitEmAndamento.current || showDuplicidade || uploading || uploadingIndividual) return;
+    submitEmAndamento.current = true;
     setSaving(true);
     setVerificando(true);
     try {
@@ -259,18 +263,9 @@ export default function NovoDocumento() {
         return;
       }
 
-      // Varredura de duplicidade em envelopes assinados e pendentes.
-      let resultados = [];
-      let duplicidades = [];
-      try {
-        const verif = await base44.functions.invoke("verificarDuplicidadeNF", {
-          arquivos: allArquivos.map((url) => ({ url, hash: hashMap[url] || "" }))
-        });
-        resultados = (verif && verif.resultados) || [];
-        duplicidades = (verif && verif.duplicidades) || [];
-      } catch {
-        // Se a verificação falhar, segue sem bloquear a criação.
-      }
+      // A verificação deve concluir antes de qualquer criação.
+      // O conteúdo da resposta do serviço está em response.data, não na resposta externa.
+      const { resultados, duplicidades } = await verificarArquivosEnvelope(allArquivos, hashMap);
 
       if (duplicidades.length > 0) {
         setPendDuplicidade({ resultados, duplicidades, allArquivos });
@@ -278,10 +273,12 @@ export default function NovoDocumento() {
         return;
       }
 
+      setVerificando(false);
       await criarDocumento(allArquivos, resultados);
-    } catch {
-      toast({ title: "Erro ao criar envelope", variant: "destructive" });
+    } catch (error) {
+      toast({ title: "Envelope não criado", description: error?.response?.data?.error || error.message || "Não foi possível verificar os arquivos. Tente novamente.", variant: "destructive" });
     } finally {
+      submitEmAndamento.current = false;
       setSaving(false);
       setVerificando(false);
     }
@@ -488,7 +485,7 @@ export default function NovoDocumento() {
                 )}
               </div>
               <div className="flex flex-col sm:flex-row justify-end gap-2 pt-2">
-                <Button type="submit" disabled={saving || (arquivosIndividuais.length === 0 && lotes.flatMap((l) => l.arquivos).length === 0)} className="gap-2">
+                <Button type="submit" disabled={saving || uploading || uploadingIndividual || showDuplicidade || criandoDocumento || (arquivosIndividuais.length === 0 && lotes.flatMap((l) => l.arquivos).length === 0)} className="gap-2">
                   {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
                   {verificando ? "Verificando duplicidade…" : "Criar envelope"}
                 </Button>
@@ -508,7 +505,7 @@ export default function NovoDocumento() {
         open={showDuplicidade}
         duplicidades={pendDuplicidade?.duplicidades || []}
         criando={criandoDocumento}
-        onCancel={() => { setShowDuplicidade(false); setPendDuplicidade(null); }}
+        onCancel={() => { if (!criandoDocumento) { setShowDuplicidade(false); setPendDuplicidade(null); } }}
         onConfirm={confirmarDuplicidade}
       />
     </div>
