@@ -42,17 +42,23 @@ export default function DocumentPositioner({ fileUrl, blocks, onMove, onCanvasRe
         const avail = outerRef.current?.clientWidth || 800;
         const base = page.getViewport({ scale: 1 });
         const fitScale = avail / base.width;
-        const scale = fitScale * zoom;
-        const viewport = page.getViewport({ scale });
+        const cssScale = fitScale * zoom;
+        // Renderiza em alta resolução (devicePixelRatio) para texto nítido em telas Retina/4K,
+        // exibindo no tamanho CSS correto — sem escala/blur nem distorção de proporção.
+        const dpr = Math.min(3, Math.max(1, window.devicePixelRatio || 1));
+        const cssViewport = page.getViewport({ scale: cssScale });
+        const renderViewport = page.getViewport({ scale: cssScale * dpr });
         const canvas = canvasRef.current;
         if (!canvas) { await pdf.destroy(); return; }
-        canvas.width = viewport.width;
-        canvas.height = viewport.height;
+        canvas.width = renderViewport.width;
+        canvas.height = renderViewport.height;
+        canvas.style.width = `${cssViewport.width}px`;
+        canvas.style.height = `${cssViewport.height}px`;
         const ctx = canvas.getContext("2d");
         // Limpa o canvas antes de renderizar (evita artefatos de arquivo anterior)
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        await page.render({ canvasContext: ctx, viewport }).promise;
-        if (!cancelled) { setPdfSize({ w: viewport.width, h: viewport.height }); setPdfLoading(false); if (onCanvasReady && canvas) onCanvasReady(canvas); }
+        await page.render({ canvasContext: ctx, viewport: renderViewport }).promise;
+        if (!cancelled) { setPdfSize({ w: cssViewport.width, h: cssViewport.height }); setPdfLoading(false); if (onCanvasReady && canvas) onCanvasReady(canvas); }
         await pdf.destroy();
       } catch (err) {
         console.error("[DocumentPositioner] Falha ao renderizar PDF:", err);
@@ -95,7 +101,7 @@ export default function DocumentPositioner({ fileUrl, blocks, onMove, onCanvasRe
       return <div className="w-full h-64 flex items-center justify-center text-sm text-muted-foreground">Nenhum arquivo anexado a este documento.</div>;
     }
     if (isImage(fileUrl)) {
-      return <img src={fileUrl} alt="documento" className="w-full block" draggable={false} />;
+      return <img src={fileUrl} alt="documento" className="w-full h-auto block select-none" draggable={false} />;
     }
     if (isPdf(fileUrl)) {
       if (pdfError) {
