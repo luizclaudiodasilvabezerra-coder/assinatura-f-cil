@@ -20,11 +20,11 @@ export const CONCLUIDOS_LABEL = {
 };
 
 // Part 2 — Senhas individuais dos gestores (signatários)
+// MATHEUS SANTOS/LIMA não possui senha individual: acessa apenas com o login da tela principal.
 export const GESTORES_SENHAS = {
   "GILMAR PEREIRA": "LOG@GILMARP",
   "JOSELIO SERUR": "LOG@JOSELIO@",
   "SILVANA SACHI": "LOG@SILVANASACHI",
-  "MATHEUS SANTOS": "LOG@MLIMA",
   "ANDERSON DUQUE": "LOG@DUQUE",
 };
 
