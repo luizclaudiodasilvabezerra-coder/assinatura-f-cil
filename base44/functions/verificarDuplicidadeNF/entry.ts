@@ -21,23 +21,38 @@ export default async function(req) {
       return Response.json({ error: 'Arquivos inválidos para a verificação de duplicidade.' }, { status: 400 });
     }
 
-    // Limita as chamadas simultâneas. Falhas na leitura não podem virar "sem duplicidade".
+    // Limita as chamadas simultâneas. A leitura por IA é "melhor esforço":
+    // tenta 2x por arquivo e, se persistir a falha (ex.: erro 400 do modelo),
+    // o arquivo segue sem número extraído — a criação do envelope NÃO é bloqueada
+    // e os critérios de hash e URL continuam valendo para duplicidade.
     const resultados = [];
+    const lerArquivo = async (url) => {
+      const pedir = () => base44.asServiceRole.integrations.Core.InvokeLLM({
+        prompt: `Analise esta Nota Fiscal ou boleto e extraia o número principal da NF/boleto em numero_nf, preservando os zeros à esquerda, e o nome/razão social do emitente em emitente. Nunca concatene números de documentos diferentes. Se não localizar um campo, retorne uma string vazia. Retorne somente os campos solicitados.`,
+        file_urls: [url],
+        response_json_schema: {
+          type: 'object',
+          properties: { numero_nf: { type: 'string' }, emitente: { type: 'string' } },
+          required: ['numero_nf', 'emitente']
+        }
+      });
+      let extracted;
+      for (let tentativa = 0; tentativa < 2 && !extracted; tentativa++) {
+        try {
+          extracted = await pedir();
+        } catch {
+          if (tentativa === 1) return { numero_nf: '', emitente: '' };
+        }
+      }
+      if (!extracted || typeof extracted !== 'object') return { numero_nf: '', emitente: '' };
+      const numero_nf = String(extracted.numero_nf || '').replace(/\D/g, '');
+      const emitente = String(extracted.emitente || '').trim().replace(/^null$/i, '');
+      return { numero_nf, emitente };
+    };
     for (let i = 0; i < arquivos.length; i += 4) {
       const batch = await Promise.all(arquivos.slice(i, i + 4).map(async (a) => {
-        const extracted = await base44.asServiceRole.integrations.Core.InvokeLLM({
-          prompt: `Analise esta Nota Fiscal ou boleto e extraia o número principal da NF/boleto em numero_nf, preservando os zeros à esquerda, e o nome/razão social do emitente em emitente. Nunca concatene números de documentos diferentes. Se não localizar um campo, retorne uma string vazia. Retorne somente os campos solicitados.`,
-          file_urls: [a.url],
-          response_json_schema: {
-            type: 'object',
-            properties: { numero_nf: { type: 'string' }, emitente: { type: 'string' } },
-            required: ['numero_nf', 'emitente']
-          }
-        });
-        if (!extracted || typeof extracted !== 'object') throw new Error('A leitura dos arquivos não foi concluída. Tente novamente.');
-        const numero_nf = String(extracted.numero_nf || '').replace(/\D/g, '');
-        const emitente = String(extracted.emitente || '').trim().replace(/^null$/i, '');
-        return { arquivo: a.url, hash: a.hash, numero_nf, emitente };
+        const lido = await lerArquivo(a.url);
+        return { arquivo: a.url, hash: a.hash, numero_nf: lido.numero_nf, emitente: lido.emitente };
       }));
       resultados.push(...batch);
     }

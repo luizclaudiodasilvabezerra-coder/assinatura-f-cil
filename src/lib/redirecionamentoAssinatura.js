@@ -4,6 +4,7 @@ const REDIRECIONAMENTO = {
   "ANA BARCELLOS": "JOSELIO SERUR",
   "ANDERSON DUQUE": "JOSELIO SERUR",
   "MATHEUS SANTOS": "JOSELIO SERUR",
+  "MATHEUS LIMA": "JOSELIO SERUR",
 };
 
 const norm = (s) => (s || "").trim().toUpperCase();
