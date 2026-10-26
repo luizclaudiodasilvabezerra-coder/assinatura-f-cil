@@ -27,8 +27,8 @@ const PERMISSOES = {
   "joselio@logmam.com.br": { tipo: "gestor" },
   "jerusa.dias@logmam.com.br": { tipo: "operacional", concluidos: ["financeiro", "fiscal"] },
   "faturas@logmam.com.br": { tipo: "operacional", podeCriarEnvelope: true, podeExcluirEnvelope: true, podeVerPainel: true, concluidos: ["abastecimento"], criaCategoria: "abastecimento" },
-  // Jordan: cria envelopes (notas/boletos e abastecimento) e acompanha apenas os que ele mesmo gerou
-  "jordan@logmam.com.br": { tipo: "operacional", podeCriarEnvelope: true, podeVerPainel: true, apenasProprios: true },
+  // Jordan: cria envelopes (notas/boletos e abastecimento) e acompanha os que ele gerou + envelopes das unidades dele
+  "jordan@logmam.com.br": { tipo: "operacional", podeCriarEnvelope: true, podeVerPainel: true, apenasProprios: true, unidadesPermitidas: ["Rio de Janeiro", "Espirito Santo"] },
 };
 
 const norm = (s) => (s || "").trim().toLowerCase();
@@ -124,9 +124,13 @@ export const filtrarEnvelopesVisiveis = (user, docs, cadastros) => {
     const nome = nomeDoUsuario(user);
     return docs.filter((d) => nome && (d.signatario_nome || "").trim().toUpperCase() === nome);
   }
-  // Jordan: acompanha apenas os envelopes que ele mesmo criou
+  // Jordan: acompanha os envelopes que ele mesmo criou + os das unidades permitidas (RJ e ES)
   if (p.tipo === "operacional" && p.apenasProprios) {
-    return docs.filter((d) => d.created_by_id === user.id);
+    const unidades = (p.unidadesPermitidas || []).map(norm);
+    return docs.filter((d) =>
+      d.created_by_id === user.id ||
+      unidades.includes(norm(d.unidade_negocio))
+    );
   }
   return docs; // operacional com podeVerPainel
 };
