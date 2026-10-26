@@ -29,7 +29,7 @@ export default function EnvelopeCard({
         <Link to={linkPara(d)} className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             {d.numero && <span className="text-xs font-mono px-2 py-0.5 rounded bg-muted text-muted-foreground">{d.numero}</span>}
-            <p className="font-medium break-words whitespace-normal">{d.titulo}</p>
+            <p className="font-medium whitespace-nowrap">{d.titulo}</p>
             {recusado && <span className="inline-flex items-center gap-1 text-[11px] font-medium text-amber-800 bg-amber-200 px-2 py-0.5 rounded-full"><Ban className="w-3 h-3" /> NF recusada</span>}
             {pendente && !recusado && <span className="inline-flex items-center gap-1 text-[11px] font-medium text-red-700 bg-red-100 px-2 py-0.5 rounded-full"><AlertTriangle className="w-3 h-3" /> Arquivo pendente</span>}
           </div>
