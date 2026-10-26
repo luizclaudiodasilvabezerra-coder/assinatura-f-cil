@@ -1,0 +1,40 @@
+{
+  "name": "Alerta Envelope Dispon\u00edvel",
+  "description": "Notifica automaticamente o destinat\u00e1rio por e-mail quando um envelope \u00e9 criado e fica dispon\u00edvel para assinatura",
+  "trigger": {
+    "condition": "${ (.trigger.data.destinatario_email // \"\") != \"\" }",
+    "config": {
+      "trigger_type": "entity",
+      "entity_name": "Documento",
+      "events": [
+        "create"
+      ]
+    }
+  },
+  "definition": {
+    "document": {
+      "dsl": "1.0.0",
+      "name": "alerta_envelope_disponivel",
+      "version": "1.0",
+      "namespace": "base44"
+    },
+    "do": [
+      {
+        "notificar_destinatario": {
+          "call": "invoke_backend_function",
+          "with": {
+            "function_name": "enviarAlertaDestinatario",
+            "args": {
+              "documentoId": "${ .trigger.entity_id }"
+            }
+          },
+          "then": "end",
+          "x-base44": {
+            "title": "Notificar destinat\u00e1rio",
+            "description": "Envelope dispon\u00edvel para assinatura"
+          }
+        }
+      }
+    ]
+  }
+}

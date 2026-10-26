@@ -1,5 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.49';
 import { waitUntil } from 'base44:runtime';
+import { renomearArquivos } from '../../shared/renomearArquivosIA.ts';
 
 export default async function(req) {
   try {
@@ -80,8 +81,17 @@ export default async function(req) {
         status: "concluido",
         documento_criado_id: doc.id,
       });
-      if (doc.destinatario_email) {
-        waitUntil(base44.asServiceRole.functions.invoke("enviarAlertaDestinatario", { documentoId: doc.id }).catch(() => {}));
+      // Renomeia os arquivos capturados com IA (nº do documento + UF) sem atrasar a conclusão.
+      // A notificação do destinatário é feita pela automação de criação de envelope.
+      if (session.unidade_negocio && (session.arquivos || []).length) {
+        waitUntil((async () => {
+          try {
+            const { mapa } = await renomearArquivos(base44, (session.arquivos || []).map((url) => ({ url })), session.unidade_negocio);
+            if (Object.keys(mapa).length) {
+              await base44.asServiceRole.entities.Documento.update(doc.id, { arquivos: doc.arquivos.map((u) => mapa[u] || u) });
+            }
+          } catch {}
+        })());
       }
       // O signatário de origem assina manualmente antes do envio ao gestor.
       return Response.json({ documento: doc, numero });

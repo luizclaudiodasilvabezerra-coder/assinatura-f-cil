@@ -28,12 +28,16 @@ export default async function(req) {
     const resultados = [];
     const lerArquivo = async (url) => {
       const pedir = () => base44.asServiceRole.integrations.Core.InvokeLLM({
-        prompt: `Analise esta Nota Fiscal ou boleto e extraia o número principal da NF/boleto em numero_nf, preservando os zeros à esquerda, e o nome/razão social do emitente em emitente. Nunca concatene números de documentos diferentes. Se não localizar um campo, retorne uma string vazia. Retorne somente os campos solicitados.`,
+        prompt: `Analise este documento fiscal (Nota Fiscal, NFS-e ou boleto) e extraia:
+- numero_nf: o número principal da NF/boleto, preservando os zeros à esquerda;
+- numero_documento: apenas dígitos, preservando os zeros à esquerda. Se for boleto bancário, o Número do Documento; se for NFS-e, o número da NFS-e; caso contrário, o número da Nota Fiscal;
+- emitente: o nome/razão social do emitente.
+Nunca concatene números de documentos diferentes. Se não localizar um campo, retorne uma string vazia. Retorne somente os campos solicitados.`,
         file_urls: [url],
         response_json_schema: {
           type: 'object',
-          properties: { numero_nf: { type: 'string' }, emitente: { type: 'string' } },
-          required: ['numero_nf', 'emitente']
+          properties: { numero_nf: { type: 'string' }, emitente: { type: 'string' }, numero_documento: { type: 'string' } },
+          required: ['numero_nf', 'emitente', 'numero_documento']
         }
       });
       let extracted;
@@ -41,18 +45,19 @@ export default async function(req) {
         try {
           extracted = await pedir();
         } catch {
-          if (tentativa === 1) return { numero_nf: '', emitente: '' };
+          if (tentativa === 1) return { numero_nf: '', emitente: '', numero_documento: '' };
         }
       }
-      if (!extracted || typeof extracted !== 'object') return { numero_nf: '', emitente: '' };
+      if (!extracted || typeof extracted !== 'object') return { numero_nf: '', emitente: '', numero_documento: '' };
       const numero_nf = String(extracted.numero_nf || '').replace(/\D/g, '');
       const emitente = String(extracted.emitente || '').trim().replace(/^null$/i, '');
-      return { numero_nf, emitente };
+      const numero_documento = String(extracted.numero_documento || '').replace(/\D/g, '');
+      return { numero_nf, emitente, numero_documento };
     };
     for (let i = 0; i < arquivos.length; i += 4) {
       const batch = await Promise.all(arquivos.slice(i, i + 4).map(async (a) => {
         const lido = await lerArquivo(a.url);
-        return { arquivo: a.url, hash: a.hash, numero_nf: lido.numero_nf, emitente: lido.emitente };
+        return { arquivo: a.url, hash: a.hash, numero_nf: lido.numero_nf, emitente: lido.emitente, numero_documento: lido.numero_documento };
       }));
       resultados.push(...batch);
     }

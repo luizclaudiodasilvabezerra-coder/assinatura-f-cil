@@ -93,10 +93,8 @@ export const podeAcessarConcluidos = (user, tipo) => {
 
 export const podeEditarAtividadesConcluidos = (user, tipo) => podeAcessarConcluidos(user, tipo);
 
-export const podeVerCadastros = (user) => {
-  const t = getPermissoes(user)?.tipo;
-  return t === "admin" || t === "diretoria";
-};
+// Cadastros: acesso exclusivo do administrador (desenvolvedor) do app
+export const podeVerCadastros = (user) => getPermissoes(user)?.tipo === "admin";
 export const podeVerLog = (user) => getPermissoes(user)?.tipo === "admin";
 export const podeVerRelatorios = (user) => !!getPermissoes(user);
 

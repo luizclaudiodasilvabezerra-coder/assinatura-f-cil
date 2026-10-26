@@ -8,6 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Users, Plus, Trash2, Loader2, Mail, Phone, Building2, Briefcase, ShieldCheck, Pencil, Upload, X } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
+import { useAuth } from "@/lib/AuthContext";
+import { getPermissoes } from "@/lib/permissoes";
 
 const tipoLabel = { signatario: "Signatário", destinatario: "Destinatário", ambos: "Ambos" };
 
@@ -20,6 +22,7 @@ const TABS = [
 
 export default function Cadastros() {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [lista, setLista] = useState([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState("pessoas");
@@ -36,6 +39,17 @@ export default function Cadastros() {
     finally { setLoading(false); }
   };
   useEffect(() => { load(); }, []);
+
+  // Cadastros: acesso exclusivo do administrador (desenvolvedor) do app
+  if (getPermissoes(user)?.tipo !== "admin") {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4 px-6">
+        <h1 className="text-xl font-heading">Acesso não autorizado</h1>
+        <p className="text-sm text-muted-foreground text-center max-w-sm">Os cadastros são gerenciados apenas pelo administrador do app.</p>
+        <Button asChild variant="outline"><Link to="/">Voltar</Link></Button>
+      </div>
+    );
+  }
 
   const pessoas = lista.filter((c) => ["signatario", "destinatario", "ambos"].includes(c.tipo));
   const unidades = lista.filter((c) => c.tipo === "unidade");

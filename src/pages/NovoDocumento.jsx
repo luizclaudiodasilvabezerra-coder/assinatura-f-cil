@@ -30,6 +30,7 @@ export default function NovoDocumento() {
   const [pendDuplicidade, setPendDuplicidade] = useState(null);
   const [verificando, setVerificando] = useState(false);
   const [criandoDocumento, setCriandoDocumento] = useState(false);
+  const [renomeando, setRenomeando] = useState(false);
   const [hashMap, setHashMap] = useState({});
   const [arquivosIndividuais, setArquivosIndividuais] = useState([]);
   const [uploadingIndividual, setUploadingIndividual] = useState(false);
@@ -200,6 +201,23 @@ export default function NovoDocumento() {
   };
 
   const criarDocumento = async (allArquivos, arquivosNf) => {
+    // Renomeia os arquivos com IA: nº da NF/NFS-e (boleto: nº do documento) + UF da unidade.
+    let mapa = {};
+    if (form.unidade_negocio && (arquivosNf || []).some((r) => r.numero_documento)) {
+      setRenomeando(true);
+      try {
+        const { data } = await base44.functions.invoke("renomearArquivosIA", {
+          arquivos: (arquivosNf || []).map((r) => ({ url: r.arquivo, numero_documento: r.numero_documento || "" })),
+          unidade: form.unidade_negocio,
+        });
+        if (data?.ok) mapa = data.mapa || {};
+      } catch { /* renomeação é melhor esforço; o envelope é criado mesmo assim */ }
+      finally { setRenomeando(false); }
+    }
+    const troca = (u) => mapa[u] || u;
+    const novosArquivos = allArquivos.map(troca);
+    const novosLotes = lotes.map((l) => ({ ...l, arquivos: (l.arquivos || []).map(troca) }));
+    const novosNf = (arquivosNf || []).map((r) => ({ ...r, arquivo: troca(r.arquivo) }));
     const all = await base44.entities.Documento.list("-created_date", 1000);
     // Número do envelope: maior número existente + 1, garantindo unicidade (não depende da contagem).
     const usados = new Set(all.map((d) => d.numero).filter(Boolean));
@@ -215,22 +233,20 @@ export default function NovoDocumento() {
     const created = await base44.entities.Documento.create({
       ...form,
       numero,
-      arquivos: allArquivos,
-      arquivos_nf: arquivosNf && arquivosNf.length ? arquivosNf : undefined,
+      arquivos: novosArquivos,
+      arquivos_nf: novosNf.length ? novosNf : undefined,
       numeros_nf: numerosNf.length ? numerosNf : undefined,
       arquivos_hash: arquivosHash.length ? arquivosHash : undefined,
-      lotes: lotes.length > 0 ? lotes : undefined,
+      lotes: novosLotes.length > 0 ? novosLotes : undefined,
       status: "pendente_gestao",
       pasta: "pendente",
       fluxo_hierarquico: !!signatarioRedirecionado(form.signatario_nome),
       categoria: form.categoria,
     });
 
-    toast({ title: "Envelope criado", description: signatarioRedirecionado(form.signatario_nome) ? "Assine e coloque observação nas páginas antes de enviar a Joselio Serur." : numero });
+    const renomeados = Object.keys(mapa).length;
+    toast({ title: "Envelope criado", description: (renomeados ? `${renomeados} arquivo(s) renomeado(s) com nº + UF. ` : "") + (signatarioRedirecionado(form.signatario_nome) ? "Assine e coloque observação nas páginas antes de enviar a Joselio Serur." : numero) });
 
-    if (created && created.destinatario_email) {
-      base44.functions.invoke("enviarAlertaDestinatario", { documentoId: created.id }).catch(() => {});
-    }
     navigate("/");
   };
 
@@ -487,7 +503,7 @@ export default function NovoDocumento() {
               <div className="flex flex-col sm:flex-row justify-end gap-2 pt-2">
                 <Button type="submit" disabled={saving || uploading || uploadingIndividual || showDuplicidade || criandoDocumento || (arquivosIndividuais.length === 0 && lotes.flatMap((l) => l.arquivos).length === 0)} className="gap-2">
                   {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-                  {verificando ? "Verificando duplicidade…" : "Criar envelope"}
+                  {renomeando ? "Renomeando arquivos…" : verificando ? "Verificando duplicidade…" : "Criar envelope"}
                 </Button>
               </div>
             </form>

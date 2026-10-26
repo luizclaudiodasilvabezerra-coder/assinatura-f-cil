@@ -4,14 +4,16 @@ import { enviarOutlook } from '../../shared/outlookMail.ts';
 export default async function(req) {
   try {
     const base44 = createClientFromRequest(req);
-    const user = await base44.auth.me();
+    // Agora disparado pela automação de criação de envelope; exige administrador.
+    const user = await base44.auth.me().catch((e) => (e.status === 401 ? null : Promise.reject(e)));
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    if (user.role !== 'admin') return Response.json({ error: 'Forbidden' }, { status: 403 });
 
     const body = await req.json();
     const { documentoId } = body || {};
     if (!documentoId) return Response.json({ error: 'documentoId obrigatório' }, { status: 400 });
 
-    const doc = await base44.entities.Documento.get(documentoId);
+    const doc = await base44.asServiceRole.entities.Documento.get(documentoId).catch((e) => (e.status === 404 ? null : Promise.reject(e)));
     if (!doc) return Response.json({ error: 'Documento não encontrado' }, { status: 404 });
     if (!doc.destinatario_email) return Response.json({ ok: false, reason: 'sem email do destinatario' });
 
