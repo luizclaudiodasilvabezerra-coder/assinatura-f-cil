@@ -22,6 +22,7 @@ export default function EnvelopeCard({
   const total = d.arquivos?.length || 0;
   const pendente = hasPendente;
   const recusado = !!d.recusado;
+  const pendenteJoselio = d.status === "pendente_gestao" && (d.signatario_nome || "").trim().toUpperCase() === "JOSELIO SERUR";
   return (
     <Card className={`rounded-xl transition-all hover:shadow-md ${recusado ? "border-amber-400 bg-amber-50/60 hover:border-amber-500" : pendente ? "border-red-400 bg-red-50/40 hover:border-red-500" : "border-border/60 hover:border-foreground/20"}`}>
       <CardContent className="p-4 flex items-center justify-between gap-3">
@@ -35,7 +36,11 @@ export default function EnvelopeCard({
           <p className="text-xs text-muted-foreground mt-1 flex flex-wrap gap-x-3 gap-y-1">
             <span className="inline-flex items-center gap-1"><Paperclip className="w-3 h-3" /> {signed}/{total} assinadas</span>
             {d.destinatario_nome && <span>Dest.: {d.destinatario_nome}</span>}
-            {d.signatario_nome && <span>Gestão: {d.signatario_nome}</span>}
+            {d.signatario_nome && (pendenteJoselio ? (
+              <span className="px-2 py-0.5 rounded bg-blue-600 text-white font-medium shadow-sm">Gestão: {d.signatario_nome}</span>
+            ) : (
+              <span>Gestão: {d.signatario_nome}</span>
+            ))}
             {d.diretoria && <span>Diretoria: {d.diretoria}</span>}
             {d.unidade_negocio && <span>UN: {d.unidade_negocio}</span>}
             {d.data_limite && <span>{formatDate(d.data_limite)}</span>}
