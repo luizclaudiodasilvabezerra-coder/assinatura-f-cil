@@ -27,6 +27,8 @@ const PERMISSOES = {
   "joselio@logmam.com.br": { tipo: "gestor" },
   "jerusa.dias@logmam.com.br": { tipo: "operacional", concluidos: ["financeiro", "fiscal"] },
   "faturas@logmam.com.br": { tipo: "operacional", podeCriarEnvelope: true, podeExcluirEnvelope: true, podeVerPainel: true, concluidos: ["abastecimento"], criaCategoria: "abastecimento" },
+  // Jordan: cria envelopes (notas/boletos e abastecimento) e acompanha apenas os que ele mesmo gerou
+  "jordan@logmam.com.br": { tipo: "operacional", podeCriarEnvelope: true, podeVerPainel: true, apenasProprios: true },
 };
 
 const norm = (s) => (s || "").trim().toLowerCase();
@@ -122,6 +124,10 @@ export const filtrarEnvelopesVisiveis = (user, docs, cadastros) => {
     const nome = nomeDoUsuario(user);
     return docs.filter((d) => nome && (d.signatario_nome || "").trim().toUpperCase() === nome);
   }
+  // Jordan: acompanha apenas os envelopes que ele mesmo criou
+  if (p.tipo === "operacional" && p.apenasProprios) {
+    return docs.filter((d) => d.created_by_id === user.id);
+  }
   return docs; // operacional com podeVerPainel
 };
 
@@ -165,7 +171,7 @@ export const podeAssinarGestao = (user, doc) => {
   const p = getPermissoes(user);
   if (!p) return false;
   if (p.tipo === "admin") return true;
-  if (p.tipo === "operacional" && p.podeVerPainel) return true;
+  if (p.tipo === "operacional" && p.podeVerPainel && !p.apenasProprios) return true;
   if (p.tipo === "gestor") {
     const nome = nomeDoUsuario(user);
     return !!(nome && (doc.signatario_nome || "").trim().toUpperCase() === nome);
