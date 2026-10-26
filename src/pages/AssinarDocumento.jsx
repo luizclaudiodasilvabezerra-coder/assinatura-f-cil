@@ -79,7 +79,7 @@ export default function AssinarDocumento() {
         const sigs = await carregarAssinaturasEnvelope(id, d.recusado ? ["gestao_origem", "signatario", "master"] : [etapaGestao(d)]);
         setDoc(d);
         setCadastros(cad);
-        if (!d.recusado && (!gestorTemSenha(d.signatario_nome) || user?.role === "admin")) setUnlocked(true);
+        if (!d.recusado) setUnlocked(true);
         setUnidade(d.unidade_negocio || "");
         setOperacao(d.operacao || "");
         setExistentes(sigs);
