@@ -81,7 +81,7 @@ export default async function(req) {
         status: "concluido",
         documento_criado_id: doc.id,
       });
-      // Renomeia os arquivos capturados com IA (nº do documento + UF) sem atrasar a conclusão.
+      // Renomeia os arquivos capturados com IA (nº do documento + unidade de negócio) sem atrasar a conclusão.
       // A notificação do destinatário é feita pela automação de criação de envelope.
       if (session.unidade_negocio && (session.arquivos || []).length) {
         waitUntil((async () => {

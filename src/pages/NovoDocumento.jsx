@@ -201,7 +201,7 @@ export default function NovoDocumento() {
   };
 
   const criarDocumento = async (allArquivos, arquivosNf) => {
-    // Renomeia os arquivos com IA: nº da NF/NFS-e (boleto: nº do documento) + UF da unidade.
+    // Renomeia os arquivos com IA: nº da NF/NFS-e (boleto: nº do documento) + unidade de negócio.
     let mapa = {};
     if (form.unidade_negocio && (arquivosNf || []).some((r) => r.numero_documento)) {
       setRenomeando(true);
@@ -245,7 +245,7 @@ export default function NovoDocumento() {
     });
 
     const renomeados = Object.keys(mapa).length;
-    toast({ title: "Envelope criado", description: (renomeados ? `${renomeados} arquivo(s) renomeado(s) com nº + UF. ` : "") + (signatarioRedirecionado(form.signatario_nome) ? "Assine e coloque observação nas páginas antes de enviar a Joselio Serur." : numero) });
+    toast({ title: "Envelope criado", description: (renomeados ? `${renomeados} arquivo(s) renomeado(s) com nº + unidade. ` : "") + (signatarioRedirecionado(form.signatario_nome) ? "Assine e coloque observação nas páginas antes de enviar a Joselio Serur." : numero) });
 
     navigate("/");
   };

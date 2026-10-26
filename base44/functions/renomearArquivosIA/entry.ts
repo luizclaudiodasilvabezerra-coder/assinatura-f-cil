@@ -2,7 +2,7 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.54';
 import { renomearArquivos } from '../../shared/renomearArquivosIA.ts';
 
 // Renomeia os arquivos do envelope na criação via IA:
-// NF → nº da NF + UF | NFS-e → nº da NFS-e + UF | Boleto → Número do Documento + UF.
+// NF → nº da NF + unidade de negócio | NFS-e → nº da NFS-e + unidade | Boleto → Número do Documento + unidade.
 export default async function(req) {
   try {
     const base44 = createClientFromRequest(req);

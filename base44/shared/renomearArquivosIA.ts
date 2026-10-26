@@ -1,25 +1,5 @@
 // Renomeação de arquivos de envelope na criação, com IA:
-// NF → nº da NF + UF | NFS-e → nº da NFS-e + UF | Boleto → Número do Documento + UF.
-// A UF vem da unidade de negócio do envelope.
-
-const UFS = {
-  "acre": "AC", "alagoas": "AL", "amapa": "AP", "amazonas": "AM", "bahia": "BA", "ceara": "CE",
-  "distrito federal": "DF", "espirito santo": "ES", "goias": "GO", "maranhao": "MA",
-  "mato grosso": "MT", "mato grosso do sul": "MS", "minas gerais": "MG", "para": "PA",
-  "paraiba": "PB", "parana": "PR", "pernambuco": "PE", "piaui": "PI", "rio de janeiro": "RJ",
-  "rio grande do norte": "RN", "rio grande do sul": "RS", "rondonia": "RO", "roraima": "RR",
-  "santa catarina": "SC", "sao paulo": "SP", "sergipe": "SE", "tocantins": "TO",
-};
-
-const semAcento = (s) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-
-export const ufDaUnidade = (unidade) => {
-  const n = semAcento(String(unidade || "").trim().toLowerCase());
-  if (!n) return "";
-  const direto = n.match(/\b(ac|al|ap|am|ba|ce|df|es|go|ma|mt|ms|mg|pa|pb|pr|pe|pi|rj|rn|rs|ro|rr|sc|sp|se|to)\b/);
-  if (direto) return direto[1].toUpperCase();
-  return UFS[n] || "";
-};
+// NF → nº da NF + unidade de negócio | NFS-e → nº da NFS-e + unidade | Boleto → Número do Documento + unidade.
 
 const extensaoDe = (url) => {
   const nome = decodeURIComponent(String(url).split("?")[0].split("/").pop() || "");
@@ -49,7 +29,7 @@ const extrairNumeroDocumento = async (base44, url) => {
 // arquivos: [{ url, numero_documento? }] — numero_documento já extraído evita nova leitura por IA.
 // Retorna { mapa: { urlAntiga: urlNova }, renomeados } — arquivos sem número continuam com a URL original.
 export const renomearArquivos = async (base44, arquivos, unidade) => {
-  const uf = ufDaUnidade(unidade);
+  const uni = String(unidade || "").trim();
   const mapa = {};
   const usados = new Set();
   const alvos = (arquivos || []).filter((a) => a && typeof a.url === "string");
@@ -59,7 +39,7 @@ export const renomearArquivos = async (base44, arquivos, unidade) => {
         const numero = String(a.numero_documento || "").replace(/\D/g, "") || await extrairNumeroDocumento(base44, a.url);
         if (!numero) return;
         const ext = extensaoDe(a.url);
-        const base = `${numero}${uf ? "-" + uf : ""}`;
+        const base = `${numero}${uni ? "-" + uni : ""}`;
         let nome = `${base}${ext}`.slice(0, 100);
         if (usados.has(nome.toLowerCase())) {
           let n = 2;
