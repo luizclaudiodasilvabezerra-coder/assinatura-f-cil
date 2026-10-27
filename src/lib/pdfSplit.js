@@ -4,6 +4,20 @@ import { jsPDF } from "jspdf";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 
+// PDFs protegidos por senha não podem ser carimbados (o carimbo gera arquivo corrompido).
+// Retorna true somente quando a falha de leitura é de senha (PasswordException).
+export async function pdfPossuiSenha(file) {
+  const isPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+  if (!isPdf) return false;
+  try {
+    const arrayBuffer = await file.arrayBuffer();
+    await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    return false;
+  } catch (err) {
+    return err?.name === "PasswordException";
+  }
+}
+
 /**
  * Recebe um File e retorna um array de File(s).
  * Se for um PDF com múltiplas páginas, divide cada página em um PDF individual.

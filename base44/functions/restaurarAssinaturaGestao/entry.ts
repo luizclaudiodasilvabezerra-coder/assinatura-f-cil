@@ -1,5 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
-import { PDFDocument, StandardFonts, rgb } from 'npm:pdf-lib@1.17.1';
+import { aplicarCarimbo, carregarPdf, salvarPdf } from '../../shared/carimboPdf.ts';
 
 export default async function(req) {
   try {
@@ -20,49 +20,20 @@ export default async function(req) {
 
     // Recriar PDF com apenas a assinatura da gestão
     const originalUrl = gestao.arquivo_original_url || gestao.arquivo_url;
-    const pdfResp = await fetch(originalUrl);
+    const pdfResp = await fetch(originalUrl, { signal: AbortSignal.timeout(30000) });
     if (!pdfResp.ok) return Response.json({ error: 'Falha ao baixar PDF original' }, { status: 502 });
-    const pdfBytes = await pdfResp.arrayBuffer();
 
-    const pdfDoc = await PDFDocument.load(pdfBytes, { ignoreEncryption: true });
-    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
-    const page = pdfDoc.getPages()[0];
+    const pdfDoc = await carregarPdf(await pdfResp.arrayBuffer());
+    await aplicarCarimbo(pdfDoc, {
+      imagemUrl: gestao.imagem_url,
+      posX: gestao.pos_x || 3, posY: gestao.pos_y || 90,
+      nome: gestao.assinante_nome,
+      data: gestao.data_assinatura ? new Date(gestao.data_assinatura).toLocaleString("pt-BR") : '',
+      observacao: gestao.observacao, operacao: gestao.operacao, unidade: gestao.unidade_negocio,
+      indent: gestao.indent || 0,
+    });
 
-    let img = null;
-    if (gestao.imagem_url) {
-      const imgResp = await fetch(gestao.imagem_url);
-      if (imgResp.ok) {
-        const imgBytes = await imgResp.arrayBuffer();
-        try {
-          const isPng = /\.png$/i.test(gestao.imagem_url);
-          img = isPng ? await pdfDoc.embedPng(imgBytes) : await pdfDoc.embedJpg(imgBytes);
-        } catch { img = null; }
-      }
-    }
-
-    const pageW = page.getWidth();
-    const pageH = page.getHeight();
-    const imgH = 60;
-    const imgW = img ? (img.width / img.height) * imgH : 68;
-    const x = ((gestao.pos_x || 3) / 100) * pageW;
-    const yTop = ((gestao.pos_y || 90) / 100) * pageH;
-    const yTopPdf = pageH - yTop;
-    const imgY = yTopPdf - imgH;
-    if (img) page.drawImage(img, { x, y: imgY, width: imgW, height: imgH });
-
-    const fs = 8;
-    const lineH = fs + 2;
-    const textX = x + imgW + 8;
-    const centerY = yTopPdf - imgH / 2;
-    const indentPx = (gestao.indent || 0) * 12;
-
-    const l1 = [gestao.assinante_nome ? 'Assinado por: ' + gestao.assinante_nome : '', gestao.data_assinatura ? 'Assinado em: ' + new Date(gestao.data_assinatura).toLocaleString("pt-BR") : ''].filter(Boolean).join('   |   ');
-    const l2 = [gestao.observacao ? 'Obs: ' + gestao.observacao : '', gestao.operacao ? 'Operação: ' + gestao.operacao : '', gestao.unidade_negocio ? 'Unidade: ' + gestao.unidade_negocio : ''].filter(Boolean).join('   |   ');
-
-    if (l1) page.drawText(l1, { x: textX + indentPx, y: centerY + lineH / 2 - 1, size: fs, font, color: rgb(0, 0, 0) });
-    if (l2) page.drawText(l2, { x: textX + indentPx, y: centerY - lineH / 2 - 1, size: fs, font, color: rgb(0, 0, 0) });
-
-    const stamped = await pdfDoc.save();
+    const stamped = await salvarPdf(pdfDoc);
 
     // Upload do PDF restaurado
     const fileName = originalUrl.split('/').pop() || 'documento.pdf';

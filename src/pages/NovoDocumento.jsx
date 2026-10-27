@@ -13,7 +13,7 @@ import { podeCriarEnvelope, categoriaEnvelopeDoUsuario, nomeDoUsuario } from "@/
 import { signatarioRedirecionado } from "@/lib/redirecionamentoAssinatura";
 import CapturaMobileDialog from "@/components/CapturaMobileDialog";
 import DuplicidadeDialog from "@/components/DuplicidadeDialog";
-import { splitPdfIfNeeded } from "@/lib/pdfSplit";
+import { splitPdfIfNeeded, pdfPossuiSenha } from "@/lib/pdfSplit";
 import { verificarArquivosEnvelope } from "@/lib/verificarArquivosEnvelope";
 
 export default function NovoDocumento() {
