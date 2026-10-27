@@ -1,4 +1,4 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.52';
 import { bytesToBase64 } from '../../shared/pdfUtils.ts';
 import { carregarPdf, salvarPdf } from '../../shared/carimboPdf.ts';
 import { assinaturaDaPagina, buscarAssinaturasAtivas, etapaGestao } from '../../shared/fluxoEnvelope.ts';
