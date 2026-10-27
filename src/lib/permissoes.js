@@ -27,8 +27,8 @@ const PERMISSOES = {
   "joselio@logmam.com.br": { tipo: "gestor" },
   "jerusa.dias@logmam.com.br": { tipo: "operacional", concluidos: ["financeiro", "fiscal"] },
   "faturas@logmam.com.br": { tipo: "operacional", podeCriarEnvelope: true, podeExcluirEnvelope: true, podeVerPainel: true, concluidos: ["abastecimento"], criaCategoria: "abastecimento" },
-  // Jordan: cria envelopes (notas/boletos e abastecimento) e acompanha os que ele gerou + envelopes das unidades dele
-  "jordan@logmam.com.br": { tipo: "operacional", podeCriarEnvelope: true, podeVerPainel: true, apenasProprios: true, unidadesPermitidas: ["Rio de Janeiro", "Espirito Santo"] },
+  // Jordan: cria envelopes (notas/boletos e abastecimento), exclui e acompanha os que ele gerou + envelopes das unidades dele (RJ e ES)
+  "jordan@logmam.com.br": { tipo: "operacional", podeCriarEnvelope: true, podeVerPainel: true, podeExcluirEnvelope: true, apenasProprios: true, unidadesPermitidas: ["Rio de Janeiro", "Espirito Santo"] },
 };
 
 const norm = (s) => (s || "").trim().toLowerCase();

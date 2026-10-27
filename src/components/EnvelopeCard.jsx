@@ -80,13 +80,13 @@ export default function EnvelopeCard({
               {downloadingId === d.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
             </button>
           )}
+          {onExcluir && (
+            <button type="button" onClick={() => onExcluir(d)} className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-destructive" title="Excluir envelope">
+              <Trash2 className="w-4 h-4" />
+            </button>
+          )}
           {!somenteVisualizacao && (
-            <>
-              <button type="button" onClick={() => onExcluir(d)} className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-destructive" title="Excluir envelope">
-                <Trash2 className="w-4 h-4" />
-              </button>
-              <ShareIcons title={d.titulo} signUrl={`${window.location.origin}${linkPara(d)}`} />
-            </>
+            <ShareIcons title={d.titulo} signUrl={`${window.location.origin}${linkPara(d)}`} />
           )}
           <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${stageStyles[d.status] || "bg-slate-100 text-slate-600"}`}>{stageLabel[d.status] || d.status}</span>
         </div>
