@@ -170,6 +170,12 @@ export const podeExportarFinanceiro = (user) => {
   return email === "nf@logmam.com.br" || email === "financeiro@logmam.com.br";
 };
 
+// Jordan (apenasProprios): cria envelopes e visualiza o painel, mas não acessa os envelopes
+export const somenteVisualizaPainel = (user) => {
+  const p = getPermissoes(user);
+  return !!(p?.tipo === "operacional" && p.apenasProprios);
+};
+
 // Pode assinar um envelope na etapa gestao
 export const podeAssinarGestao = (user, doc) => {
   const p = getPermissoes(user);

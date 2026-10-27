@@ -12,9 +12,7 @@ export const podeOperarGestao = (user, doc) => {
   const unidade = (doc.unidade_negocio || '').trim().toLowerCase();
   return user.role === 'admin' || ['nf@logmam.com.br', 'faturas@logmam.com.br'].includes(email) ||
     (!!doc.signatario_email && email === doc.signatario_email.trim().toLowerCase()) ||
-    (!!nomesPorEmail[email] && nomesPorEmail[email] === (doc.signatario_nome || '').trim().toUpperCase()) ||
-    // Jordan: pode encaminhar envelopes que ele criou ou das unidades dele (RJ/ES)
-    (email === 'jordan@logmam.com.br' && (doc.created_by_id === user.id || ['rio de janeiro', 'espirito santo'].includes(unidade)));
+    (!!nomesPorEmail[email] && nomesPorEmail[email] === (doc.signatario_nome || '').trim().toUpperCase());
 };
 export const assinaturaDaPagina = (sigs, url, etapa) => sigs.find((s) =>
   (s.etapa || 'signatario') === etapa && s.status === 'assinado' && s.arquivo_url &&

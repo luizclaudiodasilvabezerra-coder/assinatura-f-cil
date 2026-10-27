@@ -8,7 +8,7 @@ import { FileText, Clock, CheckCircle2, Plus, ScrollText, Users, Paperclip, Load
 import { useAuth } from "@/lib/AuthContext";
 import { formatDate } from "@/lib/signatureUtils";
 import { baixarEnvelopePdf } from "@/lib/pdfDownload";
-import { podeVerPainel, podeCriarEnvelope, podeExcluirEnvelope, podeAcessarConcluidos, podeVerCadastros, podeVerLog, stagesPermitidos, filtrarEnvelopesVisiveis } from "@/lib/permissoes";
+import { podeVerPainel, podeCriarEnvelope, podeExcluirEnvelope, podeAcessarConcluidos, podeVerCadastros, podeVerLog, stagesPermitidos, filtrarEnvelopesVisiveis, somenteVisualizaPainel } from "@/lib/permissoes";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
@@ -347,6 +347,7 @@ export default function Home() {
                 onExcluir={excluirHandler}
                 enviandoId={enviandoId}
                 downloadingId={downloadingId}
+                somenteVisualizacao={somenteVisualizaPainel(user)}
               />
             )}
           </div>

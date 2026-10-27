@@ -2,7 +2,7 @@ import React from "react";
 import { FileText, Fuel } from "lucide-react";
 import EnvelopeCard from "@/components/EnvelopeCard";
 
-function Coluna({ titulo, Icon, headerClass, docs, signedCountFor, hasPendente, linkPara, onEnviarDiretoria, onBaixar, onExcluir, enviandoId, downloadingId }) {
+function Coluna({ titulo, Icon, headerClass, docs, signedCountFor, hasPendente, linkPara, onEnviarDiretoria, onBaixar, onExcluir, enviandoId, downloadingId, somenteVisualizacao }) {
   return (
     <div className="flex-1 min-w-0">
       <div className={`rounded-t-xl px-4 py-2.5 ${headerClass}`}>
@@ -28,6 +28,7 @@ function Coluna({ titulo, Icon, headerClass, docs, signedCountFor, hasPendente, 
               onExcluir={onExcluir}
               enviandoId={enviandoId}
               downloadingId={downloadingId}
+              somenteVisualizacao={somenteVisualizacao}
             />
           ))
         )}
@@ -36,11 +37,11 @@ function Coluna({ titulo, Icon, headerClass, docs, signedCountFor, hasPendente, 
   );
 }
 
-export default function ColunasCategorias({ documentos, signedCountFor, hasPendente, linkPara, onEnviarDiretoria, onBaixar, onExcluir, enviandoId, downloadingId }) {
+export default function ColunasCategorias({ documentos, signedCountFor, hasPendente, linkPara, onEnviarDiretoria, onBaixar, onExcluir, enviandoId, downloadingId, somenteVisualizacao }) {
   const notasBoletos = documentos.filter((d) => (d.categoria || "notas_boletos") === "notas_boletos" && d.status !== "assinado_diretoria");
   const abastecimento = documentos.filter((d) => d.categoria === "abastecimento" && d.status !== "assinado_diretoria");
 
-  const colunaProps = { signedCountFor, hasPendente, linkPara, onEnviarDiretoria, onBaixar, onExcluir, enviandoId, downloadingId };
+  const colunaProps = { signedCountFor, hasPendente, linkPara, onEnviarDiretoria, onBaixar, onExcluir, enviandoId, downloadingId, somenteVisualizacao };
 
   return (
     <div className="flex flex-col md:flex-row gap-4">
