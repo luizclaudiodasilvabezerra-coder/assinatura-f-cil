@@ -73,11 +73,15 @@ export default function EnvelopeCard({
                   <ShieldCheck className="w-3.5 h-3.5" /> Diretoria
                 </Link>
               )}
-              {d.status !== "pendente_gestao" && (
-                <button type="button" onClick={() => onBaixar(d)} className="p-1.5 rounded-md hover:bg-muted text-muted-foreground" title="Baixar envelope (PDF)">
-                  {downloadingId === d.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-                </button>
-              )}
+            </>
+          )}
+          {d.status !== "pendente_gestao" && (
+            <button type="button" onClick={() => onBaixar(d)} className="p-1.5 rounded-md hover:bg-muted text-muted-foreground" title="Baixar envelope (PDF)">
+              {downloadingId === d.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+            </button>
+          )}
+          {!somenteVisualizacao && (
+            <>
               <button type="button" onClick={() => onExcluir(d)} className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-destructive" title="Excluir envelope">
                 <Trash2 className="w-4 h-4" />
               </button>

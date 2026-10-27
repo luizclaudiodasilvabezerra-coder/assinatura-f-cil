@@ -17,7 +17,7 @@ import { dataURLToFile, formatDate } from "@/lib/signatureUtils";
 import { base64ToBlob, baixarEnvelopePdf, baixarArquivoPdf } from "@/lib/pdfDownload";
 import { identificarDiretoria, diretoriaDoMembro, SENHA_MASTER_RECUSA } from "@/lib/acessos";
 import { useAuth } from "@/lib/AuthContext";
-import { getPermissoes, nomeDoUsuario, nomeExibicao, diretoriaDoUsuario } from "@/lib/permissoes";
+import { getPermissoes, nomeDoUsuario, nomeExibicao, diretoriaDoUsuario, somenteVisualizaPainel } from "@/lib/permissoes";
 import { loteDoArquivo, carimbarEUploadar } from "@/lib/carimbarLote";
 import LoteFolders from "@/components/LoteFolders";
 import { assinaturasGestaoAtivas } from "@/lib/fluxoAssinatura";
@@ -415,6 +415,13 @@ export default function AssinarDiretoria() {
 
   if (loading) return (<div className="min-h-screen flex items-center justify-center"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>);
   if (!doc) return (<div className="min-h-screen flex flex-col items-center justify-center gap-4"><p className="text-muted-foreground">Documento não encontrado.</p><Button asChild variant="outline"><Link to="/">Voltar</Link></Button></div>);
+  if (user && somenteVisualizaPainel(user)) return (
+    <div className="min-h-screen flex flex-col items-center justify-center gap-4">
+      <Lock className="w-10 h-10 text-muted-foreground" />
+      <p className="text-muted-foreground text-center max-w-sm">Você não tem acesso a este envelope. Acompanhe o andamento pelo painel.</p>
+      <Button asChild variant="outline"><Link to="/">Voltar ao painel</Link></Button>
+    </div>
+  );
 
   // Envelopes recusados ainda exigem senha master
   if (!unlocked) {
