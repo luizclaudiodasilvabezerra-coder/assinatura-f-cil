@@ -55,11 +55,7 @@ export default function EnvelopeCard({
   return (
     <Card className={`rounded-xl transition-all hover:shadow-md ${recusado ? "border-amber-400 bg-amber-50/60 hover:border-amber-500" : pendente ? "border-red-400 bg-red-50/40 hover:border-red-500" : "border-border/60 hover:border-foreground/20"}`}>
       <CardContent className="p-4 flex items-center justify-between gap-3">
-        {somenteVisualizacao ? (
-          <div className="min-w-0 flex-1">{conteudo}</div>
-        ) : (
-          <Link to={linkPara(d)} className="min-w-0 flex-1">{conteudo}</Link>
-        )}
+        <Link to={linkPara(d)} className="min-w-0 flex-1">{conteudo}</Link>
         <div className="flex items-center gap-2 shrink-0">
           {!somenteVisualizacao && (
             <>

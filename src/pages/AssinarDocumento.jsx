@@ -16,7 +16,7 @@ import EnvelopeRecusado from "@/components/EnvelopeRecusado";
 import { dataURLToFile, formatDate } from "@/lib/signatureUtils";
 import { base64ToBlob, baixarEnvelopePdf, baixarArquivoPdf } from "@/lib/pdfDownload";
 import { validarSenhaGestor, gestorTemSenha, SENHA_MASTER_RECUSA } from "@/lib/acessos";
-import { podeAssinarGestao } from "@/lib/permissoes";
+import { podeAssinarGestao, somenteConsultaEnvelopes } from "@/lib/permissoes";
 import { useAuth } from "@/lib/AuthContext";
 import { loteDoArquivo, carimbarEUploadar } from "@/lib/carimbarLote";
 import LoteFolders from "@/components/LoteFolders";
@@ -26,6 +26,7 @@ import AutorizacaoAssinatura from "@/components/AutorizacaoAssinatura";
 import RecusaNFDialog from "@/components/RecusaNFDialog";
 import { Image } from "@/components/ui/image";
 import carregarAssinaturasEnvelope from "@/lib/assinaturasEnvelope";
+import ConsultaEnvelope from "@/components/ConsultaEnvelope";
 import { detectarPosicaoAssinatura } from "@/lib/posicionamentoAssinatura";
 
 const isImage = (url) => url && /\.(png|jpe?g|webp|gif)$/i.test(url);
@@ -104,6 +105,7 @@ export default function AssinarDocumento() {
 
   const arquivos = useMemo(() => doc?.arquivos || [], [doc]);
   const etapa = etapaGestao(doc);
+  const consulta = somenteConsultaEnvelopes(user);
   const autorizacaoGestor = precisaAutorizacao(doc);
   const destinoGestor = !!signatarioRedirecionado(doc?.signatario_nome);
   const hierarquico = precisaHierarquia(doc);
@@ -371,13 +373,15 @@ export default function AssinarDocumento() {
 
   if (loading) return (<div className="min-h-screen flex items-center justify-center"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>);
   if (!doc) return (<div className="min-h-screen flex flex-col items-center justify-center gap-4"><p className="text-muted-foreground">Documento não encontrado.</p><Button asChild variant="outline"><Link to="/">Voltar</Link></Button></div>);
-  if (user && !podeAssinarGestao(user, doc)) return (
+  if (user && !consulta && !podeAssinarGestao(user, doc)) return (
     <div className="min-h-screen flex flex-col items-center justify-center gap-4">
       <Lock className="w-10 h-10 text-muted-foreground" />
       <p className="text-muted-foreground text-center max-w-sm">Você não tem acesso a este envelope. Acompanhe o andamento pelo painel.</p>
       <Button asChild variant="outline"><Link to="/">Voltar ao painel</Link></Button>
     </div>
   );
+
+  if (consulta) return <ConsultaEnvelope doc={doc} />;
 
   if (!unlocked) {
     const validar = (e) => {

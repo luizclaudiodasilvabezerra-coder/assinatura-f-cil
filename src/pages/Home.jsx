@@ -195,6 +195,7 @@ export default function Home() {
   };
 
   const linkPara = (d) => {
+    if (somenteVisualizaPainel(user)) return `/assinar/${d.id}`;
     if (hasPendente(d)) return `/assinar/${d.id}`;
     if (d.status === "pendente_diretoria" || d.status === "assinado_diretoria") return `/assinar-diretoria/${d.id}`;
     return `/assinar/${d.id}`;

@@ -11,6 +11,7 @@ const EMAIL_PARA_NOME = {
   "anderson.duque@logmam.com.br": "ANDERSON DUQUE",
   "matheus.santos@logmam.com.br": "MATHEUS SANTOS",
   "joselio@logmam.com.br": "JOSELIO SERUR",
+  "laryssa.mattos@logmam.com.br": "LARYSSA MATTOS",
 };
 
 // Permissões por e-mail
@@ -29,6 +30,8 @@ const PERMISSOES = {
   "faturas@logmam.com.br": { tipo: "operacional", podeCriarEnvelope: true, podeExcluirEnvelope: true, podeVerPainel: true, concluidos: ["abastecimento"], criaCategoria: "abastecimento" },
   // Jordan: cria envelopes (notas/boletos e abastecimento), exclui e acompanha os que ele gerou + envelopes das unidades dele (RJ e ES)
   "jordan@logmam.com.br": { tipo: "operacional", podeCriarEnvelope: true, podeVerPainel: true, podeExcluirEnvelope: true, apenasProprios: true, unidadesPermitidas: ["Rio de Janeiro", "Espirito Santo"] },
+  // Laryssa: mesmo perfil do Jordan (conta própria)
+  "laryssa.mattos@logmam.com.br": { tipo: "operacional", podeCriarEnvelope: true, podeVerPainel: true, podeExcluirEnvelope: true, apenasProprios: true, unidadesPermitidas: ["Rio de Janeiro", "Espirito Santo"] },
 };
 
 const norm = (s) => (s || "").trim().toLowerCase();
@@ -170,8 +173,14 @@ export const podeExportarFinanceiro = (user) => {
   return email === "nf@logmam.com.br" || email === "financeiro@logmam.com.br";
 };
 
-// Jordan (apenasProprios): cria envelopes e visualiza o painel, mas não acessa os envelopes
+// Jordan/Laryssa (apenasProprios): criam envelopes, visualizam o painel e consultam os envelopes (somente leitura)
 export const somenteVisualizaPainel = (user) => {
+  const p = getPermissoes(user);
+  return !!(p?.tipo === "operacional" && p.apenasProprios);
+};
+
+// Consulta interna: abre o envelope em modo somente leitura (sem assinar, enviar ou recusar)
+export const somenteConsultaEnvelopes = (user) => {
   const p = getPermissoes(user);
   return !!(p?.tipo === "operacional" && p.apenasProprios);
 };
