@@ -63,19 +63,20 @@ export const aplicarCarimbo = async (pdfDoc, carimbo) => {
   const pageH = page.getHeight();
 
   // Carimbo proporcional à página: PDFs digitalizados têm páginas até 10x maiores que A4,
-  // e um tamanho fixo (60pt) ficava praticamente ilegível. Referência: altura A4 = 842pt.
+  // e um tamanho fixo ficava ilegível. Referência: altura A4 = 842pt.
+  // Bloco de ~18% da altura e texto de 14pt no A4: visível e legível em qualquer digitalização.
   const escala = pageH / 842;
-  const imgH = 60 * escala;
-  const imgW = img ? (img.width / img.height) * imgH : 68 * escala;
-  const gap = 8 * escala;
+  const imgH = 150 * escala;
+  const imgW = img ? (img.width / img.height) * imgH : 170 * escala;
+  const gap = 12 * escala;
   const x = (finalPosX / 100) * pageW;
   const yTop = (finalPosY / 100) * pageH;
   const yTopPdf = pageH - yTop; // topo do bloco (coord PDF)
   const imgY = yTopPdf - imgH; // base da imagem
   if (img) page.drawImage(img, { x, y: imgY, width: imgW, height: imgH });
 
-  let fs = 8 * escala;
-  const indentPx = (Number(indent || 0)) * 12 * escala;
+  let fs = 14 * escala;
+  const indentPx = (Number(indent || 0)) * 16 * escala;
 
   const l1 = [nome ? 'Assinado por: ' + nome : '', data ? 'Assinado em: ' + data : ''].filter(Boolean).join('   |   ');
   const l2 = [observacao ? 'Obs: ' + observacao : '', operacao ? 'Operação: ' + operacao : '', unidade ? 'Unidade: ' + unidade : ''].filter(Boolean).join('   |   ');

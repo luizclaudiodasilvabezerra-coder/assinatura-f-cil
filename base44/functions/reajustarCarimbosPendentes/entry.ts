@@ -24,7 +24,7 @@ export default async function(req) {
     } else {
       let cursor;
       do {
-        const page = await base44.entities.Documento.filter({ status: 'pendente_diretoria' }, { sort: '-created_date', limit: 100, cursor });
+        const page = await base44.entities.Documento.filter({ status: { $in: ['pendente_gestao', 'assinado_gestao', 'pendente_diretoria'] } }, { sort: '-created_date', limit: 100, cursor });
         documentos.push(...page.items);
         cursor = page.has_more ? page.next_cursor : null;
       } while (cursor);
@@ -46,8 +46,9 @@ export default async function(req) {
 
       const tarefas = sigs.map((s) => async () => {
         const base = s.arquivo_original_url || '';
-        if (!base || !s.imagem_url) {
-          ignoradas.push({ documento: doc.numero, assinatura: s.id, motivo: 'sem arquivo base ou imagem' });
+        // Só regera carimbos aplicados sobre a página original (evita carimbo duplicado)
+        if (!base || !s.imagem_url || !(doc.arquivos || []).includes(base)) {
+          ignoradas.push({ documento: doc.numero, assinatura: s.id, motivo: 'base não é página original' });
           return;
         }
         try {
