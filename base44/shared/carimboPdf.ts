@@ -62,36 +62,45 @@ export const aplicarCarimbo = async (pdfDoc, carimbo) => {
   const pageW = page.getWidth();
   const pageH = page.getHeight();
 
-  const imgH = 60;
-  const imgW = img ? (img.width / img.height) * imgH : 68;
+  // Carimbo proporcional à página: PDFs digitalizados têm páginas até 10x maiores que A4,
+  // e um tamanho fixo (60pt) ficava praticamente ilegível. Referência: altura A4 = 842pt.
+  const escala = pageH / 842;
+  const imgH = 60 * escala;
+  const imgW = img ? (img.width / img.height) * imgH : 68 * escala;
+  const gap = 8 * escala;
   const x = (finalPosX / 100) * pageW;
   const yTop = (finalPosY / 100) * pageH;
   const yTopPdf = pageH - yTop; // topo do bloco (coord PDF)
   const imgY = yTopPdf - imgH; // base da imagem
   if (img) page.drawImage(img, { x, y: imgY, width: imgW, height: imgH });
 
-  const fs = 8;
-  const lineH = fs + 2;
-  const indentPx = (Number(indent || 0)) * 12;
+  let fs = 8 * escala;
+  const indentPx = (Number(indent || 0)) * 12 * escala;
 
   const l1 = [nome ? 'Assinado por: ' + nome : '', data ? 'Assinado em: ' + data : ''].filter(Boolean).join('   |   ');
   const l2 = [observacao ? 'Obs: ' + observacao : '', operacao ? 'Operação: ' + operacao : '', unidade ? 'Unidade: ' + unidade : ''].filter(Boolean).join('   |   ');
 
+  const largura = (txt) => (txt ? font.widthOfTextAtSize(txt, fs) : 0);
+
+  // Encolhe o texto apenas se ele não couber na largura disponível (nunca sai da página)
+  const textLeft = ladoDireita ? gap : x + imgW + gap;
+  const disponivel = ladoDireita ? x - gap - gap : pageW - textLeft - gap;
+  const maior = Math.max(largura(l1), largura(l2));
+  if (maior > disponivel && maior > 0 && disponivel > 0) fs = fs * (disponivel / maior);
+
+  const lineH = fs * 1.25;
   const centerY = yTopPdf - imgH / 2;
 
   if (ladoDireita) {
     // Texto à ESQUERDA da imagem (diretoria): alinhado à direita, cresce para a esquerda
-    const l1Width = l1 ? font.widthOfTextAtSize(l1, fs) : 0;
-    const l2Width = l2 ? font.widthOfTextAtSize(l2, fs) : 0;
-    const maxTextWidth = Math.max(l1Width, l2Width);
-    const textRightEdge = x - 8; // borda direita do texto = borda esquerda da imagem - 8
-    const textStartX = textRightEdge - maxTextWidth;
-    if (l1) page.drawText(l1, { x: textStartX + indentPx, y: centerY + lineH / 2 - 1, size: fs, font, color: rgb(0, 0, 0) });
-    if (l2) page.drawText(l2, { x: textStartX + indentPx, y: centerY - lineH / 2 - 1, size: fs, font, color: rgb(0, 0, 0) });
+    const maxTextWidth = Math.max(largura(l1), largura(l2));
+    const textStartX = x - gap - maxTextWidth;
+    if (l1) page.drawText(l1, { x: textStartX + indentPx, y: centerY + lineH / 2 - fs * 0.15, size: fs, font, color: rgb(0, 0, 0) });
+    if (l2) page.drawText(l2, { x: textStartX + indentPx, y: centerY - lineH / 2 - fs * 0.15, size: fs, font, color: rgb(0, 0, 0) });
   } else {
     // Texto à DIREITA da imagem (gestão): comportamento padrão
-    const textX = x + imgW + 8;
-    if (l1) page.drawText(l1, { x: textX + indentPx, y: centerY + lineH / 2 - 1, size: fs, font, color: rgb(0, 0, 0) });
-    if (l2) page.drawText(l2, { x: textX + indentPx, y: centerY - lineH / 2 - 1, size: fs, font, color: rgb(0, 0, 0) });
+    const textX = x + imgW + gap;
+    if (l1) page.drawText(l1, { x: textX + indentPx, y: centerY + lineH / 2 - fs * 0.15, size: fs, font, color: rgb(0, 0, 0) });
+    if (l2) page.drawText(l2, { x: textX + indentPx, y: centerY - lineH / 2 - fs * 0.15, size: fs, font, color: rgb(0, 0, 0) });
   }
 };
