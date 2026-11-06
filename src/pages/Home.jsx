@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { FileText, Clock, CheckCircle2, Plus, ScrollText, Users, Paperclip, Loader2, Trash2, Timer, BarChart3, Ban } from "lucide-react";
+import { FileText, Clock, CheckCircle2, Plus, ScrollText, Users, Paperclip, Loader2, Trash2, Timer, BarChart3, Ban, Search } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
 import { formatDate } from "@/lib/signatureUtils";
 import { baixarEnvelopePdf } from "@/lib/pdfDownload";
@@ -32,6 +32,30 @@ const STAGES = [
   { key: "recusados", label: "Parc. recusados", icon: Ban, tone: "text-amber-600" },
 ];
 
+const normalizar = (s) => (s || "").toString().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+const textoBusca = (d) => normalizar([
+  d.numero,
+  d.titulo,
+  d.descricao,
+  d.unidade_negocio,
+  d.operacao,
+  d.destinatario_nome,
+  d.signatario_nome,
+  d.diretoria,
+  ...(d.numeros_nf || []),
+  ...(d.arquivos_nf || []).map((n) => `${n.numero_nf || ""} ${n.emitente || ""}`),
+  ...(d.arquivos || []).map((a) => decodeURIComponent(a).split("/").pop()),
+  ...(d.lotes || []).map((l) => l.nome),
+].filter(Boolean).join(" "));
+
+const combinaBusca = (d, termo) => {
+  const t = normalizar(termo).trim();
+  if (!t) return true;
+  const alvo = textoBusca(d);
+  return t.split(/\s+/).every((p) => alvo.includes(p) || alvo.includes(p.replace(/[/\-_.]/g, "")));
+};
+
 const fmtDur = (ms) => {
   if (!ms || ms < 0) return "—";
   const totalMin = Math.floor(ms / 60000);
@@ -56,6 +80,7 @@ export default function Home() {
   const [filtroData, setFiltroData] = useState("");
   const [filtroDestinatario, setFiltroDestinatario] = useState("");
   const [filtroDiretoria, setFiltroDiretoria] = useState("");
+  const [busca, setBusca] = useState("");
   const [downloadingId, setDownloadingId] = useState(null);
   const [enviandoId, setEnviandoId] = useState(null);
   const [excluirDoc, setExcluirDoc] = useState(null);
@@ -170,6 +195,7 @@ export default function Home() {
   const recusadoDocIds = useMemo(() => new Set(arquivosRecusados.map((r) => r.documento_id)), [arquivosRecusados]);
 
   const docsFiltrados = documentosVisiveis.filter((d) => {
+    if (!combinaBusca(d, busca)) return false;
     if (stage === "recusados") return recusadoDocIds.has(d.id);
     if (d.status === "assinado_diretoria" || d.status === "arquivado" || !d.arquivos?.length) return false;
     if (stage !== "all" && d.status !== stage) return false;
@@ -298,6 +324,13 @@ export default function Home() {
             </div>
 
             <div className="flex flex-wrap items-end gap-4">
+              <div className="flex flex-col gap-1 min-w-[240px] flex-1">
+                <label className="text-xs text-muted-foreground">Buscar envelope</label>
+                <div className="relative">
+                  <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  <Input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Nº do envelope, NF, título, unidade…" className="h-9 pl-9" />
+                </div>
+              </div>
               <div className="flex flex-col gap-1">
                 <label className="text-xs text-muted-foreground">Unidade de negócio</label>
                 <select value={filtroUnidade} onChange={(e) => setFiltroUnidade(e.target.value)} className="h-9 rounded-md border border-input bg-background px-3 text-sm">
