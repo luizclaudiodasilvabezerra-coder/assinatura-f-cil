@@ -28,6 +28,8 @@ import { Image } from "@/components/ui/image";
 import carregarAssinaturasEnvelope from "@/lib/assinaturasEnvelope";
 import ConsultaEnvelope from "@/components/ConsultaEnvelope";
 import { detectarPosicaoAssinatura } from "@/lib/posicionamentoAssinatura";
+import useSenhaPdf from "@/hooks/useSenhaPdf";
+import { erroSenhaPdf } from "@/lib/senhaPdf";
 
 const isImage = (url) => url && /\.(png|jpe?g|webp|gif)$/i.test(url);
 const fileName = (url) => (url ? decodeURIComponent(url.split("/").pop() || "arquivo") : "Documento");
@@ -38,6 +40,7 @@ export default function AssinarDocumento() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user } = useAuth();
+  const { comSenha, senhaDialog } = useSenhaPdf();
   const padRef = useRef(null);
   const obsRef = useRef(null);
   const [doc, setDoc] = useState(null);
@@ -194,29 +197,23 @@ export default function AssinarDocumento() {
 
     let arquivo_url = currentFile || undefined;
     if (currentFile && /\.pdf$/i.test(currentFile)) {
-      let stampRes;
       try {
-        stampRes = await base44.functions.invoke("carimbarPdf", {
-          fileUrl: currentFile, imagemUrl: imagem_url, posX: pos.x, posY: pos.y,
-          nome: assinanteNome, data: new Date().toLocaleString("pt-BR"),
-          observacao, operacao: operacao || doc.operacao || "", unidade: unidade || doc.unidade_negocio || "", indent,
+        arquivo_url = await comSenha(currentFile, async (senhaPdf) => {
+          const stampRes = await base44.functions.invoke("carimbarPdf", {
+            fileUrl: currentFile, imagemUrl: imagem_url, posX: pos.x, posY: pos.y,
+            nome: assinanteNome, data: new Date().toLocaleString("pt-BR"),
+            observacao, operacao: operacao || doc.operacao || "", unidade: unidade || doc.unidade_negocio || "", indent,
+            senha: senhaPdf,
+          });
+          const senhaErr = erroSenhaPdf(stampRes.data);
+          if (senhaErr) throw senhaErr;
+          if (!stampRes.data?.pdf_base64) throw new Error(stampRes.data?.error || "A assinatura não foi registrada no arquivo. Tente novamente.");
+          const stampedFile = new File([base64ToBlob(stampRes.data.pdf_base64)], `assinado_${fileName(currentFile)}`, { type: "application/pdf" });
+          const up2 = await base44.integrations.Core.UploadFile({ file: stampedFile });
+          return up2.file_url;
         });
-      } catch {
-        toast({ title: "Falha ao gravar assinatura no PDF", description: "A assinatura não foi registrada no arquivo. Tente novamente.", variant: "destructive" });
-        setSaving(false);
-        return;
-      }
-      if (!stampRes.data?.pdf_base64) {
-        toast({ title: "Falha ao gravar assinatura no PDF", description: stampRes.data?.error || "A assinatura não foi registrada no arquivo. Tente novamente.", variant: "destructive" });
-        setSaving(false);
-        return;
-      }
-      try {
-        const stampedFile = new File([base64ToBlob(stampRes.data.pdf_base64)], `assinado_${fileName(currentFile)}`, { type: "application/pdf" });
-        const up2 = await base44.integrations.Core.UploadFile({ file: stampedFile });
-        arquivo_url = up2.file_url;
-      } catch {
-        toast({ title: "Falha ao salvar PDF assinado", description: "A assinatura não foi registrada no arquivo. Tente novamente.", variant: "destructive" });
+      } catch (e) {
+        toast({ title: "Falha ao gravar assinatura no PDF", description: e?.message || "A assinatura não foi registrada no arquivo. Tente novamente.", variant: "destructive" });
         setSaving(false);
         return;
       }
@@ -288,12 +285,15 @@ export default function AssinarDocumento() {
       const fileUrl = arquivos[idx];
       let arquivo_url = fileUrl || undefined;
       try {
-        arquivo_url = await carimbarEUploadar({
+        arquivo_url = await comSenha(fileUrl, (senhaPdf) => carimbarEUploadar({
           fileUrl, imagemUrl: imagem_url, pos,
-          nome: assinanteNome, observacao,
+          nome: assinanteNome, observacao, senha: senhaPdf,
           operacao: operacao || doc.operacao || "", unidade: unidade || doc.unidade_negocio || "", indent,
-        });
-      } catch { falhou++; continue; }
+        }));
+      } catch (e) {
+        if (e?.precisaSenha) toast({ title: "PDF protegido por senha", description: `${fileName(fileUrl)} não foi assinado.`, variant: "destructive" });
+        falhou++; continue;
+      }
       try {
         const rec = await base44.entities.Assinatura.create({
           documento_id: id, documento_titulo: doc.titulo, arquivo_url,
@@ -645,6 +645,7 @@ export default function AssinarDocumento() {
       </Dialog>
 
       <RecusaNFDialog open={showRecusa} onClose={() => setShowRecusa(false)} doc={doc} arquivoUrl={currentFile} onRecusou={aposRecusa} />
+      {senhaDialog}
       </div>
   );
 }

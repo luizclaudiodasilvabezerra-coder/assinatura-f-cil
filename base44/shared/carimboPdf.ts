@@ -1,19 +1,38 @@
 // Carimbo, carga e gravação de PDFs — compartilhado entre carimbarPdf,
 // restaurarAssinaturaGestao, baixarEnvelope e reconstruirPdfsEnvelope.
-import { PDFDocument, StandardFonts, rgb } from 'npm:pdf-lib@1.17.1';
+import { PDFDocument, StandardFonts, rgb } from 'npm:@cantoo/pdf-lib@2.11.1';
 
-// PDF protegido por senha não pode ser carimbado: o carimbo preserva os fluxos
-// criptografados e descarta o dicionário de criptografia, gerando arquivo corrompido
-// (o Acrobat exibe "Há um erro nesta página"). Bloqueia antes de carimbar.
-export const carregarPdf = async (bytes) => {
+export const ERRO_SENHA_PDF = 'senha_pdf';
+export const ERRO_SENHA_PDF_INCORRETA = 'senha_pdf_incorreta';
+
+const erroDeSenha = (codigo, mensagem) => {
+  const e = new Error(mensagem);
+  e.code = codigo;
+  return e;
+};
+
+// PDF protegido por senha: aberto com a senha informada e reconstruído em um documento
+// novo (sem criptografia), para que o carimbo possa ser gravado sem corromper o arquivo.
+// Sem senha (ou com senha errada) sinaliza pelo `code`, e o frontend pede a senha.
+export const carregarPdf = async (bytes, senha) => {
   try {
     return await PDFDocument.load(bytes);
   } catch (error) {
     const msg = String(error?.message || error).toLowerCase();
-    if (msg.includes('encrypt')) {
-      throw new Error('PDF protegido por senha: não é possível gravar a assinatura. Peça ao remetente uma versão sem senha.');
+    if (!msg.includes('encrypt')) throw error;
+    if (!senha) {
+      throw erroDeSenha(ERRO_SENHA_PDF, 'PDF protegido por senha: informe a senha do arquivo para gravar a assinatura.');
     }
-    throw error;
+    let aberto;
+    try {
+      aberto = await PDFDocument.load(bytes, { password: String(senha) });
+    } catch {
+      throw erroDeSenha(ERRO_SENHA_PDF_INCORRETA, 'Senha incorreta para este PDF. Confira e tente novamente.');
+    }
+    const limpo = await PDFDocument.create();
+    const paginas = await limpo.copyPages(aberto, aberto.getPageIndices());
+    paginas.forEach((p) => limpo.addPage(p));
+    return limpo;
   }
 };
 
