@@ -52,14 +52,19 @@ export default function NovoDocumento() {
   });
 
   const nomeOrigem = nomeDoUsuario(user);
-  const criadorOrigem = !!signatarioRedirecionado(nomeOrigem);
+  // O signatário é sempre quem cria o envelope quando ele próprio assina o fluxo
+  // (cadastro do tipo "signatario" ou signatário de origem da hierarquia).
+  const cadastroDoCriador = cadastros.find((c) => (c.email || "").trim().toLowerCase() === (user?.email || "").trim().toLowerCase());
+  const signatarioFixo = !!signatarioRedirecionado(nomeOrigem) || cadastroDoCriador?.tipo === "signatario";
   useEffect(() => {
     base44.entities.Cadastro.list("-created_date", 200).then((cad) => {
       setCadastros(cad);
-      if (signatarioRedirecionado(nomeDoUsuario(user))) {
-        const pessoa = cad.find((c) => (c.nome || "").trim().toUpperCase() === nomeDoUsuario(user));
-        if (pessoa) setForm((f) => ({ ...f, signatario_nome: pessoa.nome.trim(), signatario_email: pessoa.email || "", signatario_cadastro_id: pessoa.id }));
-      }
+      const email = (user?.email || "").trim().toLowerCase();
+      const nome = nomeDoUsuario(user);
+      const pessoa = cad.find((c) => (c.email || "").trim().toLowerCase() === email)
+        || (nome ? cad.find((c) => (c.nome || "").trim().toUpperCase() === nome) : null);
+      const fixo = !!signatarioRedirecionado(nome) || pessoa?.tipo === "signatario";
+      if (fixo && pessoa) setForm((f) => ({ ...f, signatario_nome: pessoa.nome.trim(), signatario_email: pessoa.email || "", signatario_cadastro_id: pessoa.id }));
     });
   }, [user]);
 
@@ -94,9 +99,9 @@ export default function NovoDocumento() {
       ...f,
       destinatario_nome: c ? c.nome : "",
       destinatario_email: c && c.email ? c.email : "",
-      signatario_cadastro_id: !criadorOrigem && c ? c.id : f.signatario_cadastro_id,
-      signatario_nome: !criadorOrigem && c ? c.nome : f.signatario_nome,
-      signatario_email: !criadorOrigem && c?.email ? c.email : f.signatario_email,
+      signatario_cadastro_id: !signatarioFixo && c ? c.id : f.signatario_cadastro_id,
+      signatario_nome: !signatarioFixo && c ? c.nome : f.signatario_nome,
+      signatario_email: !signatarioFixo && c?.email ? c.email : f.signatario_email,
     }));
   };
 
@@ -332,14 +337,17 @@ export default function NovoDocumento() {
 
               <div className="space-y-2">
                 <Label htmlFor="signatario">Signatário (pasta pendente será gerada para ele)</Label>
-                <select id="signatario" value={form.signatario_cadastro_id} onChange={onSignatarioChange} disabled={criadorOrigem} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+                <select id="signatario" value={form.signatario_cadastro_id} onChange={onSignatarioChange} disabled={signatarioFixo} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
                   <option value="">— Selecionar do cadastro —</option>
                   {cadastros.filter((c) => ["signatario", "destinatario", "ambos"].includes(c.tipo)).map((c) => (
                     <option key={c.id} value={c.id}>{c.nome}</option>
                   ))}
                 </select>
-                <Input value={form.signatario_nome} readOnly={criadorOrigem} onChange={update("signatario_nome")} placeholder="Ou digite o nome do signatário" className="mt-2" />
-                <Input type="email" value={form.signatario_email} readOnly={criadorOrigem} onChange={update("signatario_email")} placeholder="E-mail do signatário" className="mt-2" />
+                <Input value={form.signatario_nome} readOnly={signatarioFixo} onChange={update("signatario_nome")} placeholder="Ou digite o nome do signatário" className="mt-2" />
+                <Input type="email" value={form.signatario_email} readOnly={signatarioFixo} onChange={update("signatario_email")} placeholder="E-mail do signatário" className="mt-2" />
+                {signatarioFixo && (
+                  <p className="text-xs text-muted-foreground">O signatário é sempre quem cria o envelope — o destinatário não altera este campo.</p>
+                )}
                 {signatarioRedirecionado(form.signatario_nome) && (
                   <div className="mt-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800">
                     <strong>{form.signatario_nome}</strong> deverá assinar e informar observação em todas as páginas. Depois, envie a <strong>Joselio Serur</strong>, que assinará e marcará <strong>Autorizado</strong> antes do envio à diretoria.
