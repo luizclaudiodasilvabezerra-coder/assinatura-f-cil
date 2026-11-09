@@ -53,8 +53,8 @@ export default function NovoDocumento() {
 
   const nomeOrigem = nomeDoUsuario(user);
   const criadorOrigem = !!signatarioRedirecionado(nomeOrigem);
-  // Sem cadastro de signatário de origem, o signatário acompanha o destinatário
-  // escolhido, garantindo que ele veja e assine o envelope no painel.
+  // Só o signatário de origem fica travado no próprio usuário. Para os demais,
+  // o signatário é escolhido livremente e NUNCA muda ao trocar o destinatário.
   const signatarioFixo = criadorOrigem;
   useEffect(() => {
     base44.entities.Cadastro.list("-created_date", 200).then((cad) => {
@@ -97,9 +97,6 @@ export default function NovoDocumento() {
       ...f,
       destinatario_nome: c ? c.nome : "",
       destinatario_email: c && c.email ? c.email : "",
-      signatario_cadastro_id: !signatarioFixo && c ? c.id : f.signatario_cadastro_id,
-      signatario_nome: !signatarioFixo && c ? c.nome : f.signatario_nome,
-      signatario_email: !signatarioFixo && c?.email ? c.email : f.signatario_email,
     }));
   };
 
