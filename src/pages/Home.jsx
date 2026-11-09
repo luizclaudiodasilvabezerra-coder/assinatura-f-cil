@@ -100,10 +100,12 @@ export default function Home() {
       const ativos = docs.filter((d) => d.arquivos?.length && !["arquivado", "assinado_diretoria"].includes(d.status));
       const resultado = ativos.length ? await base44.entities.Assinatura.aggregate({
         query: { status: "assinado", observacao: { $ne: "Assinatura automática da gestão de origem (redirecionamento)" },
-          $or: ativos.map((d) => ({ documento_id: d.id, etapa: etapaGestao(d), arquivo_original_url: { $in: d.arquivos } })) },
+          $or: ativos.map((d) => ({ documento_id: d.id, etapa: etapaGestao(d) })) },
         groupBy: "documento_id", countDistinct: "arquivo_original_url", limit: 1000,
       }) : { rows: [] };
-      setProgresso(Object.fromEntries(resultado.rows.map((r) => [r.documento_id, r.count_distinct_arquivo_original_url])));
+      const totalPorDoc = Object.fromEntries(ativos.map((d) => [d.id, d.arquivos?.length || 0]));
+      setProgresso(Object.fromEntries(resultado.rows.map((r) => [r.documento_id,
+        Math.min(r.count_distinct_arquivo_original_url || 0, totalPorDoc[r.documento_id] || 0)])));
       // Progresso da etapa de origem (quem criou/assinou antes de enviar ao gestor)
       const docsOrigem = ativos.filter((d) => d.signatario_origem_nome);
       const resultadoOrigem = docsOrigem.length ? await base44.entities.Assinatura.aggregate({

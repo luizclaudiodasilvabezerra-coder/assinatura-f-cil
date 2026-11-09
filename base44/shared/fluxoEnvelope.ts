@@ -14,18 +14,41 @@ export const podeOperarGestao = (user, doc) => {
     (!!doc.signatario_email && email === doc.signatario_email.trim().toLowerCase()) ||
     (!!nomesPorEmail[email] && nomesPorEmail[email] === (doc.signatario_nome || '').trim().toUpperCase());
 };
-export const assinaturaDaPagina = (sigs, url, etapa) => sigs.find((s) =>
-  (s.etapa || 'signatario') === etapa && s.status === 'assinado' && s.arquivo_url &&
-  (s.arquivo_original_url || s.arquivo_url) === url && !s.observacao?.startsWith('Assinatura automática')
-);
+// Chave da página: o nome do arquivo muda a cada carimbo, reconstrução ou
+// renomeação (assinado_, legivel_, reconstruido_ e o hash do upload se acumulam),
+// então comparamos sempre o nome "limpo" para achar a mesma página.
+const PREFIXO_UPLOAD = /^[0-9a-f]{8,10}_/i;
+const PREFIXO_MARCA = /^(assinado|legivel|reconstruido|reassinar|carimbado|copia)_/i;
+
+export const chaveArquivo = (url) => {
+  if (!url) return '';
+  let nome = String(url).split('/').pop() || '';
+  try { nome = decodeURIComponent(nome); } catch { /* mantém como está */ }
+  nome = nome.toLowerCase();
+  for (let anterior = ''; anterior !== nome;) {
+    anterior = nome;
+    nome = nome.replace(PREFIXO_UPLOAD, '').replace(PREFIXO_MARCA, '');
+  }
+  return nome;
+};
+
+export const assinaturaDaPagina = (sigs, url, etapa) => {
+  const alvo = chaveArquivo(url);
+  if (!alvo) return undefined;
+  return sigs.find((s) =>
+    (s.etapa || 'signatario') === etapa && s.status === 'assinado' && s.arquivo_url &&
+    (chaveArquivo(s.arquivo_original_url || s.arquivo_url) === alvo || chaveArquivo(s.arquivo_url) === alvo) &&
+    !s.observacao?.startsWith('Assinatura automática')
+  );
+};
 export const buscarAssinaturasAtivas = async (base44, doc) => {
   const sigs = [];
   if (!doc.arquivos?.length) return sigs;
   let cursor;
   do {
-    const page = await base44.entities.Assinatura.filter({ documento_id: doc.id, status: 'assinado',
-      $or: [{ arquivo_original_url: { $in: doc.arquivos } }, { arquivo_url: { $in: doc.arquivos } }]
-    }, { sort: '-created_date', limit: 100, cursor });
+    // Todas as assinaturas do envelope: o vínculo com a página é feito por chaveArquivo,
+    // porque os nomes dos arquivos mudam após o envio ao gestor.
+    const page = await base44.entities.Assinatura.filter({ documento_id: doc.id, status: 'assinado' }, { sort: '-created_date', limit: 100, cursor });
     sigs.push(...page.items);
     cursor = page.has_more ? page.next_cursor : null;
   } while (cursor);
