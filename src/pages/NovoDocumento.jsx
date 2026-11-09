@@ -53,13 +53,14 @@ export default function NovoDocumento() {
 
   const nomeOrigem = nomeDoUsuario(user);
   const criadorOrigem = !!signatarioRedirecionado(nomeOrigem);
-  // Só o signatário de origem fica travado no próprio usuário. Para os demais,
-  // o signatário é escolhido livremente e NUNCA muda ao trocar o destinatário.
-  const signatarioFixo = criadorOrigem;
+  // O signatário fica travado no próprio usuário quando ele é signatário de origem
+  // (Anderson, Ana, Matheus) ou tem perfil de signatário restrito (Laryssa).
+  // Para os demais, o signatário é escolhido livremente e NUNCA muda ao trocar o destinatário.
+  const signatarioFixo = criadorOrigem || nomeOrigem === "LARYSSA MATTOS";
   useEffect(() => {
     base44.entities.Cadastro.list("-created_date", 200).then((cad) => {
       setCadastros(cad);
-      if (signatarioRedirecionado(nomeDoUsuario(user))) {
+      if (signatarioRedirecionado(nomeDoUsuario(user)) || nomeDoUsuario(user) === "LARYSSA MATTOS") {
         const pessoa = cad.find((c) => (c.nome || "").trim().toUpperCase() === nomeDoUsuario(user));
         if (pessoa) setForm((f) => ({ ...f, signatario_nome: pessoa.nome.trim(), signatario_email: pessoa.email || "", signatario_cadastro_id: pessoa.id }));
       }
@@ -341,7 +342,7 @@ export default function NovoDocumento() {
                 <Input value={form.signatario_nome} readOnly={signatarioFixo} onChange={update("signatario_nome")} placeholder="Ou digite o nome do signatário" className="mt-2" />
                 <Input type="email" value={form.signatario_email} readOnly={signatarioFixo} onChange={update("signatario_email")} placeholder="E-mail do signatário" className="mt-2" />
                 {signatarioFixo && (
-                  <p className="text-xs text-muted-foreground">Você é o signatário de origem: este campo não pode ser alterado.</p>
+                  <p className="text-xs text-muted-foreground">Signatário fixo no seu usuário: este campo não pode ser alterado.</p>
                 )}
                 {signatarioRedirecionado(form.signatario_nome) && (
                   <div className="mt-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800">
