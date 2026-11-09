@@ -4,7 +4,8 @@ export const nomesPorEmail = {
   'ana@logmam.com.br': 'ANA BARCELLOS', 'anderson.duque@logmam.com.br': 'ANDERSON DUQUE',
   'matheus.santos@logmam.com.br': 'MATHEUS SANTOS', 'joselio@logmam.com.br': 'JOSELIO SERUR',
   'gilmar@logmam.com.br': 'GILMAR PEREIRA', 'jorge.queiroz@logmam.com.br': 'JORGE QUEIROZ',
-  'luiz.dias@logmam.com.br': 'LUIZ DIAS', 'breno@logmam.com.br': 'BRENO'
+  'luiz.dias@logmam.com.br': 'LUIZ DIAS', 'breno@logmam.com.br': 'BRENO',
+  'jordan@logmam.com.br': 'DILSON JORDAN', 'laryssa.mattos@logmam.com.br': 'LARYSSA MATTOS'
 };
 export const etapaGestao = (doc) => signatarioRedirecionado(doc.signatario_nome) ? 'gestao_origem' : 'signatario';
 export const podeOperarGestao = (user, doc) => {

@@ -12,6 +12,7 @@ const EMAIL_PARA_NOME = {
   "matheus.santos@logmam.com.br": "MATHEUS SANTOS",
   "joselio@logmam.com.br": "JOSELIO SERUR",
   "laryssa.mattos@logmam.com.br": "LARYSSA MATTOS",
+  "jordan@logmam.com.br": "DILSON JORDAN",
 };
 
 // Permissões por e-mail
