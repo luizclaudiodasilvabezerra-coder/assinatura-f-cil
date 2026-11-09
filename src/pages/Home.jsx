@@ -8,7 +8,7 @@ import { FileText, Clock, CheckCircle2, Plus, ScrollText, Users, Paperclip, Load
 import { useAuth } from "@/lib/AuthContext";
 import { formatDate } from "@/lib/signatureUtils";
 import { baixarEnvelopePdf } from "@/lib/pdfDownload";
-import { podeVerPainel, podeCriarEnvelope, podeExcluirEnvelope, podeAcessarConcluidos, podeVerCadastros, podeVerLog, stagesPermitidos, filtrarEnvelopesVisiveis, somenteVisualizaPainel } from "@/lib/permissoes";
+import { podeVerPainel, podeCriarEnvelope, podeExcluirEnvelope, podeAcessarConcluidos, podeVerCadastros, podeVerLog, stagesPermitidos, filtrarEnvelopesVisiveis, somenteVisualizaPainel, souSignatarioDeOrigem } from "@/lib/permissoes";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
@@ -72,6 +72,7 @@ export default function Home() {
   const [documentos, setDocumentos] = useState([]);
   const [assinaturas, setAssinaturas] = useState([]);
   const [progresso, setProgresso] = useState({});
+  const [progressoOrigem, setProgressoOrigem] = useState({});
   const [arquivosRecusados, setArquivosRecusados] = useState([]);
   const [cadastros, setCadastros] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -103,6 +104,13 @@ export default function Home() {
         groupBy: "documento_id", countDistinct: "arquivo_original_url", limit: 1000,
       }) : { rows: [] };
       setProgresso(Object.fromEntries(resultado.rows.map((r) => [r.documento_id, r.count_distinct_arquivo_original_url])));
+      // Progresso da etapa de origem (quem criou/assinou antes de enviar ao gestor)
+      const docsOrigem = ativos.filter((d) => d.signatario_origem_nome);
+      const resultadoOrigem = docsOrigem.length ? await base44.entities.Assinatura.aggregate({
+        query: { status: "assinado", etapa: "gestao_origem", documento_id: { $in: docsOrigem.map((d) => d.id) } },
+        groupBy: "documento_id", countDistinct: "arquivo_original_url", limit: 1000,
+      }) : { rows: [] };
+      setProgressoOrigem(Object.fromEntries(resultadoOrigem.rows.map((r) => [r.documento_id, r.count_distinct_arquivo_original_url])));
       setDocumentos(docs);
       setAssinaturas(sigs);
       setArquivosRecusados(recus);
@@ -154,7 +162,14 @@ export default function Home() {
     return Array.from(set);
   }, [documentosVisiveis]);
 
-  const signedCountFor = (docId) => progresso[docId] || 0;
+  // Quem assinou a etapa de origem vê o progresso da própria etapa no cartão
+  const progressoPorDoc = useMemo(() => {
+    const out = { ...progresso };
+    documentos.forEach((d) => { if (souSignatarioDeOrigem(user, d)) out[d.id] = progressoOrigem[d.id] || 0; });
+    return out;
+  }, [progresso, progressoOrigem, documentos, user]);
+
+  const signedCountFor = (docId) => progressoPorDoc[docId] || 0;
   const hasPendente = (d) => signedCountFor(d.id) < (d.arquivos?.length || 0);
 
   const indicadores = useMemo(() => {

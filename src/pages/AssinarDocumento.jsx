@@ -16,7 +16,7 @@ import EnvelopeRecusado from "@/components/EnvelopeRecusado";
 import { dataURLToFile, formatDate } from "@/lib/signatureUtils";
 import { base64ToBlob, baixarEnvelopePdf, baixarArquivoPdf } from "@/lib/pdfDownload";
 import { validarSenhaGestor, gestorTemSenha, SENHA_MASTER_RECUSA } from "@/lib/acessos";
-import { podeAssinarGestao, somenteConsultaEnvelopes } from "@/lib/permissoes";
+import { podeAssinarGestao, somenteConsultaEnvelopes, souSignatarioDeOrigem } from "@/lib/permissoes";
 import { useAuth } from "@/lib/AuthContext";
 import { loteDoArquivo, carimbarEUploadar } from "@/lib/carimbarLote";
 import LoteFolders from "@/components/LoteFolders";
@@ -81,7 +81,10 @@ export default function AssinarDocumento() {
           base44.entities.Documento.get(id),
           base44.entities.Cadastro.list("-created_date", 200),
         ]);
-        const sigs = await carregarAssinaturasEnvelope(id, d.recusado ? ["gestao_origem", "signatario", "master"] : [etapaGestao(d)]);
+        // Quem assina nesta visita: o signatário de origem (ex.: Anderson Duque) ou o gestor atual.
+        const atorOrigem = souSignatarioDeOrigem(user, d);
+        const etapaAtor = atorOrigem ? "gestao_origem" : etapaGestao(d);
+        const sigs = await carregarAssinaturasEnvelope(id, d.recusado ? ["gestao_origem", "signatario", "master"] : [etapaAtor]);
         setDoc(d);
         setCadastros(cad);
         if (!d.recusado) setUnlocked(true);
@@ -89,13 +92,16 @@ export default function AssinarDocumento() {
         setOperacao(d.operacao || "");
         setExistentes(sigs);
         const arqs = d.arquivos || [];
-        const map = mapaAssinaturas(d, sigs);
+        const map = mapaAssinaturas(d, sigs, etapaAtor);
         setSignedMap(map);
         const norm = (value) => (value || "").trim().toUpperCase();
-        const pessoa = cad.find((c) => c.id === d.signatario_cadastro_id) || cad.find((c) => norm(c.nome) === norm(d.signatario_nome));
+        const nomeEfetivo = atorOrigem ? d.signatario_origem_nome : d.signatario_nome;
+        const emailEfetivo = atorOrigem ? d.signatario_origem_email : d.signatario_email;
+        const cadastroEfetivo = atorOrigem ? d.signatario_origem_cadastro_id : d.signatario_cadastro_id;
+        const pessoa = cad.find((c) => c.id === cadastroEfetivo) || cad.find((c) => norm(c.nome) === norm(nomeEfetivo));
         setCadastroId(pessoa?.id || "");
-        setAssinanteNome(pessoa?.nome || d.signatario_nome || "");
-        setAssinanteEmail(pessoa?.email || d.signatario_email || "");
+        setAssinanteNome(pessoa?.nome || nomeEfetivo || "");
+        setAssinanteEmail(pessoa?.email || emailEfetivo || "");
         if (pessoa?.imagem_assinatura) { setImagemUpload(pessoa.imagem_assinatura); setModo("uploadada"); }
         setPos(precisaAutorizacao(d) ? { x: 3, y: 78 } : { x: 3, y: 90 });
         const firstUnsigned = arqs.findIndex((_, i) => !map[i]);
@@ -104,15 +110,18 @@ export default function AssinarDocumento() {
         setLoading(false);
       }
     })();
-  }, [id]);
+  }, [id, user?.email]);
 
   const arquivos = useMemo(() => doc?.arquivos || [], [doc]);
-  const etapa = etapaGestao(doc);
+  // Assinando como origem (envelope já encaminhado ao gestor) ou como gestor atual.
+  const origemAtor = souSignatarioDeOrigem(user, doc);
+  const etapa = origemAtor ? "gestao_origem" : etapaGestao(doc);
+  const responsavelEtapa = origemAtor ? doc?.signatario_origem_nome : doc?.signatario_nome;
   const consulta = somenteConsultaEnvelopes(user);
-  const autorizacaoGestor = precisaAutorizacao(doc);
+  const autorizacaoGestor = precisaAutorizacao(doc) && !origemAtor;
   const destinoGestor = !!signatarioRedirecionado(doc?.signatario_nome);
   const hierarquico = precisaHierarquia(doc);
-  const cadastrosPessoas = useMemo(() => cadastros.filter((c) => ["signatario", "destinatario", "ambos"].includes(c.tipo) && (!precisaHierarquia(doc) || (c.nome || "").trim().toUpperCase() === (doc?.signatario_nome || "").trim().toUpperCase())), [cadastros, doc]);
+  const cadastrosPessoas = useMemo(() => cadastros.filter((c) => ["signatario", "destinatario", "ambos"].includes(c.tipo) && (!precisaHierarquia(doc) || (c.nome || "").trim().toUpperCase() === (responsavelEtapa || "").trim().toUpperCase())), [cadastros, doc, responsavelEtapa]);
   const currentFile = arquivos[currentIndex];
   const loteAtual = useMemo(() => loteDoArquivo(doc?.lotes, currentFile), [doc, currentFile]);
   const currentSigned = signedMap[currentIndex];
@@ -173,7 +182,7 @@ export default function AssinarDocumento() {
 
   const assinarArquivo = async () => {
     if (!assinanteNome.trim()) { toast({ title: "Selecione ou informe o nome do assinante", variant: "destructive" }); return; }
-    if (hierarquico && assinanteNome.trim().toUpperCase() !== (doc.signatario_nome || "").trim().toUpperCase()) { toast({ title: "Assine com o responsável desta etapa", variant: "destructive" }); return; }
+    if (hierarquico && assinanteNome.trim().toUpperCase() !== (responsavelEtapa || "").trim().toUpperCase()) { toast({ title: "Assine com o responsável desta etapa", variant: "destructive" }); return; }
     if (autorizacaoGestor && !autorizado) { setCritica(true); toast({ title: "Marque Autorizado antes de assinar", variant: "destructive" }); return; }
     if (!observacao.trim()) {
       setCritica(true);
@@ -236,7 +245,9 @@ export default function AssinarDocumento() {
 
       const next = findNextUnsigned(currentIndex, newMap);
       if (next === -1) {
-        if (doc.status === "pendente_gestao") {
+        if (origemAtor) {
+          toast({ title: "Sua etapa está assinada", description: "O envelope segue com Joselio Serur para autorização e assinatura." });
+        } else if (doc.status === "pendente_gestao") {
           await base44.entities.Documento.update(id, { status: "assinado_gestao" });
           setDoc((d) => ({ ...d, status: "assinado_gestao" }));
           toast({ title: "Todas as páginas assinadas", description: destinoGestor ? "Envelope pronto para enviar a Joselio Serur." : "Envelope pronto para enviar à diretoria." });
@@ -253,7 +264,7 @@ export default function AssinarDocumento() {
 
   const assinarLote = async () => {
     if (!assinanteNome.trim()) { toast({ title: "Selecione ou informe o nome do assinante", variant: "destructive" }); return; }
-    if (hierarquico && assinanteNome.trim().toUpperCase() !== (doc.signatario_nome || "").trim().toUpperCase()) { toast({ title: "Assine com o responsável desta etapa", variant: "destructive" }); return; }
+    if (hierarquico && assinanteNome.trim().toUpperCase() !== (responsavelEtapa || "").trim().toUpperCase()) { toast({ title: "Assine com o responsável desta etapa", variant: "destructive" }); return; }
     if (autorizacaoGestor && !autorizado) { setCritica(true); toast({ title: "Marque Autorizado antes de assinar", variant: "destructive" }); return; }
     if (!observacao.trim()) { setCritica(true); toast({ title: "Existe arquivo sem observação", description: "A observação é obrigatória para assinar.", variant: "destructive" }); return; }
     const lote = loteDoArquivo(doc.lotes, currentFile);
@@ -314,7 +325,9 @@ export default function AssinarDocumento() {
     setObservacao(""); setIndent(0); setAutorizado(false); setCritica(false);
 
     const allDone = arquivos.every((_, i) => newMap[i]);
-    if (allDone && doc.status === "pendente_gestao") {
+    if (allDone && origemAtor) {
+      toast({ title: `Lote assinado: ${ok} arquivo(s)`, description: "O envelope segue com Joselio Serur para autorização e assinatura." });
+    } else if (allDone && doc.status === "pendente_gestao") {
       await base44.entities.Documento.update(id, { status: "assinado_gestao" });
       setDoc((d) => ({ ...d, status: "assinado_gestao" }));
       toast({ title: `Lote carimbado: ${ok} arquivo(s)`, description: destinoGestor ? "Envie o envelope a Joselio Serur." : "Envie o envelope à diretoria." });
@@ -361,7 +374,7 @@ export default function AssinarDocumento() {
 
   const aposRecusa = (atualizado) => {
     setDoc(atualizado);
-    const map = mapaAssinaturas(atualizado, existentes);
+    const map = mapaAssinaturas(atualizado, existentes, etapa);
     setSignedMap(map);
     const next = atualizado.arquivos.findIndex((_, i) => !map[i]);
     setCurrentIndex(next >= 0 ? next : 0);
@@ -433,17 +446,19 @@ export default function AssinarDocumento() {
 
   if (gestaoDone) {
     const jaEnviado = doc.status === "pendente_diretoria" || doc.status === "assinado_diretoria";
+    // A origem não encaminha o envelope: quem envia à diretoria é o gestor (Joselio Serur).
+    const podeEnviar = !jaEnviado && !origemAtor;
     return (
       <div className="min-h-screen flex items-center justify-center px-6">
         <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="text-center max-w-md">
           <div className="mx-auto w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center mb-6">
             <CheckCircle2 className="w-8 h-8 text-blue-600" />
           </div>
-          <h1 className="text-2xl font-heading mb-2">{destinoGestor ? "Assinatura de origem concluída" : "Assinatura da gestão concluída"}</h1>
-          <p className="text-muted-foreground mb-6">{jaEnviado ? "Todos os arquivos foram assinados e o envelope já está com a diretoria." : destinoGestor ? "Envie as páginas assinadas, com suas observações, para Joselio Serur autorizar e assinar." : "Todos os arquivos foram assinados pela gestão. Envie à diretoria para a assinatura final."}</p>
+          <h1 className="text-2xl font-heading mb-2">{origemAtor ? "Sua etapa está assinada" : destinoGestor ? "Assinatura de origem concluída" : "Assinatura da gestão concluída"}</h1>
+          <p className="text-muted-foreground mb-6">{origemAtor ? "As páginas da sua etapa estão assinadas. O envelope está com Joselio Serur, que assinará e autorizará antes do envio à diretoria." : jaEnviado ? "Todos os arquivos foram assinados e o envelope já está com a diretoria." : destinoGestor ? "Envie as páginas assinadas, com suas observações, para Joselio Serur autorizar e assinar." : "Todos os arquivos foram assinados pela gestão. Envie à diretoria para a assinatura final."}</p>
 
           <div className="flex flex-col gap-3 mb-6">
-            {!jaEnviado && (
+            {podeEnviar && (
             <Button type="button" onClick={enviarDiretoria} disabled={enviando} className="gap-2">
               {enviando ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
               {destinoGestor ? "Enviar para Joselio Serur" : "Enviar para assinatura da diretoria"}

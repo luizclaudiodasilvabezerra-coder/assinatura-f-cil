@@ -6,6 +6,8 @@ import { formatDate } from "@/lib/signatureUtils";
 import ShareIcons from "@/components/ShareIcons";
 import { stageStyles, stageLabel } from "@/lib/stageStyles";
 import { signatarioRedirecionado } from "@/lib/redirecionamentoAssinatura";
+import { podeEncaminharEnvelope, getPermissoes } from "@/lib/permissoes";
+import { useAuth } from "@/lib/AuthContext";
 
 export default function EnvelopeCard({
   d,
@@ -19,6 +21,10 @@ export default function EnvelopeCard({
   downloadingId,
   somenteVisualizacao,
 }) {
+  const { user } = useAuth();
+  const podeEnviar = podeEncaminharEnvelope(user, d);
+  const perfil = getPermissoes(user)?.tipo;
+  const podeIrDiretoria = perfil === "admin" || perfil === "diretoria";
   const signed = signedCount;
   const total = d.arquivos?.length || 0;
   const pendente = hasPendente;
@@ -59,12 +65,12 @@ export default function EnvelopeCard({
         <div className="flex items-center gap-2 shrink-0">
           {!somenteVisualizacao && (
             <>
-              {d.status === "assinado_gestao" && (
+              {d.status === "assinado_gestao" && podeEnviar && (
                 <button type="button" onClick={() => onEnviarDiretoria(d)} disabled={enviandoId === d.id} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-purple-600 text-white text-xs font-medium hover:bg-purple-700 disabled:opacity-50" title={signatarioRedirecionado(d.signatario_nome) ? "Enviar para Joselio Serur" : "Enviar para assinatura da diretoria"}>
                   {enviandoId === d.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />} {signatarioRedirecionado(d.signatario_nome) ? "Enviar a Joselio" : "Enviar à diretoria"}
                 </button>
               )}
-              {d.status === "pendente_diretoria" && (
+              {d.status === "pendente_diretoria" && podeIrDiretoria && (
                 <Link to={`/assinar-diretoria/${d.id}`} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-purple-600 text-white text-xs font-medium hover:bg-purple-700" title="Assinar como diretoria">
                   <ShieldCheck className="w-3.5 h-3.5" /> Diretoria
                 </Link>

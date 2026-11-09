@@ -124,8 +124,11 @@ export const filtrarEnvelopesVisiveis = (user, docs, cadastros) => {
     return docs.filter((d) => dir && d.diretoria === dir);
   }
   if (p.tipo === "gestor") {
+    // Inclui os envelopes em que ele é o signatário atual e também os que ele originou
+    // (signatário de origem) e já seguiram para Joselio Serur.
     const nome = nomeDoUsuario(user);
-    return docs.filter((d) => nome && (d.signatario_nome || "").trim().toUpperCase() === nome);
+    return docs.filter((d) => nome && ((d.signatario_nome || "").trim().toUpperCase() === nome
+      || (d.signatario_origem_nome || "").trim().toUpperCase() === nome));
   }
   // Jordan: acompanha os envelopes que ele mesmo criou + os das unidades permitidas (RJ e ES)
   if (p.tipo === "operacional" && p.apenasProprios) {
@@ -185,15 +188,46 @@ export const somenteConsultaEnvelopes = (user) => {
   return !!(p?.tipo === "operacional" && p.apenasProprios);
 };
 
-// Pode assinar um envelope na etapa gestao
+// Nome cadastrado do usuário, normalizado para comparação com os campos do envelope
+const nomeNormalizado = (user) => {
+  const nome = nomeDoUsuario(user);
+  return nome ? nome.trim().toUpperCase() : null;
+};
+
+// Usuário é o signatário de ORIGEM do envelope: já assinou a própria etapa
+// e o envelope seguiu para o gestor (ex.: Joselio Serur).
+export const souSignatarioDeOrigem = (user, doc) => {
+  if (!user || !doc) return false;
+  const nome = nomeNormalizado(user);
+  if (!nome) return false;
+  const origem = (doc.signatario_origem_nome || "").trim().toUpperCase();
+  const atual = (doc.signatario_nome || "").trim().toUpperCase();
+  return !!origem && origem === nome && atual !== nome;
+};
+
+// Pode assinar um envelope na etapa gestao (como signatário atual ou de origem)
 export const podeAssinarGestao = (user, doc) => {
   const p = getPermissoes(user);
-  if (!p) return false;
+  if (!p || !doc) return false;
   if (p.tipo === "admin") return true;
   if (p.tipo === "operacional" && p.podeVerPainel && !p.apenasProprios) return true;
   if (p.tipo === "gestor") {
-    const nome = nomeDoUsuario(user);
-    return !!(nome && (doc.signatario_nome || "").trim().toUpperCase() === nome);
+    const nome = nomeNormalizado(user);
+    if (!nome) return false;
+    const atual = (doc.signatario_nome || "").trim().toUpperCase();
+    const origem = (doc.signatario_origem_nome || "").trim().toUpperCase();
+    return atual === nome || origem === nome;
   }
   return false;
+};
+
+// Pode encaminhar o envelope da gestão: gestor responsável, operacional do painel ou admin
+export const podeEncaminharEnvelope = (user, doc) => {
+  const p = getPermissoes(user);
+  if (!p || !doc) return false;
+  if (p.tipo === "admin") return true;
+  if (["nf@logmam.com.br", "faturas@logmam.com.br"].includes(norm(user.email))) return true;
+  if (p.tipo !== "gestor") return false;
+  const nome = nomeNormalizado(user);
+  return !!nome && (doc.signatario_nome || "").trim().toUpperCase() === nome;
 };
