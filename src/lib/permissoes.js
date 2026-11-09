@@ -128,7 +128,8 @@ export const filtrarEnvelopesVisiveis = (user, docs, cadastros) => {
     // (signatário de origem) e já seguiram para Joselio Serur.
     const nome = nomeDoUsuario(user);
     return docs.filter((d) => nome && ((d.signatario_nome || "").trim().toUpperCase() === nome
-      || (d.signatario_origem_nome || "").trim().toUpperCase() === nome));
+      || (d.signatario_origem_nome || "").trim().toUpperCase() === nome
+      || (d.destinatario_nome || "").trim().toUpperCase() === nome));
   }
   // Jordan: acompanha os envelopes que ele mesmo criou + os das unidades permitidas (RJ e ES)
   if (p.tipo === "operacional" && p.apenasProprios) {

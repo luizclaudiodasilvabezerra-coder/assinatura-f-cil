@@ -52,19 +52,17 @@ export default function NovoDocumento() {
   });
 
   const nomeOrigem = nomeDoUsuario(user);
-  // O signatário é sempre quem cria o envelope quando ele próprio assina o fluxo
-  // (cadastro do tipo "signatario" ou signatário de origem da hierarquia).
-  const cadastroDoCriador = cadastros.find((c) => (c.email || "").trim().toLowerCase() === (user?.email || "").trim().toLowerCase());
-  const signatarioFixo = !!signatarioRedirecionado(nomeOrigem) || cadastroDoCriador?.tipo === "signatario";
+  const criadorOrigem = !!signatarioRedirecionado(nomeOrigem);
+  // Sem cadastro de signatário de origem, o signatário acompanha o destinatário
+  // escolhido, garantindo que ele veja e assine o envelope no painel.
+  const signatarioFixo = criadorOrigem;
   useEffect(() => {
     base44.entities.Cadastro.list("-created_date", 200).then((cad) => {
       setCadastros(cad);
-      const email = (user?.email || "").trim().toLowerCase();
-      const nome = nomeDoUsuario(user);
-      const pessoa = cad.find((c) => (c.email || "").trim().toLowerCase() === email)
-        || (nome ? cad.find((c) => (c.nome || "").trim().toUpperCase() === nome) : null);
-      const fixo = !!signatarioRedirecionado(nome) || pessoa?.tipo === "signatario";
-      if (fixo && pessoa) setForm((f) => ({ ...f, signatario_nome: pessoa.nome.trim(), signatario_email: pessoa.email || "", signatario_cadastro_id: pessoa.id }));
+      if (signatarioRedirecionado(nomeDoUsuario(user))) {
+        const pessoa = cad.find((c) => (c.nome || "").trim().toUpperCase() === nomeDoUsuario(user));
+        if (pessoa) setForm((f) => ({ ...f, signatario_nome: pessoa.nome.trim(), signatario_email: pessoa.email || "", signatario_cadastro_id: pessoa.id }));
+      }
     });
   }, [user]);
 
@@ -346,7 +344,7 @@ export default function NovoDocumento() {
                 <Input value={form.signatario_nome} readOnly={signatarioFixo} onChange={update("signatario_nome")} placeholder="Ou digite o nome do signatário" className="mt-2" />
                 <Input type="email" value={form.signatario_email} readOnly={signatarioFixo} onChange={update("signatario_email")} placeholder="E-mail do signatário" className="mt-2" />
                 {signatarioFixo && (
-                  <p className="text-xs text-muted-foreground">O signatário é sempre quem cria o envelope — o destinatário não altera este campo.</p>
+                  <p className="text-xs text-muted-foreground">Você é o signatário de origem: este campo não pode ser alterado.</p>
                 )}
                 {signatarioRedirecionado(form.signatario_nome) && (
                   <div className="mt-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800">
@@ -383,6 +381,7 @@ export default function NovoDocumento() {
                 <div className="space-y-2">
                   <Label htmlFor="destinatario_email">E-mail do destinatário</Label>
                   <Input id="destinatario_email" type="email" value={form.destinatario_email} onChange={update("destinatario_email")} placeholder="email@exemplo.com" />
+                  <p className="text-xs text-muted-foreground">O destinatário escolhido é quem assina e vê o envelope no painel.</p>
                 </div>
               </div>
               <div className="space-y-2">
