@@ -220,7 +220,9 @@ export const souSignatarioDeOrigem = (user, doc) => {
 // Pode assinar um envelope na etapa gestao (como signatário atual ou de origem)
 export const podeAssinarGestao = (user, doc) => {
   const p = getPermissoes(user);
-  if (!p || !doc) return false;
+  if (!doc) return false;
+  if (ehSignatarioPorEmail(user, doc)) return true;
+  if (!p) return false;
   if (p.tipo === "admin") return true;
   if (p.tipo === "operacional" && p.podeVerPainel && !p.apenasProprios) return true;
   if (p.tipo === "gestor") {
@@ -231,6 +233,26 @@ export const podeAssinarGestao = (user, doc) => {
     return atual === nome || origem === nome;
   }
   return false;
+};
+
+// É o signatário do envelope pelo e-mail registrado nele (independe do nome de exibição)
+export const ehSignatarioPorEmail = (user, doc) => {
+  if (!user || !doc) return false;
+  const email = norm(user.email);
+  if (!email) return false;
+  return [doc.signatario_email, doc.signatario_origem_email].some((e) => norm(e) === email);
+};
+
+// Participa do envelope: signatário atual, signatário de origem ou destinatário
+export const participaDoEnvelope = (user, doc) => {
+  if (!user || !doc) return false;
+  if (ehSignatarioPorEmail(user, doc)) return true;
+  const email = norm(user.email);
+  const porEmailDestino = !!email && norm(doc.destinatario_email) === email;
+  const nome = nomeNormalizado(user);
+  if (!nome && !porEmailDestino) return false;
+  return porEmailDestino || [doc.signatario_nome, doc.signatario_origem_nome, doc.destinatario_nome]
+    .some((n) => (n || "").trim().toUpperCase() === nome);
 };
 
 // Pode encaminhar o envelope da gestão: gestor responsável, operacional do painel ou admin
