@@ -140,9 +140,10 @@ export default function Home() {
       arqs.all += n; c.all++;
       if (c[d.status] !== undefined) { c[d.status]++; arqs[d.status] += n; }
     });
-    const recusadoDocIds = new Set(arquivosRecusados.map((r) => r.documento_id));
-    c.recusados = recusadoDocIds.size;
-    arqs.recusados = arquivosRecusados.length;
+    const visiveis = new Set(documentosVisiveis.map((d) => d.id));
+    const recusadosVisiveis = arquivosRecusados.filter((r) => visiveis.has(r.documento_id));
+    c.recusados = new Set(recusadosVisiveis.map((r) => r.documento_id)).size;
+    arqs.recusados = recusadosVisiveis.length;
     return { c, arqs };
   }, [documentosVisiveis, arquivosRecusados]);
 

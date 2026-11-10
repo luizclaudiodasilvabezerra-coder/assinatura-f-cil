@@ -34,6 +34,7 @@ export default function NovoDocumento() {
   const [hashMap, setHashMap] = useState({});
   const [arquivosIndividuais, setArquivosIndividuais] = useState([]);
   const [uploadingIndividual, setUploadingIndividual] = useState(false);
+  const [fluxoDireto, setFluxoDireto] = useState(false);
   const fileInputRef = useRef(null);
   const individualInputRef = useRef(null);
   const submitEmAndamento = useRef(false);
@@ -52,11 +53,12 @@ export default function NovoDocumento() {
   });
 
   const nomeOrigem = nomeDoUsuario(user);
+  const ehLaryssa = nomeOrigem === "LARYSSA MATTOS";
   const criadorOrigem = !!signatarioRedirecionado(nomeOrigem);
   // O signatário fica travado no próprio usuário quando ele é signatário de origem
   // (Anderson, Ana, Matheus) ou tem perfil de signatário restrito (Laryssa).
   // Para os demais, o signatário é escolhido livremente e NUNCA muda ao trocar o destinatário.
-  const signatarioFixo = criadorOrigem || nomeOrigem === "LARYSSA MATTOS";
+  const signatarioFixo = criadorOrigem || ehLaryssa;
   useEffect(() => {
     base44.entities.Cadastro.list("-created_date", 200).then((cad) => {
       setCadastros(cad);
@@ -102,6 +104,19 @@ export default function NovoDocumento() {
   };
 
   const pessoas = cadastros.filter((c) => ["signatario", "destinatario", "ambos"].includes(c.tipo));
+
+  // Laryssa pode enviar o envelope direto a Joselio Serur (sem a etapa de origem).
+  const alternarFluxoDireto = (direto) => {
+    setFluxoDireto(direto);
+    const alvo = direto ? "JOSELIO SERUR" : nomeOrigem;
+    const pessoa = cadastros.find((c) => (c.nome || "").trim().toUpperCase() === alvo);
+    setForm((f) => ({
+      ...f,
+      signatario_nome: pessoa ? pessoa.nome.trim() : (alvo || ""),
+      signatario_email: pessoa?.email || "",
+      signatario_cadastro_id: pessoa?.id || "",
+    }));
+  };
 
   const handleFiles = async (e) => {
     const files = Array.from(e.target.files || []);
@@ -246,7 +261,7 @@ export default function NovoDocumento() {
     });
 
     const renomeados = Object.keys(mapa).length;
-    toast({ title: "Envelope criado", description: (renomeados ? `${renomeados} arquivo(s) renomeado(s) com nº + unidade. ` : "") + (signatarioRedirecionado(form.signatario_nome) ? "Assine e coloque observação nas páginas antes de enviar a Joselio Serur." : numero) });
+    toast({ title: "Envelope criado", description: (renomeados ? `${renomeados} arquivo(s) renomeado(s) com nº + unidade. ` : "") + (signatarioRedirecionado(form.signatario_nome) ? "Assine e coloque observação nas páginas antes de enviar a Joselio Serur." : fluxoDireto ? "Envelope disponível direto para Joselio Serur assinar." : numero) });
 
     navigate("/");
   };
@@ -331,6 +346,21 @@ export default function NovoDocumento() {
                 <p className="text-xs text-muted-foreground">Define para qual fluxo o envelope será direcionado.</p>
               </div>
 
+              {ehLaryssa && (
+                <div className="space-y-2">
+                  <Label htmlFor="fluxo">Fluxo de assinatura</Label>
+                  <select id="fluxo" value={fluxoDireto ? "direto" : "hierarquia"} onChange={(e) => alternarFluxoDireto(e.target.value === "direto")} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+                    <option value="hierarquia">Hierarquia — eu assino e envio a Joselio Serur</option>
+                    <option value="direto">Direto para Joselio Serur (sem etapa anterior)</option>
+                  </select>
+                  <p className="text-xs text-muted-foreground">
+                    {fluxoDireto
+                      ? "O envelope vai direto para Joselio Serur assinar e autorizar. Use quando o documento não precisa passar pela etapa de origem."
+                      : "Você assina e coloca observação nas páginas antes de enviar a Joselio Serur."}
+                  </p>
+                </div>
+              )}
+
               <div className="space-y-2">
                 <Label htmlFor="signatario">Signatário (pasta pendente será gerada para ele)</Label>
                 <select id="signatario" value={form.signatario_cadastro_id} onChange={onSignatarioChange} disabled={signatarioFixo} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
@@ -341,8 +371,11 @@ export default function NovoDocumento() {
                 </select>
                 <Input value={form.signatario_nome} readOnly={signatarioFixo} onChange={update("signatario_nome")} placeholder="Ou digite o nome do signatário" className="mt-2" />
                 <Input type="email" value={form.signatario_email} readOnly={signatarioFixo} onChange={update("signatario_email")} placeholder="E-mail do signatário" className="mt-2" />
-                {signatarioFixo && (
+                {signatarioFixo && !fluxoDireto && (
                   <p className="text-xs text-muted-foreground">Signatário fixo no seu usuário: este campo não pode ser alterado.</p>
+                )}
+                {fluxoDireto && (
+                  <p className="text-xs text-muted-foreground">Envelope direto para <strong>Joselio Serur</strong> — você não assina as páginas neste fluxo.</p>
                 )}
                 {signatarioRedirecionado(form.signatario_nome) && (
                   <div className="mt-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800">

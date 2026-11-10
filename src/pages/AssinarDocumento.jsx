@@ -16,7 +16,7 @@ import EnvelopeRecusado from "@/components/EnvelopeRecusado";
 import { dataURLToFile, formatDate } from "@/lib/signatureUtils";
 import { base64ToBlob, baixarEnvelopePdf, baixarArquivoPdf } from "@/lib/pdfDownload";
 import { validarSenhaGestor, gestorTemSenha, SENHA_MASTER_RECUSA } from "@/lib/acessos";
-import { podeAssinarGestao, somenteConsultaEnvelopes, souSignatarioDeOrigem } from "@/lib/permissoes";
+import { podeAssinarGestao, somenteConsultaEnvelopes, souSignatarioDeOrigem, temVisaoTotalPainel } from "@/lib/permissoes";
 import { useAuth } from "@/lib/AuthContext";
 import { loteDoArquivo, carimbarEUploadar } from "@/lib/carimbarLote";
 import LoteFolders from "@/components/LoteFolders";
@@ -117,7 +117,10 @@ export default function AssinarDocumento() {
   const origemAtor = souSignatarioDeOrigem(user, doc);
   const etapa = origemAtor ? "gestao_origem" : etapaGestao(doc);
   const responsavelEtapa = origemAtor ? doc?.signatario_origem_nome : doc?.signatario_nome;
-  const consulta = somenteConsultaEnvelopes(user);
+  // Visão total do painel (ex.: Joselio): consulta os envelopes das unidades permitidas
+  // em modo somente leitura, sem assinar.
+  const consultaPainel = temVisaoTotalPainel(user) && !!doc && !doc.recusado && !podeAssinarGestao(user, doc);
+  const consulta = somenteConsultaEnvelopes(user) || consultaPainel;
   const autorizacaoGestor = precisaAutorizacao(doc) && !origemAtor;
   const destinoGestor = !!signatarioRedirecionado(doc?.signatario_nome);
   const hierarquico = precisaHierarquia(doc);

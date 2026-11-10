@@ -26,7 +26,9 @@ const PERMISSOES = {
   "ana@logmam.com.br": { tipo: "gestor", podeCriarEnvelope: true },
   "anderson.duque@logmam.com.br": { tipo: "gestor", podeCriarEnvelope: true },
   "matheus.santos@logmam.com.br": { tipo: "gestor", podeCriarEnvelope: true },
-  "joselio@logmam.com.br": { tipo: "gestor" },
+  // Joselio: visão total do painel (todas as etapas) dos envelopes das unidades RJ e ES,
+  // além dos envelopes em que ele é signatário, origem ou destinatário.
+  "joselio@logmam.com.br": { tipo: "gestor", painelCompleto: true, unidadesPermitidas: ["Rio de Janeiro", "Espirito Santo"] },
   "jerusa.dias@logmam.com.br": { tipo: "operacional", concluidos: ["financeiro", "fiscal"] },
   "faturas@logmam.com.br": { tipo: "operacional", podeCriarEnvelope: true, podeExcluirEnvelope: true, podeVerPainel: true, concluidos: ["abastecimento"], criaCategoria: "abastecimento" },
   // Jordan: cria envelopes (notas/boletos e abastecimento), exclui e acompanha os que ele gerou + envelopes das unidades dele (RJ e ES)
@@ -108,6 +110,7 @@ export const podeVerRelatorios = (user) => !!getPermissoes(user);
 export const stagesPermitidos = (user) => {
   const p = getPermissoes(user);
   if (!p) return [];
+  if (p.painelCompleto) return ["all", "pendente_gestao", "assinado_gestao", "pendente_diretoria", "recusados"];
   if (p.tipo === "admin") return ["all", "pendente_gestao", "assinado_gestao", "pendente_diretoria", "recusados"];
   if (p.tipo === "diretoria") return ["pendente_diretoria"];
   if (p.tipo === "gestor") return ["pendente_gestao", "assinado_gestao"];
@@ -128,9 +131,13 @@ export const filtrarEnvelopesVisiveis = (user, docs, cadastros) => {
     // Inclui os envelopes em que ele é o signatário atual e também os que ele originou
     // (signatário de origem) e já seguiram para Joselio Serur.
     const nome = nomeDoUsuario(user);
-    return docs.filter((d) => nome && ((d.signatario_nome || "").trim().toUpperCase() === nome
-      || (d.signatario_origem_nome || "").trim().toUpperCase() === nome
-      || (d.destinatario_nome || "").trim().toUpperCase() === nome));
+    const unidades = (p.unidadesPermitidas || []).map(norm);
+    return docs.filter((d) =>
+      (nome && ((d.signatario_nome || "").trim().toUpperCase() === nome
+        || (d.signatario_origem_nome || "").trim().toUpperCase() === nome
+        || (d.destinatario_nome || "").trim().toUpperCase() === nome))
+      || (p.painelCompleto && unidades.includes(norm(d.unidade_negocio)))
+    );
   }
   // Jordan: acompanha os envelopes que ele mesmo criou + os das unidades permitidas (RJ e ES)
   if (p.tipo === "operacional" && p.apenasProprios) {
@@ -183,6 +190,9 @@ export const somenteVisualizaPainel = (user) => {
   const p = getPermissoes(user);
   return !!(p?.tipo === "operacional" && p.apenasProprios);
 };
+
+// Visão total do painel (todas as etapas) limitada às unidades permitidas (ex.: Joselio: RJ e ES)
+export const temVisaoTotalPainel = (user) => !!getPermissoes(user)?.painelCompleto;
 
 // Consulta interna: abre o envelope em modo somente leitura (sem assinar, enviar ou recusar)
 export const somenteConsultaEnvelopes = (user) => {
