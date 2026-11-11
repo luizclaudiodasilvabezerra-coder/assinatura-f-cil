@@ -13,7 +13,8 @@ export const podeOperarGestao = (user, doc) => {
   const unidade = (doc.unidade_negocio || '').trim().toLowerCase();
   return user.role === 'admin' || ['nf@logmam.com.br', 'faturas@logmam.com.br'].includes(email) ||
     (!!doc.signatario_email && email === doc.signatario_email.trim().toLowerCase()) ||
-    (!!nomesPorEmail[email] && nomesPorEmail[email] === (doc.signatario_nome || '').trim().toUpperCase());
+    (!!nomesPorEmail[email] && nomesPorEmail[email] === (doc.signatario_nome || '').trim().toUpperCase()) ||
+    (!!doc.destinatario_email && email === doc.destinatario_email.trim().toLowerCase());
 };
 // Chave da página: o nome do arquivo muda a cada carimbo, reconstrução ou
 // renomeação (assinado_, legivel_, reconstruido_ e o hash do upload se acumulam),
@@ -59,11 +60,16 @@ export const exigirAssinaturas = (doc, sigs, parcial) => {
   const etapa = etapaGestao(doc);
   const completos = (doc.arquivos || []).map((url) => assinaturaDaPagina(sigs, url, etapa));
   const hierarquico = doc.fluxo_hierarquico || signatarioRedirecionado(doc.signatario_nome) || isRedirectTarget(doc.signatario_nome);
-  if (!completos.length || !completos.some(Boolean) || ((!parcial || hierarquico) && completos.some((s) => !s || !s.observacao?.trim()))) {
+  // O gestor de destino (Joselio) autoriza em vez de escrever observação: vale a marcação
+  // de Autorizado ou a observação iniciada por "Autorizado".
+  const gestorAutoriza = !!isRedirectTarget(doc.signatario_nome);
+  const autorizadoNaPagina = (s) => !!s?.autorizado || !!(s?.observacao || '').trim().startsWith('Autorizado');
+  if (!completos.length || !completos.some(Boolean) ||
+    ((!parcial || hierarquico) && completos.some((s) => !s || (!gestorAutoriza && !(s.observacao || '').trim())))) {
     throw new Error('Assine e informe a observação em todas as páginas antes de encaminhar.');
   }
-  if (isRedirectTarget(doc.signatario_nome) && completos.some((s) => !s?.autorizado || !(s.observacao || '').startsWith('Autorizado'))) {
-    throw new Error('Joselio deve marcar Autorizado e assinar todas as páginas antes do envio à diretoria.');
+  if (gestorAutoriza && completos.some((s) => !autorizadoNaPagina(s))) {
+    throw new Error('Marque Autorizado nas páginas antes do envio à diretoria.');
   }
   return completos;
 };

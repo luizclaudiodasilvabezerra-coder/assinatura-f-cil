@@ -108,6 +108,11 @@ export default function AssinarDocumento() {
         setAssinanteEmail(pessoa?.email || emailEfetivo || "");
         if (pessoa?.imagem_assinatura) { setImagemUpload(pessoa.imagem_assinatura); setModo("uploadada"); }
         setPos(precisaAutorizacao(d) ? { x: 3, y: 78 } : { x: 3, y: 90 });
+        // Envelope da gestão (Joselio): a autorização já vem marcada, para ele concluir e enviar à diretoria.
+        if (precisaAutorizacao(d) && !atorOrigem) {
+          setAutorizado(true);
+          setObservacao(`Autorizado ${new Date().toLocaleDateString("pt-BR")}`);
+        }
         const firstUnsigned = arqs.findIndex((_, i) => !map[i]);
         setCurrentIndex(firstUnsigned >= 0 ? firstUnsigned : 0);
       } finally {
@@ -205,6 +210,21 @@ export default function AssinarDocumento() {
     } catch { /* segue com os dados atuais */ }
   };
 
+  const dataHoje = () => new Date().toLocaleDateString("pt-BR");
+  // Observação salva na assinatura: a autorização do gestor sempre fica registrada.
+  const obsParaSalvar = () => {
+    const texto = (observacao || "").trim();
+    if (!autorizacaoGestor) return texto;
+    if (texto.startsWith("Autorizado")) return texto;
+    return `Autorizado ${dataHoje()}${texto ? ` — ${texto}` : ""}`;
+  };
+  // Depois de cada assinatura, a autorização é remarcada para a próxima página.
+  const rearmarAutorizacao = () => {
+    setIndent(0); setCritica(false);
+    if (autorizacaoGestor) { setAutorizado(true); setObservacao(`Autorizado ${dataHoje()}`); }
+    else { setAutorizado(false); setObservacao(""); }
+  };
+
   const assinarArquivo = async () => {
     if (!assinanteNome.trim()) { toast({ title: "Selecione ou informe o nome do assinante", variant: "destructive" }); return; }
     if (hierarquico && assinanteNome.trim().toUpperCase() !== (responsavelEtapa || "").trim().toUpperCase()) { toast({ title: "Assine com o responsável desta etapa", variant: "destructive" }); return; }
@@ -259,14 +279,14 @@ export default function AssinarDocumento() {
         arquivo_original_url: currentFile || undefined,
         assinante_nome: assinanteNome, assinante_email: assinanteEmail,
         assinante_cadastro_id: cadastroId || undefined, imagem_url, tipo: modo,
-        etapa, autorizado: autorizacaoGestor && autorizado, observacao, indent, pos_x: pos.x, pos_y: pos.y,
+        etapa, autorizado: autorizacaoGestor ? true : false, observacao: obsParaSalvar(), indent, pos_x: pos.x, pos_y: pos.y,
         unidade_negocio: unidade || doc.unidade_negocio || "", operacao: operacao || doc.operacao || "",
         status: "assinado", data_assinatura: new Date().toISOString(),
       });
       const newMap = { ...signedMap, [currentIndex]: rec };
       setSignedMap(newMap);
       setExistentes((e) => [rec, ...e]);
-      setObservacao(""); setIndent(0); setAutorizado(false); setCritica(false);
+      rearmarAutorizacao();
 
       await assumirTitularidade();
       const next = findNextUnsigned(currentIndex, newMap);
@@ -337,7 +357,7 @@ export default function AssinarDocumento() {
           arquivo_original_url: fileUrl || undefined,
           assinante_nome: assinanteNome, assinante_email: assinanteEmail,
           assinante_cadastro_id: cadastroId || undefined, imagem_url, tipo: modo,
-          etapa, autorizado: autorizacaoGestor && autorizado, observacao, indent, pos_x: pos.x, pos_y: pos.y,
+          etapa, autorizado: autorizacaoGestor ? true : false, observacao: obsParaSalvar(), indent, pos_x: pos.x, pos_y: pos.y,
           unidade_negocio: unidade || doc.unidade_negocio || "", operacao: operacao || doc.operacao || "",
           status: "assinado", data_assinatura: new Date().toISOString(),
         });

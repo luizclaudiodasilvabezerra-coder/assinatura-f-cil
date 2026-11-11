@@ -260,7 +260,7 @@ export const participaDoEnvelope = (user, doc) => {
 export const destinatarioComoSignatario = (user, doc) => {
   if (!user || !doc) return false;
   const p = getPermissoes(user);
-  if (!p || p.tipo !== "gestor" || p.painelCompleto) return false;
+  if (!p || p.tipo !== "gestor") return false;
   if (doc.recusado || doc.status !== "pendente_gestao") return false;
   const email = norm(user.email);
   const nome = nomeNormalizado(user);

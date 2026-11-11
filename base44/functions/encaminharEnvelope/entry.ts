@@ -11,6 +11,8 @@ export default async function(req) {
     if (typeof documentoId !== 'string' || !documentoId || documentoId.length > 100) return Response.json({ error: 'Documento obrigatório' }, { status: 400 });
     const doc = await base44.entities.Documento.get(documentoId);
     if (!podeOperarGestao(user, doc)) return Response.json({ error: 'Acesso não autorizado' }, { status: 403 });
+    // Já encaminhado (clique repetido ou envelope aberto em outra aba): devolve o estado atual.
+    if (!doc.recusado && ['pendente_diretoria', 'assinado_diretoria'].includes(doc.status)) return Response.json({ documento: doc });
     if (doc.recusado || !['pendente_gestao', 'assinado_gestao'].includes(doc.status)) return Response.json({ error: 'Envelope fora da etapa de gestão' }, { status: 400 });
     const sigs = await buscarAssinaturasAtivas(base44, doc);
     let completos;
