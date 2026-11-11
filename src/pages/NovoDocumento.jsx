@@ -34,7 +34,6 @@ export default function NovoDocumento() {
   const [hashMap, setHashMap] = useState({});
   const [arquivosIndividuais, setArquivosIndividuais] = useState([]);
   const [uploadingIndividual, setUploadingIndividual] = useState(false);
-  const [fluxoDireto, setFluxoDireto] = useState(false);
   const fileInputRef = useRef(null);
   const individualInputRef = useRef(null);
   const submitEmAndamento = useRef(false);
@@ -62,7 +61,9 @@ export default function NovoDocumento() {
   useEffect(() => {
     base44.entities.Cadastro.list("-created_date", 200).then((cad) => {
       setCadastros(cad);
-      if (signatarioRedirecionado(nomeDoUsuario(user)) || nomeDoUsuario(user) === "LARYSSA MATTOS") {
+      // Laryssa não tem autonomia nem assinatura cadastrada: o signatário é sempre o destinatário
+      // escolhido, então o campo só é preenchido ao escolher o destinatário.
+      if (signatarioRedirecionado(nomeDoUsuario(user))) {
         const pessoa = cad.find((c) => (c.nome || "").trim().toUpperCase() === nomeDoUsuario(user));
         if (pessoa) setForm((f) => ({ ...f, signatario_nome: pessoa.nome.trim(), signatario_email: pessoa.email || "", signatario_cadastro_id: pessoa.id }));
       }
@@ -82,7 +83,14 @@ export default function NovoDocumento() {
   const unidades = cadastros.filter((c) => c.tipo === "unidade");
   const diretorias = cadastros.filter((c) => c.tipo === "diretoria");
 
-  const update = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+  const update = (k) => (e) => setForm((f) => {
+    const next = { ...f, [k]: e.target.value };
+    // Laryssa não é gestão: o signatário acompanha o destinatário, mesmo digitado manualmente.
+    if (ehLaryssa && (k === "destinatario_nome" || k === "destinatario_email")) {
+      next[k.replace("destinatario", "signatario")] = e.target.value;
+    }
+    return next;
+  });
 
   const onSignatarioChange = (e) => {
     const c = cadastros.find((x) => x.id === e.target.value);
@@ -100,22 +108,26 @@ export default function NovoDocumento() {
       ...f,
       destinatario_nome: c ? c.nome : "",
       destinatario_email: c && c.email ? c.email : "",
+      // Laryssa não é gestão: quem assina é o destinatário escolhido.
+      ...(ehLaryssa ? { signatario_nome: c ? c.nome : "", signatario_email: c?.email || "", signatario_cadastro_id: c?.id || "" } : {}),
     }));
   };
 
-  const pessoas = cadastros.filter((c) => ["signatario", "destinatario", "ambos"].includes(c.tipo));
+  // Laryssa não é gestão: ela não pode escolher a si mesma como destinatário.
+  const pessoas = cadastros.filter((c) => ["signatario", "destinatario", "ambos"].includes(c.tipo)
+    && !(ehLaryssa && (((c.email || "").toLowerCase() === (user?.email || "").toLowerCase() && !!c.email)
+      || (c.nome || "").trim().toUpperCase() === "LARYSSA MATTOS")));
 
-  // Laryssa pode enviar o envelope direto a Joselio Serur (sem a etapa de origem).
-  const alternarFluxoDireto = (direto) => {
-    setFluxoDireto(direto);
-    const alvo = direto ? "JOSELIO SERUR" : nomeOrigem;
-    const pessoa = cadastros.find((c) => (c.nome || "").trim().toUpperCase() === alvo);
-    setForm((f) => ({
-      ...f,
-      signatario_nome: pessoa ? pessoa.nome.trim() : (alvo || ""),
-      signatario_email: pessoa?.email || "",
-      signatario_cadastro_id: pessoa?.id || "",
-    }));
+  // Destinatário do envelope criado pela Laryssa já é a gestão que vai assinar.
+  const dadosSignatario = (origem) => {
+    if (!ehLaryssa) return origem;
+    const c = cadastros.find((x) => (x.nome || "").trim().toUpperCase() === (origem.destinatario_nome || "").trim().toUpperCase());
+    return {
+      ...origem,
+      signatario_nome: origem.destinatario_nome,
+      signatario_email: origem.destinatario_email,
+      signatario_cadastro_id: c?.id || "",
+    };
   };
 
   const handleFiles = async (e) => {
@@ -246,8 +258,9 @@ export default function NovoDocumento() {
     while (usados.has(numero)) { seq += 1; numero = `ENV-${String(seq).padStart(4, "0")}`; }
     const numerosNf = (arquivosNf || []).map((a) => a.numero_nf).filter(Boolean);
     const arquivosHash = (arquivosNf || []).map((a) => a.hash).filter(Boolean);
+    const dados = dadosSignatario(form);
     const created = await base44.entities.Documento.create({
-      ...form,
+      ...dados,
       numero,
       arquivos: novosArquivos,
       arquivos_nf: novosNf.length ? novosNf : undefined,
@@ -256,12 +269,12 @@ export default function NovoDocumento() {
       lotes: novosLotes.length > 0 ? novosLotes : undefined,
       status: "pendente_gestao",
       pasta: "pendente",
-      fluxo_hierarquico: !!signatarioRedirecionado(form.signatario_nome),
+      fluxo_hierarquico: !!signatarioRedirecionado(dados.signatario_nome),
       categoria: form.categoria,
     });
 
     const renomeados = Object.keys(mapa).length;
-    toast({ title: "Envelope criado", description: (renomeados ? `${renomeados} arquivo(s) renomeado(s) com nº + unidade. ` : "") + (signatarioRedirecionado(form.signatario_nome) ? "Assine e coloque observação nas páginas antes de enviar a Joselio Serur." : fluxoDireto ? "Envelope disponível direto para Joselio Serur assinar." : numero) });
+    toast({ title: "Envelope criado", description: (renomeados ? `${renomeados} arquivo(s) renomeado(s) com nº + unidade. ` : "") + (ehLaryssa ? `Envelope enviado para ${dados.destinatario_nome} assinar.` : signatarioRedirecionado(dados.signatario_nome) ? "Assine e coloque observação nas páginas antes de enviar a Joselio Serur." : numero) });
 
     navigate("/");
   };
@@ -289,6 +302,15 @@ export default function NovoDocumento() {
     setSaving(true);
     setVerificando(true);
     try {
+      if (ehLaryssa && !form.destinatario_nome.trim()) {
+        toast({ title: "Selecione o destinatário", description: "O envelope é enviado para a gestão escolhida assinar.", variant: "destructive" });
+        return;
+      }
+      if (ehLaryssa && form.destinatario_nome.trim().toUpperCase() === "LARYSSA MATTOS") {
+        toast({ title: "Destinatário inválido", description: "Você não assina como gestão: escolha o gestor que vai assinar.", variant: "destructive" });
+        return;
+      }
+
       const allArquivos = [...arquivosIndividuais, ...lotes.flatMap((l) => l.arquivos)];
       if (allArquivos.length === 0) {
         toast({ title: "Anexe ao menos um arquivo", variant: "destructive" });
@@ -347,17 +369,8 @@ export default function NovoDocumento() {
               </div>
 
               {ehLaryssa && (
-                <div className="space-y-2">
-                  <Label htmlFor="fluxo">Fluxo de assinatura</Label>
-                  <select id="fluxo" value={fluxoDireto ? "direto" : "hierarquia"} onChange={(e) => alternarFluxoDireto(e.target.value === "direto")} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
-                    <option value="hierarquia">Hierarquia — eu assino e envio a Joselio Serur</option>
-                    <option value="direto">Direto para Joselio Serur (sem etapa anterior)</option>
-                  </select>
-                  <p className="text-xs text-muted-foreground">
-                    {fluxoDireto
-                      ? "O envelope vai direto para Joselio Serur assinar e autorizar. Use quando o documento não precisa passar pela etapa de origem."
-                      : "Você assina e coloca observação nas páginas antes de enviar a Joselio Serur."}
-                  </p>
+                <div className="rounded-lg border border-border/60 bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
+                  Você cria e envia o envelope; a assinatura da gestão é sempre do <strong>destinatário</strong> escolhido. Selecione o destinatário abaixo.
                 </div>
               )}
 
@@ -371,11 +384,12 @@ export default function NovoDocumento() {
                 </select>
                 <Input value={form.signatario_nome} readOnly={signatarioFixo} onChange={update("signatario_nome")} placeholder="Ou digite o nome do signatário" className="mt-2" />
                 <Input type="email" value={form.signatario_email} readOnly={signatarioFixo} onChange={update("signatario_email")} placeholder="E-mail do signatário" className="mt-2" />
-                {signatarioFixo && !fluxoDireto && (
-                  <p className="text-xs text-muted-foreground">Signatário fixo no seu usuário: este campo não pode ser alterado.</p>
-                )}
-                {fluxoDireto && (
-                  <p className="text-xs text-muted-foreground">Envelope direto para <strong>Joselio Serur</strong> — você não assina as páginas neste fluxo.</p>
+                {signatarioFixo && (
+                  <p className="text-xs text-muted-foreground">
+                    {ehLaryssa
+                      ? "O signatário é o destinatário escolhido: você cria e envia, sem assinar."
+                      : "Signatário fixo no seu usuário: este campo não pode ser alterado."}
+                  </p>
                 )}
                 {signatarioRedirecionado(form.signatario_nome) && (
                   <div className="mt-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800">
