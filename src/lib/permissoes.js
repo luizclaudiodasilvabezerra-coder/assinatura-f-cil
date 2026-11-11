@@ -255,6 +255,21 @@ export const participaDoEnvelope = (user, doc) => {
     .some((n) => (n || "").trim().toUpperCase() === nome);
 };
 
+// Envelope endereçado ao gestor (destinatário) na etapa de gestão, mas atribuído a outro signatário:
+// ele assume a assinatura da gestão (ex.: NF criada pela Rayane direcionada ao Gilmar).
+export const destinatarioComoSignatario = (user, doc) => {
+  if (!user || !doc) return false;
+  const p = getPermissoes(user);
+  if (!p || p.tipo !== "gestor" || p.painelCompleto) return false;
+  if (doc.recusado || doc.status !== "pendente_gestao") return false;
+  const email = norm(user.email);
+  const nome = nomeNormalizado(user);
+  const ehDestino = (!!email && norm(doc.destinatario_email) === email)
+    || (!!nome && (doc.destinatario_nome || "").trim().toUpperCase() === nome);
+  if (!ehDestino) return false;
+  return !podeAssinarGestao(user, doc);
+};
+
 // Pode encaminhar o envelope da gestão: gestor responsável, operacional do painel ou admin
 export const podeEncaminharEnvelope = (user, doc) => {
   const p = getPermissoes(user);

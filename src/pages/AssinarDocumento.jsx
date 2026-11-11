@@ -16,7 +16,7 @@ import EnvelopeRecusado from "@/components/EnvelopeRecusado";
 import { dataURLToFile, formatDate } from "@/lib/signatureUtils";
 import { base64ToBlob, baixarEnvelopePdf, baixarArquivoPdf } from "@/lib/pdfDownload";
 import { validarSenhaGestor, gestorTemSenha, SENHA_MASTER_RECUSA } from "@/lib/acessos";
-import { podeAssinarGestao, somenteConsultaEnvelopes, souSignatarioDeOrigem, temVisaoTotalPainel, participaDoEnvelope } from "@/lib/permissoes";
+import { podeAssinarGestao, somenteConsultaEnvelopes, souSignatarioDeOrigem, temVisaoTotalPainel, participaDoEnvelope, destinatarioComoSignatario, nomeDoUsuario } from "@/lib/permissoes";
 import { useAuth } from "@/lib/AuthContext";
 import { loteDoArquivo, carimbarEUploadar } from "@/lib/carimbarLote";
 import LoteFolders from "@/components/LoteFolders";
@@ -95,10 +95,14 @@ export default function AssinarDocumento() {
         const map = mapaAssinaturas(d, sigs, etapaAtor);
         setSignedMap(map);
         const norm = (value) => (value || "").trim().toUpperCase();
-        const nomeEfetivo = atorOrigem ? d.signatario_origem_nome : d.signatario_nome;
-        const emailEfetivo = atorOrigem ? d.signatario_origem_email : d.signatario_email;
-        const cadastroEfetivo = atorOrigem ? d.signatario_origem_cadastro_id : d.signatario_cadastro_id;
-        const pessoa = cad.find((c) => c.id === cadastroEfetivo) || cad.find((c) => norm(c.nome) === norm(nomeEfetivo));
+        // Envelope direcionado a ele, mas atribuído a outro signatário: ele assina a gestão.
+        const assume = destinatarioComoSignatario(user, d);
+        const nomeEfetivo = atorOrigem ? d.signatario_origem_nome : assume ? nomeDoUsuario(user) : d.signatario_nome;
+        const emailEfetivo = atorOrigem ? d.signatario_origem_email : assume ? user?.email : d.signatario_email;
+        const cadastroEfetivo = atorOrigem ? d.signatario_origem_cadastro_id : assume ? null : d.signatario_cadastro_id;
+        const pessoa = (cadastroEfetivo && cad.find((c) => c.id === cadastroEfetivo))
+          || cad.find((c) => norm(c.email) === norm(emailEfetivo) && norm(emailEfetivo))
+          || cad.find((c) => norm(c.nome) === norm(nomeEfetivo));
         setCadastroId(pessoa?.id || "");
         setAssinanteNome(pessoa?.nome || nomeEfetivo || "");
         setAssinanteEmail(pessoa?.email || emailEfetivo || "");
@@ -121,9 +125,11 @@ export default function AssinarDocumento() {
   // em modo somente leitura, sem assinar.
   const consultaPainel = temVisaoTotalPainel(user) && !!doc && !doc.recusado && !podeAssinarGestao(user, doc);
   // Envelopes em que ele participa (signatário, origem ou destinatário) abrem em consulta
-  // quando a assinatura é de outra pessoa na etapa atual.
-  const consultaParticipante = participaDoEnvelope(user, doc) && !doc?.recusado && !podeAssinarGestao(user, doc);
-  const consulta = somenteConsultaEnvelopes(user) || consultaPainel || consultaParticipante;
+  // quando a assinatura é de outra pessoa na etapa atual — exceto quando o envelope está
+  // endereçado a ele e ele assume a assinatura da gestão.
+  const assumeComoDestinatario = destinatarioComoSignatario(user, doc);
+  const consultaParticipante = !assumeComoDestinatario && participaDoEnvelope(user, doc) && !doc?.recusado && !podeAssinarGestao(user, doc);
+  const consulta = !assumeComoDestinatario && (somenteConsultaEnvelopes(user) || consultaPainel || consultaParticipante);
   const autorizacaoGestor = precisaAutorizacao(doc) && !origemAtor;
   const destinoGestor = !!signatarioRedirecionado(doc?.signatario_nome);
   const hierarquico = precisaHierarquia(doc);
@@ -184,6 +190,19 @@ export default function AssinarDocumento() {
     setCritica(false);
     obsRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
     setTimeout(() => obsRef.current?.focus(), 300);
+  };
+
+  // Ao assinar um envelope que foi endereçado a ele, ele passa a ser o signatário da gestão
+  const assumirTitularidade = async () => {
+    if (!assumeComoDestinatario) return;
+    try {
+      await base44.entities.Documento.update(id, {
+        signatario_nome: assinanteNome,
+        signatario_email: assinanteEmail,
+        signatario_cadastro_id: cadastroId || undefined,
+      });
+      setDoc((d) => ({ ...d, signatario_nome: assinanteNome, signatario_email: assinanteEmail, signatario_cadastro_id: cadastroId || undefined }));
+    } catch { /* segue com os dados atuais */ }
   };
 
   const assinarArquivo = async () => {
@@ -249,6 +268,7 @@ export default function AssinarDocumento() {
       setExistentes((e) => [rec, ...e]);
       setObservacao(""); setIndent(0); setAutorizado(false); setCritica(false);
 
+      await assumirTitularidade();
       const next = findNextUnsigned(currentIndex, newMap);
       if (next === -1) {
         if (origemAtor) {
@@ -330,6 +350,7 @@ export default function AssinarDocumento() {
     if (novosRegistros.length) setExistentes((e) => [...novosRegistros, ...e]);
     setObservacao(""); setIndent(0); setAutorizado(false); setCritica(false);
 
+    await assumirTitularidade();
     const allDone = arquivos.every((_, i) => newMap[i]);
     if (allDone && origemAtor) {
       toast({ title: `Lote assinado: ${ok} arquivo(s)`, description: "O envelope segue com Joselio Serur para autorização e assinatura." });
@@ -392,7 +413,7 @@ export default function AssinarDocumento() {
 
   if (loading) return (<div className="min-h-screen flex items-center justify-center"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>);
   if (!doc) return (<div className="min-h-screen flex flex-col items-center justify-center gap-4"><p className="text-muted-foreground">Documento não encontrado.</p><Button asChild variant="outline"><Link to="/">Voltar</Link></Button></div>);
-  if (user && !consulta && !podeAssinarGestao(user, doc)) return (
+  if (user && !consulta && !assumeComoDestinatario && !podeAssinarGestao(user, doc)) return (
     <div className="min-h-screen flex flex-col items-center justify-center gap-4">
       <Lock className="w-10 h-10 text-muted-foreground" />
       <p className="text-muted-foreground text-center max-w-sm">Você não tem acesso a este envelope. Acompanhe o andamento pelo painel.</p>
