@@ -13,6 +13,7 @@ const EMAIL_PARA_NOME = {
   "joselio@logmam.com.br": "JOSELIO SERUR",
   "laryssa.mattos@logmam.com.br": "LARYSSA MATTOS",
   "jordan@logmam.com.br": "DILSON JORDAN",
+  "luiz.bezerra@logmam.com.br": "LUIZ CLAUDIO BEZERRA",
 };
 
 // Permissões por e-mail
@@ -23,6 +24,8 @@ const PERMISSOES = {
   "nf@logmam.com.br": { tipo: "operacional", podeCriarEnvelope: true, podeExcluirEnvelope: true, podeVerPainel: true, concluidos: ["financeiro"] },
   "financeiro@logmam.com.br": { tipo: "operacional", concluidos: ["fiscal", "financeiro"] },
   "gilmar@logmam.com.br": { tipo: "gestor" },
+  // Luiz Claudio Bezerra: gestor da unidade Jundiaí (destinatário/signatário)
+  "luiz.bezerra@logmam.com.br": { tipo: "gestor" },
   "ana@logmam.com.br": { tipo: "gestor", podeCriarEnvelope: true },
   "anderson.duque@logmam.com.br": { tipo: "gestor", podeCriarEnvelope: true },
   "matheus.santos@logmam.com.br": { tipo: "gestor", podeCriarEnvelope: true },
