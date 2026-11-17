@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,16 @@ export default function Login() {
   // Post-login destination (e.g. the MCP OAuth consent page sends users here
   // with returnTo so the grant flow can resume). Same-origin paths only.
   const returnTo = safeReturnTo();
+  const [verificando, setVerificando] = useState(true);
+
+  // Sessão já salva no navegador: entra direto, sem pedir login de novo.
+  useEffect(() => {
+    let ativo = true;
+    base44.auth.isAuthenticated()
+      .then((ok) => { if (ativo && ok) window.location.href = returnTo === window.location.pathname ? "/" : returnTo; })
+      .finally(() => { if (ativo) setVerificando(false); });
+    return () => { ativo = false; };
+  }, [returnTo]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -35,6 +45,14 @@ export default function Login() {
   const handleGoogle = () => {
     base44.auth.loginWithProvider("google", returnTo);
   };
+
+  if (verificando) {
+    return (
+      <div className="fixed inset-0 flex items-center justify-center">
+        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   return (
     <AuthLayout

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { base44 } from "@/api/base44Client";
@@ -18,7 +18,17 @@ export default function Capa() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [verificando, setVerificando] = useState(true);
   const returnTo = safeReturnTo();
+
+  // Sessão já salva no navegador (mesmo depois de fechar o app): entra direto.
+  useEffect(() => {
+    let ativo = true;
+    base44.auth.isAuthenticated()
+      .then((ok) => { if (ativo && ok) window.location.href = returnTo === window.location.pathname ? "/" : returnTo; })
+      .finally(() => { if (ativo) setVerificando(false); });
+    return () => { ativo = false; };
+  }, [returnTo]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -37,6 +47,14 @@ export default function Capa() {
   const handleGoogle = () => {
     base44.auth.loginWithProvider("google", returnTo);
   };
+
+  if (verificando) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center px-6 bg-gradient-to-br from-background to-muted/40">
