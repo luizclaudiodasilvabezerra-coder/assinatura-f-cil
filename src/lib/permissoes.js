@@ -24,8 +24,8 @@ const PERMISSOES = {
   "nf@logmam.com.br": { tipo: "operacional", podeCriarEnvelope: true, podeExcluirEnvelope: true, podeVerPainel: true, concluidos: ["financeiro"] },
   "financeiro@logmam.com.br": { tipo: "operacional", concluidos: ["fiscal", "financeiro"] },
   "gilmar@logmam.com.br": { tipo: "gestor" },
-  // Luiz Claudio Bezerra: gestor da unidade Jundiaí (destinatário/signatário)
-  "luiz.bezerra@logmam.com.br": { tipo: "gestor" },
+  // Luiz Claudio Bezerra: acesso a todos os módulos e funcionalidades (mesmo nível do administrador)
+  "luiz.bezerra@logmam.com.br": { tipo: "admin" },
   "ana@logmam.com.br": { tipo: "gestor", podeCriarEnvelope: true },
   "anderson.duque@logmam.com.br": { tipo: "gestor", podeCriarEnvelope: true },
   "matheus.santos@logmam.com.br": { tipo: "gestor", podeCriarEnvelope: true },
