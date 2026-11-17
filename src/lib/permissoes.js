@@ -14,6 +14,7 @@ const EMAIL_PARA_NOME = {
   "laryssa.mattos@logmam.com.br": "LARYSSA MATTOS",
   "jordan@logmam.com.br": "DILSON JORDAN",
   "luiz.bezerra@logmam.com.br": "LUIZ CLAUDIO BEZERRA",
+  "thiago.souza@logmam.com.br": "THIAGO SOUZA",
 };
 
 // Permissões por e-mail
@@ -38,6 +39,8 @@ const PERMISSOES = {
   "jordan@logmam.com.br": { tipo: "operacional", podeCriarEnvelope: true, podeVerPainel: true, podeExcluirEnvelope: true, apenasProprios: true, unidadesPermitidas: ["Rio de Janeiro", "Espirito Santo"] },
   // Laryssa: mesmo perfil do Jordan (conta própria)
   "laryssa.mattos@logmam.com.br": { tipo: "operacional", podeCriarEnvelope: true, podeVerPainel: true, podeExcluirEnvelope: true, apenasProprios: true, unidadesPermitidas: ["Rio de Janeiro", "Espirito Santo"] },
+  // Thiago Souza: somente consulta — visualiza envelopes e relatórios, sem assinar, criar, excluir ou encaminhar
+  "thiago.souza@logmam.com.br": { tipo: "consulta", podeVerPainel: true },
 };
 
 const norm = (s) => (s || "").trim().toLowerCase();
@@ -77,6 +80,7 @@ export const podeVerPainel = (user) => {
   const p = getPermissoes(user);
   if (!p) return false;
   if (p.tipo === "admin" || p.tipo === "diretoria" || p.tipo === "gestor") return true;
+  if (p.tipo === "consulta") return true;
   if (p.tipo === "operacional") return !!p.podeVerPainel;
   return false;
 };
@@ -115,6 +119,7 @@ export const stagesPermitidos = (user) => {
   if (!p) return [];
   if (p.painelCompleto) return ["all", "pendente_gestao", "assinado_gestao", "pendente_diretoria", "recusados"];
   if (p.tipo === "admin") return ["all", "pendente_gestao", "assinado_gestao", "pendente_diretoria", "recusados"];
+  if (p.tipo === "consulta") return ["all", "pendente_gestao", "assinado_gestao", "pendente_diretoria", "recusados"];
   if (p.tipo === "diretoria") return ["pendente_diretoria"];
   if (p.tipo === "gestor") return ["pendente_gestao", "assinado_gestao"];
   if (p.tipo === "operacional") return p.podeVerPainel ? ["all", "pendente_gestao", "assinado_gestao", "pendente_diretoria", "recusados"] : [];
@@ -126,6 +131,7 @@ export const filtrarEnvelopesVisiveis = (user, docs, cadastros) => {
   const p = getPermissoes(user);
   if (!p) return [];
   if (p.tipo === "admin") return docs;
+  if (p.tipo === "consulta") return docs;
   if (p.tipo === "diretoria") {
     const dir = diretoriaDoUsuario(user, cadastros);
     return docs.filter((d) => dir && d.diretoria === dir);
@@ -191,7 +197,7 @@ export const podeExportarFinanceiro = (user) => {
 // Jordan/Laryssa (apenasProprios): criam envelopes, visualizam o painel e consultam os envelopes (somente leitura)
 export const somenteVisualizaPainel = (user) => {
   const p = getPermissoes(user);
-  return !!(p?.tipo === "operacional" && p.apenasProprios);
+  return !!(p?.tipo === "consulta" || (p?.tipo === "operacional" && p.apenasProprios));
 };
 
 // Visão total do painel (todas as etapas) limitada às unidades permitidas (ex.: Joselio: RJ e ES)
@@ -200,7 +206,7 @@ export const temVisaoTotalPainel = (user) => !!getPermissoes(user)?.painelComple
 // Consulta interna: abre o envelope em modo somente leitura (sem assinar, enviar ou recusar)
 export const somenteConsultaEnvelopes = (user) => {
   const p = getPermissoes(user);
-  return !!(p?.tipo === "operacional" && p.apenasProprios);
+  return !!(p?.tipo === "consulta" || (p?.tipo === "operacional" && p.apenasProprios));
 };
 
 // Nome cadastrado do usuário, normalizado para comparação com os campos do envelope
@@ -224,6 +230,7 @@ export const souSignatarioDeOrigem = (user, doc) => {
 export const podeAssinarGestao = (user, doc) => {
   const p = getPermissoes(user);
   if (!doc) return false;
+  if (p?.tipo === "consulta") return false;
   if (ehSignatarioPorEmail(user, doc)) return true;
   if (!p) return false;
   if (p.tipo === "admin") return true;
