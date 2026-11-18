@@ -5,6 +5,7 @@ const EMAIL_PARA_NOME = {
   "luiz.dias@logmam.com.br": "LUIZ DIAS",
   "breno@logmam.com.br": "BRENO",
   "gilmar@logmam.com.br": "GILMAR PEREIRA",
+  "gilmar.fpereira@gmail.com": "GILMAR PEREIRA",
   "faturas@logmam.com.br": "TAMIRES",
   "nf@logmam.com.br": "RAYANE",
   "ana@logmam.com.br": "ANA BARCELLOS",
@@ -25,6 +26,7 @@ const PERMISSOES = {
   "nf@logmam.com.br": { tipo: "operacional", podeCriarEnvelope: true, podeExcluirEnvelope: true, podeVerPainel: true, concluidos: ["financeiro"] },
   "financeiro@logmam.com.br": { tipo: "operacional", concluidos: ["fiscal", "financeiro"] },
   "gilmar@logmam.com.br": { tipo: "gestor" },
+  "gilmar.fpereira@gmail.com": { tipo: "gestor" },
   // Luiz Claudio Bezerra: acesso a todos os módulos e funcionalidades (mesmo nível do administrador)
   "luiz.bezerra@logmam.com.br": { tipo: "admin" },
   "ana@logmam.com.br": { tipo: "gestor", podeCriarEnvelope: true },

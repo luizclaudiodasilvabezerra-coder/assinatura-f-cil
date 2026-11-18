@@ -4,6 +4,7 @@ export const EMAILS_AUTORIZADOS = [
   "jorge.queiroz@logmam.com.br",
   "breno@logmam.com.br",
   "gilmar@logmam.com.br",
+  "gilmar.fpereira@gmail.com",
   "jerusa.dias@logmam.com.br",
   "nf@logmam.com.br",
   "financeiro@logmam.com.br",
