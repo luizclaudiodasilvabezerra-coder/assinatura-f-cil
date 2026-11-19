@@ -25,15 +25,30 @@ const mesmaPagina = (sig, url) => {
   return !!alvo && (chaveArquivo(sig.arquivo_original_url || sig.arquivo_url) === alvo || chaveArquivo(sig.arquivo_url) === alvo);
 };
 
+// Envelopes cujo gestor é Joselio Serur exigem a autorização dele em cada página.
+// A assinatura feita pelo signatário de origem (Matheus, Ana, Anderson) na etapa
+// "signatario" não conclui a página para o gestor.
+const ehDoGestorAtual = (doc, s) => {
+  const email = (doc?.signatario_email || "").trim().toLowerCase();
+  const nome = (doc?.signatario_nome || "").trim().toUpperCase();
+  const sEmail = (s.assinante_email || "").trim().toLowerCase();
+  const sNome = (s.assinante_nome || "").trim().toUpperCase();
+  return (!!email && sEmail === email) || (!!nome && sNome === nome);
+};
+const valeParaGestor = (doc, s, etapaAlvo) =>
+  etapaAlvo !== "signatario" || !precisaAutorizacao(doc) || ehDoGestorAtual(doc, s);
+
 export const assinaturasGestaoAtivas = (doc, sigs) => (doc?.arquivos || []).map((url) => sigs.find((s) =>
-  s.etapa === "signatario" && s.status === "assinado" && s.arquivo_url && mesmaPagina(s, url)
+  s.etapa === "signatario" && s.status === "assinado" && s.arquivo_url && mesmaPagina(s, url) &&
+  valeParaGestor(doc, s, "signatario")
 )).filter(Boolean);
 export const mapaAssinaturas = (doc, sigs, etapaForcada) => {
   const etapaAlvo = etapaForcada || etapaGestao(doc);
   const map = {};
   (doc?.arquivos || []).forEach((url, i) => {
     const sig = sigs.find((s) => (s.etapa || "signatario") === etapaAlvo && s.status === "assinado" &&
-      s.arquivo_url && mesmaPagina(s, url) && !s.observacao?.startsWith("Assinatura automática"));
+      s.arquivo_url && mesmaPagina(s, url) && !s.observacao?.startsWith("Assinatura automática") &&
+      valeParaGestor(doc, s, etapaAlvo));
     if (sig) map[i] = sig;
   });
   return map;

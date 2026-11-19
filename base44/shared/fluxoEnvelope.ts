@@ -56,13 +56,24 @@ export const buscarAssinaturasAtivas = async (base44, doc) => {
   } while (cursor);
   return sigs;
 };
+// Assinatura feita pelo próprio gestor atual do envelope (ex.: Joselio Serur).
+const ehDoGestorAtual = (doc, s) => {
+  const email = (doc.signatario_email || '').trim().toLowerCase();
+  const nome = (doc.signatario_nome || '').trim().toUpperCase();
+  return (!!email && (s.assinante_email || '').trim().toLowerCase() === email) ||
+    (!!nome && (s.assinante_nome || '').trim().toUpperCase() === nome);
+};
+
 export const exigirAssinaturas = (doc, sigs, parcial) => {
   const etapa = etapaGestao(doc);
-  const completos = (doc.arquivos || []).map((url) => assinaturaDaPagina(sigs, url, etapa));
   const hierarquico = doc.fluxo_hierarquico || signatarioRedirecionado(doc.signatario_nome) || isRedirectTarget(doc.signatario_nome);
   // O gestor de destino (Joselio) autoriza em vez de escrever observação: vale a marcação
   // de Autorizado ou a observação iniciada por "Autorizado".
   const gestorAutoriza = !!isRedirectTarget(doc.signatario_nome);
+  // Quando o gestor é Joselio, só a autorização dele conclui a página: a assinatura
+  // do signatário de origem na mesma etapa não pode ser aceita como autorização.
+  const sigsValidas = gestorAutoriza ? sigs.filter((s) => ehDoGestorAtual(doc, s)) : sigs;
+  const completos = (doc.arquivos || []).map((url) => assinaturaDaPagina(sigsValidas, url, etapa));
   const autorizadoNaPagina = (s) => !!s?.autorizado || !!(s?.observacao || '').trim().startsWith('Autorizado');
   if (!completos.length || !completos.some(Boolean) ||
     ((!parcial || hierarquico) && completos.some((s) => !s || (!gestorAutoriza && !(s.observacao || '').trim())))) {
