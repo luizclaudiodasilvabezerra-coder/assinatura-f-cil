@@ -1,6 +1,7 @@
 import { base44 } from "@/api/base44Client";
 import { base64ToBlob } from "@/lib/pdfDownload";
 import { erroSenhaPdf } from "@/lib/senhaPdf";
+import { identidadeAtual } from "@/lib/identidade";
 
 export const loteDoArquivo = (lotes, url) => {
   if (!lotes || !lotes.length || !url) return null;
@@ -12,7 +13,7 @@ export const carimbarEUploadar = async ({ fileUrl, imagemUrl, pos, nome, observa
   const stampRes = await base44.functions.invoke("carimbarPdf", {
     fileUrl, imagemUrl, posX: pos.x, posY: pos.y, autoPosition, lado,
     nome, data: new Date().toLocaleString("pt-BR"),
-    observacao, operacao, unidade, indent, senha,
+    observacao, operacao, unidade, indent, senha, ...identidadeAtual(),
   });
   const senhaErr = erroSenhaPdf(stampRes.data);
   if (senhaErr) throw senhaErr;

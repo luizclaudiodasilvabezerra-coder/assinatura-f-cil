@@ -2,14 +2,15 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.52';
 import { bytesToBase64 } from '../../shared/pdfUtils.ts';
 import { carregarPdf, salvarPdf } from '../../shared/carimboPdf.ts';
 import { assinaturaDaPagina, buscarAssinaturasAtivas, etapaGestao } from '../../shared/fluxoEnvelope.ts';
+import { identificarChamador } from '../../shared/identidade.ts';
 
 export default async function(req) {
   try {
     const base44 = createClientFromRequest(req);
-    const user = await base44.auth.me();
+    const body = await req.json();
+    const user = await identificarChamador(base44, body);
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const body = await req.json();
     const { documentoId } = body || {};
     if (!documentoId) return Response.json({ error: 'documentoId obrigatorio' }, { status: 400 });
 

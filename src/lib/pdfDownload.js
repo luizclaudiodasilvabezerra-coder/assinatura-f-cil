@@ -1,4 +1,5 @@
 import { base44 } from "@/api/base44Client";
+import { identidadeAtual } from "@/lib/identidade";
 
 export function base64ToBlob(b64, mime = "application/pdf") {
   const byteChars = atob(b64);
@@ -20,7 +21,7 @@ export function downloadBlob(blob, filename) {
 }
 
 export async function baixarEnvelopePdf(documentoId, nomeArquivo = "envelope.pdf") {
-  const res = await base44.functions.invoke("baixarEnvelope", { documentoId });
+  const res = await base44.functions.invoke("baixarEnvelope", { documentoId, ...identidadeAtual() });
   if (res.data?.pdf_base64) {
     downloadBlob(base64ToBlob(res.data.pdf_base64), nomeArquivo);
     return true;

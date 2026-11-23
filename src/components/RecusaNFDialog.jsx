@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/use-toast";
+import { identidadeAtual } from "@/lib/identidade";
 
 export default function RecusaNFDialog({ open, onClose, doc, arquivoUrl, onRecusou }) {
   const [motivo, setMotivo] = useState("");
@@ -15,7 +16,7 @@ export default function RecusaNFDialog({ open, onClose, doc, arquivoUrl, onRecus
     if (!motivo.trim() || !arquivoUrl) return;
     setSaving(true);
     try {
-      const { data } = await base44.functions.invoke("recusarPaginaEnvelope", { documentoId: doc.id, arquivoUrl, motivo: motivo.trim() });
+      const { data } = await base44.functions.invoke("recusarPaginaEnvelope", { documentoId: doc.id, arquivoUrl, motivo: motivo.trim(), ...identidadeAtual() });
       if (!data?.documento) throw new Error(data?.error || "Não foi possível recusar a NF.");
       await onRecusou(data.documento);
       setMotivo(""); onClose();

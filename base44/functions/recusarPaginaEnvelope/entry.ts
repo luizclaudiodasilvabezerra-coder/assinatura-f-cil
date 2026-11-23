@@ -1,12 +1,14 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.52';
 import { assinaturaDaPagina, buscarAssinaturasAtivas, etapaGestao, podeOperarGestao, nomesPorEmail } from '../../shared/fluxoEnvelope.ts';
+import { identificarChamador } from '../../shared/identidade.ts';
 
 export default async function(req) {
   try {
     const base44 = createClientFromRequest(req);
-    const user = await base44.auth.me();
+    const body = await req.json();
+    const user = await identificarChamador(base44, body);
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
-    const { documentoId, arquivoUrl, motivo } = await req.json();
+    const { documentoId, arquivoUrl, motivo } = body;
     if (typeof documentoId !== 'string' || !documentoId || typeof arquivoUrl !== 'string' || typeof motivo !== 'string' || !motivo.trim() || motivo.length > 2000) return Response.json({ error: 'Documento, página e motivo são obrigatórios' }, { status: 400 });
     const doc = await base44.entities.Documento.get(documentoId);
     if (!doc.arquivos?.includes(arquivoUrl) || doc.recusado || !['pendente_gestao', 'assinado_gestao', 'pendente_diretoria'].includes(doc.status)) return Response.json({ error: 'Página fora do fluxo de assinatura' }, { status: 400 });

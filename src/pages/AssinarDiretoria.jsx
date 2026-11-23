@@ -27,6 +27,7 @@ import carregarAssinaturasEnvelope from "@/lib/assinaturasEnvelope";
 import { detectarPosicaoAssinatura } from "@/lib/posicionamentoAssinatura";
 import useSenhaPdf from "@/hooks/useSenhaPdf";
 import { erroSenhaPdf } from "@/lib/senhaPdf";
+import { identidadeAtual } from "@/lib/identidade";
 
 const isImage = (url) => url && /\.(png|jpe?g|webp|gif)$/i.test(url);
 const fileName = (url) => (url ? decodeURIComponent(url.split("/").pop() || "arquivo") : "Documento");
@@ -282,7 +283,7 @@ export default function AssinarDiretoria() {
       await base44.entities.Documento.update(id, { status: "assinado_diretoria", pasta: "assinados" });
       setDoc((d) => ({ ...d, status: "assinado_diretoria", pasta: "assinados" }));
       toast({ title: `Lote carimbado: ${ok} arquivo(s)`, description: "Envelope concluído." });
-      base44.functions.invoke("extrairDadosNF", { documento_id: id }).catch(() => {});
+      base44.functions.invoke("extrairDadosNF", { documento_id: id, ...identidadeAtual() }).catch(() => {});
     } else {
       let next = -1;
       for (let step = 1; step <= arquivos.length; step++) {
@@ -320,6 +321,7 @@ export default function AssinarDiretoria() {
             posX: pos.x, posY: pos.y, lado: "direita", senha: senhaPdf,
             nome, data: new Date().toLocaleString("pt-BR"),
             observacao, operacao: doc.operacao || "", unidade: doc.unidade_negocio || "", indent,
+            ...identidadeAtual(),
           });
           const senhaErr = erroSenhaPdf(stampRes.data);
           if (senhaErr) throw senhaErr;
@@ -363,7 +365,7 @@ export default function AssinarDiretoria() {
         setDoc((d) => ({ ...d, status: "assinado_diretoria", pasta: "assinados" }));
         toast({ title: "Todos os arquivos assinados pela diretoria", description: "Envelope concluído." });
         // Extrai dados das NFs para o módulo de relatórios (nao bloqueia o fluxo)
-        base44.functions.invoke("extrairDadosNF", { documento_id: id }).catch(() => {});
+        base44.functions.invoke("extrairDadosNF", { documento_id: id, ...identidadeAtual() }).catch(() => {});
       } else {
         let next = -1;
         for (let step = 1; step <= arquivos.length; step++) {
@@ -389,7 +391,7 @@ export default function AssinarDiretoria() {
     const next = restantes.findIndex((_, i) => !map[i]);
     setCurrentIndex(next >= 0 ? next : 0);
     if (!atualizado.arquivos.length) navigate("/");
-    if (atualizado.status === "assinado_diretoria") base44.functions.invoke("extrairDadosNF", { documento_id: id }).catch(() => {});
+    if (atualizado.status === "assinado_diretoria") base44.functions.invoke("extrairDadosNF", { documento_id: id, ...identidadeAtual() }).catch(() => {});
   };
 
   const validarSenha = (e) => {

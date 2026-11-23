@@ -1,13 +1,15 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.52';
 import { signatarioRedirecionado } from '../../shared/redirecionamento.ts';
 import { buscarAssinaturasAtivas, exigirAssinaturas, podeOperarGestao } from '../../shared/fluxoEnvelope.ts';
+import { identificarChamador } from '../../shared/identidade.ts';
 
 export default async function(req) {
   try {
     const base44 = createClientFromRequest(req);
-    const user = await base44.auth.me();
+    const body = await req.json();
+    const user = await identificarChamador(base44, body);
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
-    const { documentoId, parcial = false } = await req.json();
+    const { documentoId, parcial = false } = body;
     if (typeof documentoId !== 'string' || !documentoId || documentoId.length > 100) return Response.json({ error: 'Documento obrigatório' }, { status: 400 });
     const doc = await base44.entities.Documento.get(documentoId);
     if (!podeOperarGestao(user, doc)) return Response.json({ error: 'Acesso não autorizado' }, { status: 403 });

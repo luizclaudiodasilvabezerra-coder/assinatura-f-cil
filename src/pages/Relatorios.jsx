@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { ArrowLeft, FileBarChart, Loader2, Download, FileDown, FileSearch } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
 import { podeVerRelatorios } from "@/lib/permissoes";
+import { identidadeAtual } from "@/lib/identidade";
 import { Image as UIImage } from "@/components/ui/image";
 import RelatorioFilters from "@/components/RelatorioFilters";
 import ExportColumnsDialog from "@/components/ExportColumnsDialog";
@@ -110,7 +111,7 @@ export default function Relatorios() {
       const docIdsComRelatorio = new Set(relatoriosDoc.map((r) => r.documento_id));
       docs.forEach((d) => {
         if (!docIdsComRelatorio.has(d.id)) {
-          base44.functions.invoke("extrairDadosNF", { documento_id: d.id }).catch(() => {});
+          base44.functions.invoke("extrairDadosNF", { documento_id: d.id, ...identidadeAtual() }).catch(() => {});
         }
       });
 
@@ -150,7 +151,7 @@ export default function Relatorios() {
       const docIds = [...new Set(filtrados.map((r) => r.id))];
       await Promise.all(
         docIds.map((id) =>
-          base44.functions.invoke("extrairDadosNF", { documento_id: id }).catch(() => {})
+          base44.functions.invoke("extrairDadosNF", { documento_id: id, ...identidadeAtual() }).catch(() => {})
         )
       );
       await buscar();

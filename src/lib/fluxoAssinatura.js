@@ -1,4 +1,5 @@
 import { isRedirectTarget, signatarioRedirecionado } from "@/lib/redirecionamentoAssinatura";
+import { identidadeAtual } from "@/lib/identidade";
 
 export const etapaGestao = (doc) => signatarioRedirecionado(doc?.signatario_nome) ? "gestao_origem" : "signatario";
 export const precisaAutorizacao = (doc) => !!isRedirectTarget(doc?.signatario_nome);
@@ -56,7 +57,7 @@ export const mapaAssinaturas = (doc, sigs, etapaForcada) => {
 export const encaminharEnvelope = async (documentoId, parcial = false) => {
   const { base44 } = await import("@/api/base44Client");
   try {
-    const { data } = await base44.functions.invoke("encaminharEnvelope", { documentoId, parcial });
+    const { data } = await base44.functions.invoke("encaminharEnvelope", { documentoId, parcial, ...identidadeAtual() });
     if (!data?.documento) throw new Error(data?.error || "Não foi possível encaminhar o envelope.");
     return data.documento;
   } catch (e) {

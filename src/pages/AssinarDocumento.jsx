@@ -30,6 +30,7 @@ import ConsultaEnvelope from "@/components/ConsultaEnvelope";
 import { detectarPosicaoAssinatura } from "@/lib/posicionamentoAssinatura";
 import useSenhaPdf from "@/hooks/useSenhaPdf";
 import { erroSenhaPdf } from "@/lib/senhaPdf";
+import { identidadeAtual } from "@/lib/identidade";
 
 const isImage = (url) => url && /\.(png|jpe?g|webp|gif)$/i.test(url);
 const fileName = (url) => (url ? decodeURIComponent(url.split("/").pop() || "arquivo") : "Documento");
@@ -257,7 +258,7 @@ export default function AssinarDocumento() {
             fileUrl: currentFile, imagemUrl: imagem_url, posX: pos.x, posY: pos.y,
             nome: assinanteNome, data: new Date().toLocaleString("pt-BR"),
             observacao, operacao: operacao || doc.operacao || "", unidade: unidade || doc.unidade_negocio || "", indent,
-            senha: senhaPdf,
+            senha: senhaPdf, ...identidadeAtual(),
           });
           const senhaErr = erroSenhaPdf(stampRes.data);
           if (senhaErr) throw senhaErr;
