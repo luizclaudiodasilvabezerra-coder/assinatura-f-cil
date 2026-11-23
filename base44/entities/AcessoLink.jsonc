@@ -1,0 +1,55 @@
+{
+  "name": "AcessoLink",
+  "type": "object",
+  "properties": {
+    "token": {
+      "type": "string",
+      "title": "Token do link"
+    },
+    "email": {
+      "type": "string",
+      "title": "E-mail",
+      "format": "email"
+    },
+    "nome": {
+      "type": "string",
+      "title": "Nome"
+    },
+    "ativo": {
+      "type": "boolean",
+      "title": "Ativo",
+      "default": true
+    },
+    "ultimo_acesso": {
+      "type": "string",
+      "title": "\u00daltimo acesso",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "token",
+    "email"
+  ],
+  "rls": {
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

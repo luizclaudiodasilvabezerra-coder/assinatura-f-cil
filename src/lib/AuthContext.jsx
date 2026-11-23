@@ -1,6 +1,7 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import { appParams } from '@/lib/app-params';
+import { lerSessaoLink, limparSessaoLink, usuarioDaSessaoLink } from '@/lib/acessoLink';
 
 const AuthContext = createContext();
 
@@ -30,8 +31,15 @@ export const AuthProvider = ({ children }) => {
         if (appParams.token) {
           await checkUserAuth();
         } else {
+          // Sem sessão da plataforma: usa o link pessoal, se houver
+          const linkUser = usuarioDaSessaoLink(lerSessaoLink());
+          if (linkUser) {
+            setUser(linkUser);
+            setIsAuthenticated(true);
+          } else {
+            setIsAuthenticated(false);
+          }
           setIsLoadingAuth(false);
-          setIsAuthenticated(false);
           setAuthChecked(true);
         }
         setIsLoadingPublicSettings(false);
@@ -89,9 +97,18 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       console.error('User auth check failed:', error);
       setIsLoadingAuth(false);
-      setIsAuthenticated(false);
       setAuthChecked(true);
-      
+
+      // Sessão expirada, mas com link pessoal salvo: mantém o acesso pelo link
+      const linkUser = usuarioDaSessaoLink(lerSessaoLink());
+      if (linkUser) {
+        setUser(linkUser);
+        setIsAuthenticated(true);
+        return;
+      }
+
+      setIsAuthenticated(false);
+
       // If user auth fails, it might be an expired token
       if (error.status === 401 || error.status === 403) {
         setAuthError({
@@ -103,6 +120,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = (shouldRedirect = true) => {
+    limparSessaoLink();
     setUser(null);
     setIsAuthenticated(false);
     

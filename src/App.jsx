@@ -18,6 +18,7 @@ import LogAssinaturas from '@/pages/LogAssinaturas';
 import Cadastros from '@/pages/Cadastros';
 import AssinarDiretoria from '@/pages/AssinarDiretoria';
 import Capa from '@/pages/Capa';
+import AcessoLink from '@/pages/AcessoLink';
 import EnvelopesAssinados from '@/pages/EnvelopesAssinados';
 import Relatorios from '@/pages/Relatorios';
 import CapturaMobile from '@/pages/CapturaMobile';
@@ -49,6 +50,7 @@ const AuthenticatedApp = () => {
   return (
     <Routes>
       <Route path="/capa" element={<Capa />} />
+      <Route path="/acesso/:token" element={<AcessoLink />} />
       <Route path="/captura/:token" element={<CapturaMobile />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
