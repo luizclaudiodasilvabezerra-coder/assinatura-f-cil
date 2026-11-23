@@ -24,7 +24,7 @@ const PERMISSOES = {
   "breno@logmam.com.br": { tipo: "diretoria" },
   "nf@logmam.com.br": { tipo: "operacional", podeCriarEnvelope: true, podeExcluirEnvelope: true, podeVerPainel: true, concluidos: ["financeiro"] },
   "financeiro@logmam.com.br": { tipo: "operacional", concluidos: ["fiscal", "financeiro"] },
-  "gilmar@logmam.com.br": { tipo: "gestor" },
+  "gilmar@logmam.com.br": { tipo: "gestor", podeVerRecusados: true },
   // Luiz Claudio Bezerra: acesso a todos os módulos e funcionalidades (mesmo nível do administrador)
   "luiz.bezerra@logmam.com.br": { tipo: "admin" },
   "ana@logmam.com.br": { tipo: "gestor", podeCriarEnvelope: true },
@@ -126,7 +126,9 @@ export const stagesPermitidos = (user) => {
   if (p.tipo === "admin") return ["all", "pendente_gestao", "assinado_gestao", "pendente_diretoria", "recusados"];
   if (p.tipo === "consulta") return ["all", "pendente_gestao", "assinado_gestao", "pendente_diretoria", "recusados"];
   if (p.tipo === "diretoria") return ["pendente_diretoria"];
-  if (p.tipo === "gestor") return ["pendente_gestao", "assinado_gestao"];
+  if (p.tipo === "gestor") return p.podeVerRecusados
+    ? ["pendente_gestao", "assinado_gestao", "recusados"]
+    : ["pendente_gestao", "assinado_gestao"];
   if (p.tipo === "operacional") return p.podeVerPainel ? ["all", "pendente_gestao", "assinado_gestao", "pendente_diretoria", "recusados"] : [];
   return [];
 };
