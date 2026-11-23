@@ -17,7 +17,7 @@ import { dataURLToFile, formatDate } from "@/lib/signatureUtils";
 import { base64ToBlob, baixarEnvelopePdf, baixarArquivoPdf } from "@/lib/pdfDownload";
 import { identificarDiretoria, diretoriaDoMembro, SENHA_MASTER_RECUSA } from "@/lib/acessos";
 import { useAuth } from "@/lib/AuthContext";
-import { getPermissoes, nomeDoUsuario, nomeExibicao, diretoriaDoUsuario, somenteVisualizaPainel, podeVerLog } from "@/lib/permissoes";
+import { getPermissoes, nomeDoUsuario, somenteVisualizaPainel, podeVerLog } from "@/lib/permissoes";
 import { loteDoArquivo, carimbarEUploadar } from "@/lib/carimbarLote";
 import LoteFolders from "@/components/LoteFolders";
 import { assinaturasGestaoAtivas } from "@/lib/fluxoAssinatura";
@@ -88,20 +88,24 @@ export default function AssinarDiretoria() {
         setSignedMap(map);
         const firstUnsigned = gestao.findIndex((_, i) => !map[i]);
         setCurrentIndex(firstUnsigned >= 0 ? firstUnsigned : 0);
-        // Auto-unlock para membros da diretoria (identificados pelo e-mail)
-        const p = getPermissoes(user);
-        if (p?.tipo === "diretoria" && d && !d.recusado) {
-          const dir = diretoriaDoUsuario(user, cad);
-          if (dir && d.diretoria === dir) {
-            const nomeDir = nomeExibicao(user) || nomeDoUsuario(user);
-            setDiretorIdentificado(nomeDir);
-            setNome(nomeDir || "");
-            // Auto-seleciona o cadastro correspondente para carregar a assinatura
-            const norm = (s) => (s || "").trim().toUpperCase();
-            const cadDir = cad.find((x) => norm(x.nome) === norm(nomeDir) && x.tipo === "diretoria");
+        // Identifica quem assina pela diretoria a partir do e-mail confirmado na capa
+        if (user?.email && d && !d.recusado) {
+          const norm = (s) => (s || "").trim().toUpperCase();
+          const email = (user.email || "").trim().toLowerCase();
+          const cadEmail = cad.find((x) => (x.email || "").trim().toLowerCase() === email);
+          const nomeDir = cadEmail?.nome || nomeDoUsuario(user) || "";
+          const cadDir = cadEmail?.tipo === "diretoria"
+            ? cadEmail
+            : cad.find((x) => norm(x.nome) === norm(nomeDir) && x.tipo === "diretoria");
+          const ehDiretoria = getPermissoes(user)?.tipo === "diretoria";
+          const quemAssina = cadDir?.nome || (ehDiretoria ? nomeDir : "");
+          if (quemAssina) {
+            setDiretorIdentificado(quemAssina);
+            setNome(quemAssina);
             if (cadDir) setCadastroId(cadDir.id);
-            // Busca imagem de assinatura em qualquer cadastro com o mesmo nome
-            const comImagem = cad.find((x) => norm(x.nome) === norm(nomeDir) && x.imagem_assinatura);
+            const comImagem = cadDir?.imagem_assinatura
+              ? cadDir
+              : cad.find((x) => norm(x.nome) === norm(quemAssina) && x.imagem_assinatura);
             if (comImagem) { setImagemUpload(comImagem.imagem_assinatura); setModo("uploadada"); }
             setPos({ x: 75, y: 92 });
           }
@@ -580,11 +584,19 @@ export default function AssinarDiretoria() {
                   <CardContent className="p-5 space-y-4">
                     <div className="space-y-2">
                       <Label htmlFor="cadastro">Quem assina como diretoria *</Label>
-                      <select id="cadastro" value={cadastroId} onChange={onCadastroChange} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
-                        <option value="">— Selecionar do cadastro —</option>
-                        {diretoriaCadastros.map((c) => (<option key={c.id} value={c.id}>{c.nome}{c.diretoria ? ` · ${c.diretoria}` : ""}</option>))}
-                      </select>
-                      <Input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Ou digite o nome do diretor" className="mt-2" />
+                      {diretorIdentificado ? (
+                        <div className="flex h-10 items-center rounded-md border border-border bg-muted/40 px-3 text-sm">
+                          Assinando como <span className="font-medium ml-1">{diretorIdentificado}</span>
+                        </div>
+                      ) : (
+                        <>
+                          <select id="cadastro" value={cadastroId} onChange={onCadastroChange} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+                            <option value="">— Selecionar do cadastro —</option>
+                            {diretoriaCadastros.map((c) => (<option key={c.id} value={c.id}>{c.nome}{c.diretoria ? ` · ${c.diretoria}` : ""}</option>))}
+                          </select>
+                          <Input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Ou digite o nome do diretor" className="mt-2" />
+                        </>
+                      )}
                     </div>
                     <div className="space-y-2">
                       <Label>Assinatura da diretoria *</Label>
