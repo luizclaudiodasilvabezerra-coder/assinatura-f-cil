@@ -1,6 +1,5 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
-import { appParams } from '@/lib/app-params';
 import { lerSessaoLink, limparSessaoLink, usuarioDaSessaoLink } from '@/lib/acessoLink';
 
 const AuthContext = createContext();
@@ -27,21 +26,9 @@ export const AuthProvider = ({ children }) => {
         const publicSettings = await base44.app.getPublicSettings();
         setAppPublicSettings(publicSettings);
         
-        // If we got the app public settings successfully, check if user is authenticated
-        if (appParams.token) {
-          await checkUserAuth();
-        } else {
-          // Sem sessão da plataforma: usa o link pessoal, se houver
-          const linkUser = usuarioDaSessaoLink(lerSessaoLink());
-          if (linkUser) {
-            setUser(linkUser);
-            setIsAuthenticated(true);
-          } else {
-            setIsAuthenticated(false);
-          }
-          setIsLoadingAuth(false);
-          setAuthChecked(true);
-        }
+        // A identidade do app é sempre o e-mail identificado na capa:
+        // uma sessão da plataforma (token) não libera o painel por si só.
+        await checkUserAuth();
         setIsLoadingPublicSettings(false);
       } catch (appError) {
         console.error('App state check failed:', appError);
@@ -86,37 +73,12 @@ export const AuthProvider = ({ children }) => {
   };
 
   const checkUserAuth = async () => {
-    try {
-      // Now check if the user is authenticated
-      setIsLoadingAuth(true);
-      const currentUser = await base44.auth.me();
-      setUser(currentUser);
-      setIsAuthenticated(true);
-      setIsLoadingAuth(false);
-      setAuthChecked(true);
-    } catch (error) {
-      console.error('User auth check failed:', error);
-      setIsLoadingAuth(false);
-      setAuthChecked(true);
-
-      // Sessão expirada, mas com link pessoal salvo: mantém o acesso pelo link
-      const linkUser = usuarioDaSessaoLink(lerSessaoLink());
-      if (linkUser) {
-        setUser(linkUser);
-        setIsAuthenticated(true);
-        return;
-      }
-
-      setIsAuthenticated(false);
-
-      // If user auth fails, it might be an expired token
-      if (error.status === 401 || error.status === 403) {
-        setAuthError({
-          type: 'auth_required',
-          message: 'Authentication required'
-        });
-      }
-    }
+    // Sem senha: a sessão válida é a identificação por e-mail salva no navegador.
+    const linkUser = usuarioDaSessaoLink(lerSessaoLink());
+    setUser(linkUser);
+    setIsAuthenticated(!!linkUser);
+    setIsLoadingAuth(false);
+    setAuthChecked(true);
   };
 
   const logout = (shouldRedirect = true) => {

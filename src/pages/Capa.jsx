@@ -1,14 +1,8 @@
 import React, { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { base44 } from "@/api/base44Client";
-import { Button } from "@/components/ui/button";
+import { ShieldCheck, Loader2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { ShieldCheck, Mail, Lock, Loader2 } from "lucide-react";
 import { Image as UIImage } from "@/components/ui/image";
-import GoogleIcon from "@/components/GoogleIcon";
 import IdentificacaoEmail from "@/components/IdentificacaoEmail";
 import { safeReturnTo } from "@/lib/authReturnTo";
 import { lerSessaoLink } from "@/lib/acessoLink";
@@ -16,45 +10,18 @@ import { lerSessaoLink } from "@/lib/acessoLink";
 const LOGO_URL = "https://media.base44.com/images/public/6aa074a5ce060f1b2caeee8f/86ee25d0d_image.png";
 
 export default function Capa() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
   const [verificando, setVerificando] = useState(true);
-  const [modo, setModo] = useState("email");
   const returnTo = safeReturnTo();
 
-  // Sessão já salva no navegador (mesmo depois de fechar o app): entra direto.
+  // Sessão já identificada no navegador (mesmo depois de fechar o app): entra direto.
   useEffect(() => {
-    let ativo = true;
     const destino = returnTo === window.location.pathname ? "/" : returnTo;
     if (lerSessaoLink()) {
       window.location.href = destino;
       return;
     }
-    base44.auth.isAuthenticated()
-      .then((ok) => { if (ativo && ok) window.location.href = destino; })
-      .finally(() => { if (ativo) setVerificando(false); });
-    return () => { ativo = false; };
+    setVerificando(false);
   }, [returnTo]);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError("");
-    setLoading(true);
-    try {
-      await base44.auth.loginViaEmailPassword(email, password);
-      window.location.href = returnTo;
-    } catch (err) {
-      setError(err.message || "E-mail ou senha inválidos");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleGoogle = () => {
-    base44.auth.loginWithProvider("google", returnTo);
-  };
 
   if (verificando) {
     return (
@@ -78,99 +45,7 @@ export default function Capa() {
             <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
               <ShieldCheck className="w-4 h-4" /> Acesso restrito a usuários autorizados
             </div>
-
-            {modo === "email" ? (
-              <IdentificacaoEmail returnTo={returnTo} />
-            ) : (
-              <>
-                {error && (
-                  <div className="mb-4 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">{error}</div>
-                )}
-
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="email">E-mail</Label>
-                    <div className="relative">
-                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" aria-hidden="true" />
-                      <Input
-                        id="email"
-                        type="email"
-                        autoComplete="email"
-                        placeholder="seu@email.com"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        className="pl-10 h-12"
-                        required
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="password">Senha</Label>
-                      <Link to="/forgot-password" className="text-xs text-primary hover:underline">Esqueceu a senha?</Link>
-                    </div>
-                    <div className="relative">
-                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" aria-hidden="true" />
-                      <Input
-                        id="password"
-                        type="password"
-                        autoComplete="current-password"
-                        placeholder="••••••••"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        className="pl-10 h-12"
-                        required
-                      />
-                    </div>
-                  </div>
-                  <Button type="submit" className="w-full h-12 gap-2 bg-brand text-white hover:bg-brand/90" disabled={loading}>
-                    {loading ? (
-                      <><Loader2 className="w-4 h-4 animate-spin" /> Entrando...</>
-                    ) : (
-                      <><ShieldCheck className="w-4 h-4" /> Entrar</>
-                    )}
-                  </Button>
-                </form>
-              </>
-            )}
-
-            <div className="relative my-4">
-              <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-border" /></div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-card px-3 text-muted-foreground">ou</span>
-              </div>
-            </div>
-
-            <Button variant="outline" className="w-full h-12 text-sm font-medium" onClick={handleGoogle}>
-              <GoogleIcon className="w-5 h-5 mr-2" /> Continuar com Google
-            </Button>
-
-            {modo === "email" ? (
-              <p className="text-center text-sm text-muted-foreground mt-4">
-                Prefere usar senha?{" "}
-                <button
-                  type="button"
-                  onClick={() => { setModo("senha"); setError(""); }}
-                  className="text-primary font-medium hover:underline"
-                >
-                  Entrar com senha
-                </button>
-              </p>
-            ) : (
-              <>
-                <p className="text-center text-sm text-muted-foreground mt-4">
-                  Não tem conta?{" "}
-                  <Link to="/register" className="text-primary font-medium hover:underline">Criar conta</Link>
-                </p>
-                <button
-                  type="button"
-                  onClick={() => { setModo("email"); setError(""); }}
-                  className="w-full text-center text-xs text-muted-foreground hover:text-primary hover:underline mt-4"
-                >
-                  Acessar somente com e-mail
-                </button>
-              </>
-            )}
+            <IdentificacaoEmail returnTo={returnTo} />
           </CardContent>
         </Card>
       </div>

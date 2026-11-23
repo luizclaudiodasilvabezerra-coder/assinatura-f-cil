@@ -1,6 +1,5 @@
 import React from "react";
 import { LogOut, UserRound } from "lucide-react";
-import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import { nomeExibicao } from "@/lib/permissoes";
 import { limparSessaoLink } from "@/lib/acessoLink";
@@ -12,7 +11,7 @@ export default function UsuarioIdentificado() {
 
   const trocar = () => {
     limparSessaoLink();
-    base44.auth.logout("/capa");
+    window.location.href = "/capa";
   };
 
   return (
