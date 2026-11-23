@@ -20,7 +20,7 @@ import { useAuth } from "@/lib/AuthContext";
 import { getPermissoes, nomeDoUsuario, somenteVisualizaPainel, podeVerLog } from "@/lib/permissoes";
 import { loteDoArquivo, carimbarEUploadar } from "@/lib/carimbarLote";
 import LoteFolders from "@/components/LoteFolders";
-import { assinaturasGestaoAtivas } from "@/lib/fluxoAssinatura";
+import { assinaturasGestaoAtivas, chaveArquivo } from "@/lib/fluxoAssinatura";
 import RecusaNFDialog from "@/components/RecusaNFDialog";
 import { Image } from "@/components/ui/image";
 import carregarAssinaturasEnvelope from "@/lib/assinaturasEnvelope";
@@ -82,7 +82,8 @@ export default function AssinarDiretoria() {
         const masters = s.filter((x) => x.etapa === "master");
         const map = {};
         gestao.forEach((g, i) => {
-          const m = masters.find((mm) => mm.arquivo_original_url === g.arquivo_original_url);
+          const alvo = chaveArquivo(g.arquivo_original_url || g.arquivo_url);
+          const m = masters.find((mm) => alvo && (chaveArquivo(mm.arquivo_original_url) === alvo || chaveArquivo(mm.arquivo_url) === alvo));
           if (m) map[i] = m;
         });
         setSignedMap(map);
@@ -142,6 +143,7 @@ export default function AssinarDiretoria() {
   const currentFile = currentSig?.arquivo_url;
   const currentSigned = signedMap[currentIndex];
   const allSigned = arquivos.length > 0 && arquivos.every((_, i) => signedMap[i]);
+  const pendentesCount = arquivos.filter((_, i) => !signedMap[i]).length;
   const loteAtual = useMemo(() => loteDoArquivo(doc?.lotes, currentSig?.arquivo_original_url || currentFile), [doc, currentSig, currentFile]);
 
   // Posicionamento automático: espaço em branco no rodapé, espelhando a assinatura da gestão já presente.
@@ -213,34 +215,60 @@ export default function AssinarDiretoria() {
     finally { setDownloading(false); }
   };
 
-  const assinarLote = async () => {
+  // Confirma no banco quais páginas já têm assinatura da diretoria e conclui o envelope
+  // quando todas as páginas do documento estiverem assinadas.
+  const concluirEnvelope = async () => {
+    try {
+      const atualizadas = await carregarAssinaturasEnvelope(id, ["signatario", "master"]);
+      const masters = atualizadas.filter((s) => s.etapa === "master" && s.status === "assinado" && s.arquivo_url);
+      const assinada = (url) => {
+        const alvo = chaveArquivo(url);
+        return !!alvo && masters.some((m) => chaveArquivo(m.arquivo_original_url || m.arquivo_url) === alvo || chaveArquivo(m.arquivo_url) === alvo);
+      };
+      const mapBanco = {};
+      arquivos.forEach((g, i) => {
+        const alvo = chaveArquivo(g.arquivo_original_url || g.arquivo_url);
+        const m = masters.find((mm) => alvo && (chaveArquivo(mm.arquivo_original_url) === alvo || chaveArquivo(mm.arquivo_url) === alvo));
+        if (m) mapBanco[i] = m;
+      });
+      setSigs(atualizadas);
+      setSignedMap((prev) => ({ ...prev, ...mapBanco }));
+      const paginas = doc?.arquivos || [];
+      if (!paginas.length || !paginas.every(assinada)) return { concluido: false, mapa: mapBanco };
+      await base44.entities.Documento.update(id, { status: "assinado_diretoria", pasta: "assinados" });
+      setDoc((d) => ({ ...d, status: "assinado_diretoria", pasta: "assinados" }));
+      toast({ title: "Envelope concluído", description: "Todas as páginas foram assinadas pela diretoria." });
+      base44.functions.invoke("extrairDadosNF", { documento_id: id, ...identidadeAtual() }).catch(() => {});
+      return { concluido: true, mapa: mapBanco };
+    } catch {
+      return { concluido: false, mapa: {} };
+    }
+  };
+
+  const assinarPaginas = async (indices) => {
     if (!nome.trim()) { toast({ title: "Selecione ou informe o diretor", variant: "destructive" }); return; }
     if (!observacao.trim()) { setCritica(true); toast({ title: "Observação obrigatória", description: "A observação é obrigatória para assinar.", variant: "destructive" }); return; }
-    const lote = loteDoArquivo(doc.lotes, currentSig?.arquivo_original_url || currentFile);
-    if (!lote) { toast({ title: "Este arquivo não pertence a um lote", variant: "destructive" }); return; }
+    const pendentes = indices.filter((i) => !signedMap[i]);
+    if (pendentes.length === 0) { toast({ title: "Todas as páginas já estão assinadas pela diretoria" }); return; }
 
     let imagem_url = "";
+    setSaving(true);
     if (modo === "desenhada") {
-      if (padRef.current?.isEmpty()) { toast({ title: "Desenhe a assinatura", variant: "destructive" }); return; }
-      setSaving(true);
+      if (padRef.current?.isEmpty()) { setSaving(false); toast({ title: "Desenhe a assinatura", variant: "destructive" }); return; }
       try { const file = dataURLToFile(padRef.current.getDataURL(), `assinatura_diretoria_${nome}.png`); const up = await base44.integrations.Core.UploadFile({ file }); imagem_url = up.file_url; }
       catch { setSaving(false); toast({ title: "Erro ao salvar assinatura", variant: "destructive" }); return; }
     } else {
-      if (!imagemUpload) { toast({ title: "Envie uma imagem de assinatura", variant: "destructive" }); return; }
-      imagem_url = imagemUpload; setSaving(true);
+      if (!imagemUpload) { setSaving(false); toast({ title: "Envie uma imagem de assinatura", variant: "destructive" }); return; }
+      imagem_url = imagemUpload;
     }
-
-    const urlsLote = new Set(lote.arquivos);
-    const indicesDoLote = gestaoSigs.map((s, i) => ({ s, i })).filter(({ s }) => urlsLote.has(s.arquivo_original_url) || urlsLote.has(s.arquivo_url)).map(({ i }) => i);
-    const pendentes = indicesDoLote.filter((i) => !signedMap[i]);
-    if (pendentes.length === 0) { setSaving(false); toast({ title: "Todas as páginas deste lote já estão assinadas" }); return; }
 
     const newMap = { ...signedMap };
     const novosRegistros = [];
     let ok = 0, falhou = 0;
     for (const idx of pendentes) {
       const sig = gestaoSigs[idx];
-      const fileUrl = sig.arquivo_url;
+      const fileUrl = sig?.arquivo_url;
+      if (!fileUrl) { falhou++; continue; }
       let stampedUrl = fileUrl;
       try {
         stampedUrl = await comSenha(fileUrl, (senhaPdf) => carimbarEUploadar({
@@ -266,6 +294,7 @@ export default function AssinarDiretoria() {
         ok++;
       } catch { falhou++; }
     }
+
     setSignedMap(newMap);
     setSigs((prev) => [...novosRegistros, ...prev.map((s) => {
       const master = novosRegistros.find((m) => m.arquivo_original_url === s.arquivo_original_url);
@@ -282,113 +311,50 @@ export default function AssinarDiretoria() {
       setPos({ x: 75, y: 92 });
     } else { setImagemUpload(""); setCadastroId(""); setNome(""); setPos({ x: 3, y: 90 }); }
 
-    const allDone = arquivos.every((_, i) => newMap[i]);
-    if (allDone) {
-      await base44.entities.Documento.update(id, { status: "assinado_diretoria", pasta: "assinados" });
-      setDoc((d) => ({ ...d, status: "assinado_diretoria", pasta: "assinados" }));
-      toast({ title: `Lote carimbado: ${ok} arquivo(s)`, description: "Envelope concluído." });
-      base44.functions.invoke("extrairDadosNF", { documento_id: id, ...identidadeAtual() }).catch(() => {});
+    if (ok > 0) {
+      toast({
+        title: ok === 1 ? "Página assinada pela diretoria" : `${ok} páginas assinadas pela diretoria`,
+        description: falhou ? `${falhou} página(s) não puderam ser assinadas.` : "Assinatura registrada no documento.",
+        variant: falhou && !ok ? "destructive" : "default",
+      });
     } else {
+      toast({ title: "Nenhuma página foi assinada", description: "Tente novamente.", variant: "destructive" });
+    }
+
+    const { concluido, mapa } = await concluirEnvelope();
+    if (!concluido) {
+      const merged = { ...newMap, ...mapa };
       let next = -1;
       for (let step = 1; step <= arquivos.length; step++) {
         const idx = (currentIndex + step) % arquivos.length;
-        if (!newMap[idx]) { next = idx; break; }
+        if (!merged[idx]) { next = idx; break; }
       }
       if (next !== -1) setCurrentIndex(next);
-      toast({ title: `Lote carimbado: ${ok} arquivo(s) assinado(s)${falhou ? `, ${falhou} falha(s)` : ""}` });
     }
     setSaving(false);
   };
 
+  const assinarLote = async () => {
+    const lote = loteDoArquivo(doc.lotes, currentSig?.arquivo_original_url || currentFile);
+    if (!lote) { toast({ title: "Este arquivo não pertence a um lote", variant: "destructive" }); return; }
+    const urlsLote = new Set(lote.arquivos);
+    const indicesDoLote = gestaoSigs.map((s, i) => ({ s, i })).filter(({ s }) => urlsLote.has(s.arquivo_original_url) || urlsLote.has(s.arquivo_url)).map(({ i }) => i);
+    await assinarPaginas(indicesDoLote);
+  };
+
+  const assinarTodasPendentes = () => assinarPaginas(gestaoSigs.map((_, i) => i));
+
   const avancar = () => { const next = findNextUnsigned(currentIndex); if (next !== -1) setCurrentIndex(next); };
 
-  const assinarArquivo = async () => {
-    if (!nome.trim()) { toast({ title: "Selecione ou informe o diretor", variant: "destructive" }); return; }
-    if (!observacao.trim()) { setCritica(true); toast({ title: "Observação obrigatória", description: "A observação é obrigatória para assinar.", variant: "destructive" }); return; }
-    let imagem_url = "";
-    if (modo === "desenhada") {
-      if (padRef.current?.isEmpty()) { toast({ title: "Desenhe a assinatura", variant: "destructive" }); return; }
-      setSaving(true);
-      try { const file = dataURLToFile(padRef.current.getDataURL(), `assinatura_diretoria_${nome}.png`); const up = await base44.integrations.Core.UploadFile({ file }); imagem_url = up.file_url; }
-      catch { setSaving(false); toast({ title: "Erro ao salvar assinatura", variant: "destructive" }); return; }
-    } else {
-      if (!imagemUpload) { toast({ title: "Envie uma imagem de assinatura", variant: "destructive" }); return; }
-      imagem_url = imagemUpload; setSaving(true);
-    }
-
-    let stampedUrl = currentFile;
-    if (currentFile && /\.pdf$/i.test(currentFile)) {
-      try {
-        stampedUrl = await comSenha(currentFile, async (senhaPdf) => {
-          const stampRes = await base44.functions.invoke("carimbarPdf", {
-            fileUrl: currentFile, imagemUrl: imagem_url,
-            posX: pos.x, posY: pos.y, lado: "direita", senha: senhaPdf,
-            nome, data: new Date().toLocaleString("pt-BR"),
-            observacao, operacao: doc.operacao || "", unidade: doc.unidade_negocio || "", indent,
-            ...identidadeAtual(),
-          });
-          const senhaErr = erroSenhaPdf(stampRes.data);
-          if (senhaErr) throw senhaErr;
-          if (!stampRes.data?.pdf_base64) throw new Error(stampRes.data?.error || "A assinatura da diretoria não foi registrada no arquivo. Tente novamente.");
-          const stampedFile = new File([base64ToBlob(stampRes.data.pdf_base64)], `diretoria_${fileName(currentFile)}`, { type: "application/pdf" });
-          const up2 = await base44.integrations.Core.UploadFile({ file: stampedFile });
-          return up2.file_url;
-        });
-      } catch (e) {
-        toast({ title: "Falha ao gravar assinatura no PDF", description: e?.message || "A assinatura da diretoria não foi registrada no arquivo. Tente novamente.", variant: "destructive" });
-        setSaving(false); return;
-      }
-    }
-
-    try {
-      await base44.entities.Assinatura.update(currentSig.id, { arquivo_url: stampedUrl });
-      const rec = await base44.entities.Assinatura.create({
-        documento_id: id, documento_titulo: doc.titulo, arquivo_url: stampedUrl,
-        arquivo_original_url: currentSig.arquivo_original_url || currentFile,
-        assinante_nome: nome, assinante_cadastro_id: cadastroId || undefined, imagem_url, tipo: modo,
-        etapa: "master", autorizado, observacao, indent, pos_x: pos.x, pos_y: pos.y,
-        unidade_negocio: doc.unidade_negocio || "", operacao: doc.operacao || "",
-        status: "assinado", data_assinatura: new Date().toISOString(),
-      });
-      const newMap = { ...signedMap, [currentIndex]: rec };
-      setSignedMap(newMap);
-      setSigs((prev) => [rec, ...prev.map((s) => s.id === currentSig.id ? { ...s, arquivo_url: stampedUrl } : s)]);
-      setObservacao(""); setIndent(0); setAutorizado(false); setCritica(false);
-      if (diretorIdentificado) {
-        setNome(diretorIdentificado);
-        const norm = (s) => (s || "").trim().toUpperCase();
-        const cadDir = cadastros.find((x) => norm(x.nome) === norm(diretorIdentificado) && x.tipo === "diretoria");
-        if (cadDir) setCadastroId(cadDir.id);
-        const comImagem = cadastros.find((x) => norm(x.nome) === norm(diretorIdentificado) && x.imagem_assinatura);
-        if (comImagem) { setImagemUpload(comImagem.imagem_assinatura); setModo("uploadada"); } else { setImagemUpload(""); }
-        setPos({ x: 75, y: 92 });
-      } else { setImagemUpload(""); setCadastroId(""); setNome(""); setPos({ x: 3, y: 90 }); }
-      const allDone = arquivos.every((_, i) => newMap[i]);
-      if (allDone) {
-        await base44.entities.Documento.update(id, { status: "assinado_diretoria", pasta: "assinados" });
-        setDoc((d) => ({ ...d, status: "assinado_diretoria", pasta: "assinados" }));
-        toast({ title: "Todos os arquivos assinados pela diretoria", description: "Envelope concluído." });
-        // Extrai dados das NFs para o módulo de relatórios (nao bloqueia o fluxo)
-        base44.functions.invoke("extrairDadosNF", { documento_id: id, ...identidadeAtual() }).catch(() => {});
-      } else {
-        let next = -1;
-        for (let step = 1; step <= arquivos.length; step++) {
-          const idx = (currentIndex + step) % arquivos.length;
-          if (!newMap[idx]) { next = idx; break; }
-        }
-        if (next !== -1) setCurrentIndex(next);
-        toast({ title: "Arquivo assinado", description: "Avançando para o próximo arquivo." });
-      }
-    } catch { toast({ title: "Erro ao registrar assinatura", variant: "destructive" }); }
-    finally { setSaving(false); }
-  };
+  const assinarArquivo = () => assinarPaginas([currentIndex]);
 
   const aposRecusa = (atualizado) => {
     setDoc(atualizado);
     const restantes = assinaturasGestaoAtivas(atualizado, sigs);
     const map = {};
     restantes.forEach((g, i) => {
-      const master = sigs.find((s) => s.etapa === "master" && s.arquivo_original_url === g.arquivo_original_url);
+      const alvo = chaveArquivo(g.arquivo_original_url || g.arquivo_url);
+      const master = sigs.find((s) => s.etapa === "master" && alvo && (chaveArquivo(s.arquivo_original_url) === alvo || chaveArquivo(s.arquivo_url) === alvo));
       if (master) map[i] = master;
     });
     setSignedMap(map);
@@ -636,6 +602,11 @@ export default function AssinarDiretoria() {
                       <Textarea id="obs" ref={obsRef} value={observacao} disabled={autorizado} onChange={(e) => { setObservacao(e.target.value); if (e.target.value.trim()) setCritica(false); }} rows={2} style={{ paddingLeft: 8 + indent * 14 }} placeholder="Observação da assinatura da diretoria" />
                     </div>
                     <Button type="button" disabled={saving} onClick={assinarArquivo} className="w-full gap-2">{saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />} Assinar este arquivo e avançar</Button>
+                    {pendentesCount > 1 && (
+                      <Button type="button" variant="secondary" disabled={saving} onClick={assinarTodasPendentes} className="w-full gap-2">
+                        {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Layers className="w-4 h-4" />} Assinar todas as páginas pendentes ({pendentesCount})
+                      </Button>
+                    )}
                     {loteAtual && loteAtual.arquivos.length > 1 && (
                       <Button type="button" variant="secondary" disabled={saving} onClick={assinarLote} className="w-full gap-2">
                         {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Layers className="w-4 h-4" />} Carimbar todo o lote ({loteAtual.arquivos.length} arquivos)
