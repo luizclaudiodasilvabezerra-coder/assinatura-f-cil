@@ -110,7 +110,12 @@ export const podeEditarAtividadesConcluidos = (user, tipo) => podeAcessarConclui
 
 // Cadastros: acesso exclusivo do administrador (desenvolvedor) do app
 export const podeVerCadastros = (user) => getPermissoes(user)?.tipo === "admin";
-export const podeVerLog = (user) => getPermissoes(user)?.tipo === "admin";
+// Sem acesso ao Log interno, mantendo hierarquia e visão atuais
+const SEM_LOG = ["luiz.dias@logmam.com.br"];
+export const podeVerLog = (user) => {
+  if (SEM_LOG.includes(norm(user?.email))) return false;
+  return getPermissoes(user)?.tipo === "admin";
+};
 export const podeVerRelatorios = (user) => !!getPermissoes(user);
 
 // Etapas visíveis no painel

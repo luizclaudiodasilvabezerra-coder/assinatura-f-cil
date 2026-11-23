@@ -17,7 +17,7 @@ import { dataURLToFile, formatDate } from "@/lib/signatureUtils";
 import { base64ToBlob, baixarEnvelopePdf, baixarArquivoPdf } from "@/lib/pdfDownload";
 import { identificarDiretoria, diretoriaDoMembro, SENHA_MASTER_RECUSA } from "@/lib/acessos";
 import { useAuth } from "@/lib/AuthContext";
-import { getPermissoes, nomeDoUsuario, nomeExibicao, diretoriaDoUsuario, somenteVisualizaPainel } from "@/lib/permissoes";
+import { getPermissoes, nomeDoUsuario, nomeExibicao, diretoriaDoUsuario, somenteVisualizaPainel, podeVerLog } from "@/lib/permissoes";
 import { loteDoArquivo, carimbarEUploadar } from "@/lib/carimbarLote";
 import LoteFolders from "@/components/LoteFolders";
 import { assinaturasGestaoAtivas } from "@/lib/fluxoAssinatura";
@@ -478,7 +478,7 @@ export default function AssinarDiretoria() {
             </div>
           </div>
           <div className="flex justify-center gap-3">
-            <Button asChild variant="outline"><Link to="/log">Ver log</Link></Button>
+            {podeVerLog(user) && <Button asChild variant="outline"><Link to="/log">Ver log</Link></Button>}
             <Button asChild><Link to="/">Painel</Link></Button>
           </div>
         </motion.div>

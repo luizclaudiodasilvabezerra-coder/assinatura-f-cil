@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from "react";
-import { Link } from "react-router-dom";
+import { Link, Navigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { base44 } from "@/api/base44Client";
 import { Card, CardContent } from "@/components/ui/card";
@@ -7,8 +7,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ArrowLeft, Search, PenLine, Loader2 } from "lucide-react";
 import { formatDateTime } from "@/lib/signatureUtils";
+import { useAuth } from "@/lib/AuthContext";
+import { podeVerLog } from "@/lib/permissoes";
 
 export default function LogAssinaturas() {
+  const { user } = useAuth();
   const [assinaturas, setAssinaturas] = useState([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
@@ -34,6 +37,9 @@ export default function LogAssinaturas() {
         a.assinante_email?.toLowerCase().includes(q)
     );
   }, [assinaturas, query]);
+
+  // Log interno: restrito a quem tem permissão (sem acesso para Luiz Dias)
+  if (!podeVerLog(user)) return <Navigate to="/" replace />;
 
   return (
     <div className="min-h-screen bg-background">

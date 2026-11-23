@@ -16,7 +16,7 @@ import EnvelopeRecusado from "@/components/EnvelopeRecusado";
 import { dataURLToFile, formatDate } from "@/lib/signatureUtils";
 import { base64ToBlob, baixarEnvelopePdf, baixarArquivoPdf } from "@/lib/pdfDownload";
 import { validarSenhaGestor, gestorTemSenha, SENHA_MASTER_RECUSA } from "@/lib/acessos";
-import { podeAssinarGestao, somenteConsultaEnvelopes, souSignatarioDeOrigem, temVisaoTotalPainel, participaDoEnvelope, destinatarioComoSignatario, nomeDoUsuario } from "@/lib/permissoes";
+import { podeAssinarGestao, somenteConsultaEnvelopes, souSignatarioDeOrigem, temVisaoTotalPainel, participaDoEnvelope, destinatarioComoSignatario, nomeDoUsuario, podeVerLog } from "@/lib/permissoes";
 import { useAuth } from "@/lib/AuthContext";
 import { loteDoArquivo, carimbarEUploadar } from "@/lib/carimbarLote";
 import LoteFolders from "@/components/LoteFolders";
@@ -530,7 +530,7 @@ export default function AssinarDocumento() {
           </div>
 
           <div className="flex justify-center gap-3">
-            <Button asChild variant="outline"><Link to="/log">Ver log</Link></Button>
+            {podeVerLog(user) && <Button asChild variant="outline"><Link to="/log">Ver log</Link></Button>}
             <Button asChild><Link to="/">Painel</Link></Button>
           </div>
         </motion.div>
