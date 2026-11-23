@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.52';
+import { PDFDocument } from 'npm:@cantoo/pdf-lib@2.11.1';
 import { bytesToBase64 } from '../../shared/pdfUtils.ts';
 import { carregarPdf, salvarPdf } from '../../shared/carimboPdf.ts';
 import { assinaturaDaPagina, buscarAssinaturasAtivas, etapaGestao } from '../../shared/fluxoEnvelope.ts';
@@ -19,7 +20,7 @@ export default async function(req) {
     const signatario = (envelope.arquivos || []).map((url) => assinaturaDaPagina(sigs, url, 'master') || assinaturaDaPagina(sigs, url, etapaGestao(envelope)) || { arquivo_url: url });
     if (!signatario.length) return Response.json({ error: 'Nenhum arquivo ativo encontrado' }, { status: 404 });
 
-    const merged = await (await import('npm:pdf-lib@1.17.1')).PDFDocument.create();
+    const merged = await PDFDocument.create();
     const ignorados = [];
     for (const s of signatario) {
       try {
