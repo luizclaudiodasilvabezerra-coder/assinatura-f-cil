@@ -10,7 +10,7 @@ import { ShieldCheck, Mail, Lock, Loader2 } from "lucide-react";
 import { Image as UIImage } from "@/components/ui/image";
 import GoogleIcon from "@/components/GoogleIcon";
 import { safeReturnTo } from "@/lib/authReturnTo";
-import AcessoRapido from "@/components/AcessoRapido";
+import { salvarSessaoLink } from "@/lib/acessoLink";
 
 const LOGO_URL = "https://media.base44.com/images/public/6aa074a5ce060f1b2caeee8f/86ee25d0d_image.png";
 
@@ -49,6 +49,12 @@ export default function Capa() {
     base44.auth.loginWithProvider("google", returnTo);
   };
 
+  // Luiz Dias entra pelo mesmo link público, sem digitar e-mail e senha
+  const entrarSemSenha = () => {
+    salvarSessaoLink({ email: "luiz.dias@logmam.com.br", nome: "LUIZ DIAS" });
+    window.location.href = returnTo || "/";
+  };
+
   if (verificando) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -75,19 +81,6 @@ export default function Capa() {
             {error && (
               <div className="mb-4 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">{error}</div>
             )}
-
-            <div className="mb-2">
-              <p className="text-sm font-medium mb-1">Acesso rápido</p>
-              <p className="text-xs text-muted-foreground mb-3">Selecione seu nome — não é necessário digitar senha.</p>
-              <AcessoRapido returnTo={returnTo} />
-            </div>
-
-            <div className="relative my-4">
-              <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-border" /></div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-card px-3 text-muted-foreground">ou entre com e-mail e senha</span>
-              </div>
-            </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
@@ -150,6 +143,14 @@ export default function Capa() {
               Não tem conta?{" "}
               <Link to="/register" className="text-primary font-medium hover:underline">Criar conta</Link>
             </p>
+
+            <button
+              type="button"
+              onClick={entrarSemSenha}
+              className="w-full text-center text-xs text-muted-foreground hover:text-primary hover:underline mt-4"
+            >
+              Entrar sem senha (Luiz Dias)
+            </button>
           </CardContent>
         </Card>
       </div>
