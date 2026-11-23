@@ -19,6 +19,7 @@ import DiretoriaBanner from "@/components/DiretoriaBanner";
 import GestorBanner from "@/components/GestorBanner";
 import PastaRecusados from "@/components/PastaRecusados";
 import ColunasCategorias from "@/components/ColunasCategorias";
+import UsuarioIdentificado from "@/components/UsuarioIdentificado";
 import { stageStyles, stageLabel } from "@/lib/stageStyles";
 import { encaminharEnvelope, etapaGestao } from "@/lib/fluxoAssinatura";
 
@@ -281,6 +282,9 @@ export default function Home() {
             {podeAcessarConcluidos(user, "fiscal") && <Button asChild variant="outline"><Link to="/concluidos/fiscal" className="gap-2"><CheckCircle2 className="w-4 h-4" /> Concl. Fiscal</Link></Button>}
             {podeAcessarConcluidos(user, "abastecimento") && <Button asChild variant="outline"><Link to="/concluidos/abastecimento" className="gap-2"><CheckCircle2 className="w-4 h-4" /> Concl. Abastecimento</Link></Button>}
             {podeCriarEnvelope(user) && <Button asChild><Link to="/novo" className="gap-2"><Plus className="w-4 h-4" /> Novo envelope</Link></Button>}
+            <div className="flex items-center">
+              <UsuarioIdentificado />
+            </div>
           </div>
         </header>
 
