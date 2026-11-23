@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AlertCircle, LogIn, Mail } from "lucide-react";
-import { EMAILS_AUTORIZADOS, isEmailAutorizado } from "@/lib/allowlist";
+import { isEmailAutorizado } from "@/lib/allowlist";
 import { nomeDoUsuario } from "@/lib/permissoes";
 import { salvarSessaoLink } from "@/lib/acessoLink";
 
@@ -36,7 +36,6 @@ export default function IdentificacaoEmail({ returnTo = "/" }) {
           <Input
             id="email-identificacao"
             type="email"
-            list="emails-autorizados"
             autoComplete="email"
             autoFocus
             placeholder="seu@logmam.com.br"
@@ -45,11 +44,6 @@ export default function IdentificacaoEmail({ returnTo = "/" }) {
             className="pl-10 h-12"
             required
           />
-          <datalist id="emails-autorizados">
-            {EMAILS_AUTORIZADOS.map((item) => (
-              <option key={item} value={item}>{nomeDoUsuario({ email: item }) || item}</option>
-            ))}
-          </datalist>
         </div>
       </div>
 
