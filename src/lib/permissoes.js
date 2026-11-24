@@ -15,6 +15,8 @@ const EMAIL_PARA_NOME = {
   "jordan@logmam.com.br": "DILSON JORDAN",
   "luiz.bezerra@logmam.com.br": "LUIZ CLAUDIO BEZERRA",
   "thiago.souza@logmam.com.br": "THIAGO SOUZA",
+  "luizclaudiodasilvabezerra@gmail.com": "LUIZ CLAUDIO BEZERRA",
+  "admlogmam@gmail.com": "LUIZ CLAUDIO BEZERRA",
 };
 
 // Permissões por e-mail
@@ -27,6 +29,8 @@ const PERMISSOES = {
   "gilmar@logmam.com.br": { tipo: "gestor", podeVerRecusados: true },
   // Luiz Claudio Bezerra: acesso a todos os módulos e funcionalidades (mesmo nível do administrador)
   "luiz.bezerra@logmam.com.br": { tipo: "admin" },
+  "luizclaudiodasilvabezerra@gmail.com": { tipo: "admin" },
+  "admlogmam@gmail.com": { tipo: "admin" },
   "ana@logmam.com.br": { tipo: "gestor", podeCriarEnvelope: true },
   "anderson.duque@logmam.com.br": { tipo: "gestor", podeCriarEnvelope: true },
   "matheus.santos@logmam.com.br": { tipo: "gestor", podeCriarEnvelope: true },

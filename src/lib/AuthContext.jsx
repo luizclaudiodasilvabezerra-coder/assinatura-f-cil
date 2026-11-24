@@ -1,6 +1,7 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import { lerSessaoLink, limparSessaoLink, usuarioDaSessaoLink } from '@/lib/acessoLink';
+import { getPermissoes } from '@/lib/permissoes';
 
 const AuthContext = createContext();
 
@@ -74,7 +75,15 @@ export const AuthProvider = ({ children }) => {
 
   const checkUserAuth = async () => {
     // Sem senha: a sessão válida é a identificação por e-mail salva no navegador.
-    const linkUser = usuarioDaSessaoLink(lerSessaoLink());
+    let linkUser = usuarioDaSessaoLink(lerSessaoLink());
+    // Conta administradora da plataforma mantém a visão geral mesmo quando o e-mail
+    // identificado ainda não tem um perfil mapeado nas permissões do app.
+    if (linkUser && !getPermissoes(linkUser)) {
+      try {
+        const me = await base44.auth.me();
+        if (me?.role === 'admin') linkUser = { ...linkUser, role: 'admin' };
+      } catch {}
+    }
     setUser(linkUser);
     setIsAuthenticated(!!linkUser);
     setIsLoadingAuth(false);
