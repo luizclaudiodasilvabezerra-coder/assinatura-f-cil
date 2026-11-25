@@ -226,6 +226,27 @@ export default function AssinarDocumento() {
     else { setAutorizado(false); setObservacao(""); }
   };
 
+  // Todas as páginas assinadas: o envelope segue sozinho para a próxima etapa.
+  // Signatário de origem (ex.: Matheus) → Joselio Serur; gestor → diretoria.
+  const finalizarEtapa = async (mapa) => {
+    if (origemAtor) return false;
+    if (!arquivos.length || !arquivos.every((_, i) => mapa[i])) return false;
+    setEnviando(true);
+    try {
+      const atualizado = await encaminharEnvelope(id);
+      setDoc(atualizado);
+      toast({
+        title: destinoGestor ? "Enviado para Joselio Serur" : "Enviado para a diretoria",
+        description: destinoGestor ? "Aguardando assinatura e autorização do gestor." : "Aguardando assinatura da diretoria.",
+      });
+      navigate("/");
+      return true;
+    } catch (e) {
+      toast({ title: "Assinatura concluída", description: e.message, variant: "destructive" });
+      return false;
+    } finally { setEnviando(false); }
+  };
+
   const assinarArquivo = async () => {
     if (!assinanteNome.trim()) { toast({ title: "Selecione ou informe o nome do assinante", variant: "destructive" }); return; }
     if (hierarquico && assinanteNome.trim().toUpperCase() !== (responsavelEtapa || "").trim().toUpperCase()) { toast({ title: "Assine com o responsável desta etapa", variant: "destructive" }); return; }
@@ -292,14 +313,13 @@ export default function AssinarDocumento() {
       await assumirTitularidade();
       const next = findNextUnsigned(currentIndex, newMap);
       if (next === -1) {
-        if (origemAtor) {
-          toast({ title: "Sua etapa está assinada", description: "O envelope segue com Joselio Serur para autorização e assinatura." });
-        } else if (doc.status === "pendente_gestao") {
+        if (!origemAtor && doc.status === "pendente_gestao") {
           await base44.entities.Documento.update(id, { status: "assinado_gestao" });
           setDoc((d) => ({ ...d, status: "assinado_gestao" }));
-          toast({ title: "Todas as páginas assinadas", description: destinoGestor ? "Envelope pronto para enviar a Joselio Serur." : "Envelope pronto para enviar à diretoria." });
-        } else {
-          toast({ title: "Arquivos restantes assinados", description: "O envelope já está com a diretoria." });
+        }
+        const enviado = await finalizarEtapa(newMap);
+        if (!enviado && !origemAtor) {
+          toast({ title: "Todas as páginas assinadas", description: destinoGestor ? "Envie o envelope a Joselio Serur." : "Envie o envelope à diretoria." });
         }
       } else {
         setCurrentIndex(next);
@@ -373,16 +393,18 @@ export default function AssinarDocumento() {
 
     await assumirTitularidade();
     const allDone = arquivos.every((_, i) => newMap[i]);
-    if (allDone && origemAtor) {
-      toast({ title: `Lote assinado: ${ok} arquivo(s)`, description: "O envelope segue com Joselio Serur para autorização e assinatura." });
-    } else if (allDone && doc.status === "pendente_gestao") {
+    if (allDone && !origemAtor && doc.status === "pendente_gestao") {
       await base44.entities.Documento.update(id, { status: "assinado_gestao" });
       setDoc((d) => ({ ...d, status: "assinado_gestao" }));
-      toast({ title: `Lote carimbado: ${ok} arquivo(s)`, description: destinoGestor ? "Envie o envelope a Joselio Serur." : "Envie o envelope à diretoria." });
-    } else {
+    }
+    const enviado = allDone ? await finalizarEtapa(newMap) : false;
+    if (!enviado) {
       const next = arquivos.findIndex((_, i) => !newMap[i]);
       if (next >= 0) setCurrentIndex(next);
-      toast({ title: `Lote carimbado: ${ok} arquivo(s) assinado(s)${falhou ? `, ${falhou} falha(s)` : ""}` });
+      toast({
+        title: `Lote carimbado: ${ok} arquivo(s) assinado(s)${falhou ? `, ${falhou} falha(s)` : ""}`,
+        description: allDone ? (origemAtor ? "O envelope segue com Joselio Serur para autorização e assinatura." : destinoGestor ? "Envie o envelope a Joselio Serur." : "Envie o envelope à diretoria.") : undefined,
+      });
     }
     setSaving(false);
   };

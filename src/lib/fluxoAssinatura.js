@@ -45,9 +45,14 @@ export const assinaturasGestaoAtivas = (doc, sigs) => (doc?.arquivos || []).map(
 )).filter(Boolean);
 export const mapaAssinaturas = (doc, sigs, etapaForcada) => {
   const etapaAlvo = etapaForcada || etapaGestao(doc);
+  // Envelope com signatário de origem (ex.: Matheus): a assinatura dele pode estar gravada
+  // como "gestao_origem" ou "signatario" — as duas contam para a página.
+  const etapas = signatarioRedirecionado(doc?.signatario_nome)
+    ? [etapaAlvo, etapaAlvo === "gestao_origem" ? "signatario" : "gestao_origem"]
+    : [etapaAlvo];
   const map = {};
   (doc?.arquivos || []).forEach((url, i) => {
-    const sig = sigs.find((s) => (s.etapa || "signatario") === etapaAlvo && s.status === "assinado" &&
+    const sig = sigs.find((s) => etapas.includes(s.etapa || "signatario") && s.status === "assinado" &&
       s.arquivo_url && mesmaPagina(s, url) && !s.observacao?.startsWith("Assinatura automática") &&
       valeParaGestor(doc, s, etapaAlvo));
     if (sig) map[i] = sig;

@@ -73,7 +73,14 @@ export const exigirAssinaturas = (doc, sigs, parcial) => {
   // Quando o gestor é Joselio, só a autorização dele conclui a página: a assinatura
   // do signatário de origem na mesma etapa não pode ser aceita como autorização.
   const sigsValidas = gestorAutoriza ? sigs.filter((s) => ehDoGestorAtual(doc, s)) : sigs;
-  const completos = (doc.arquivos || []).map((url) => assinaturaDaPagina(sigsValidas, url, etapa));
+  // Envelope ainda com o signatário de origem (ex.: Matheus): a assinatura dele pode ter sido
+  // gravada como "gestao_origem" ou "signatario" (versões diferentes do app), então aceitamos as duas.
+  const etapasAceitas = signatarioRedirecionado(doc.signatario_nome)
+    ? [etapa, etapa === 'gestao_origem' ? 'signatario' : 'gestao_origem']
+    : [etapa];
+  const completos = (doc.arquivos || []).map((url) =>
+    etapasAceitas.map((e) => assinaturaDaPagina(sigsValidas, url, e)).find(Boolean)
+  );
   const autorizadoNaPagina = (s) => !!s?.autorizado || !!(s?.observacao || '').trim().startsWith('Autorizado');
   if (!completos.length || !completos.some(Boolean) ||
     ((!parcial || hierarquico) && completos.some((s) => !s || (!gestorAutoriza && !(s.observacao || '').trim())))) {
